@@ -113,7 +113,7 @@ SENTRY_WEB_OPTIONS = {
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
-CSRF_TRUSTED_ORIGINS = ["https://sentry.albandrieu.com"]
+CSRF_TRUSTED_ORIGINS = ["https://sentry.int.albandrieu.com"]
 
 SENTRY_OPTIONS["mail.backend"] = "dummy"
 SENTRY_OPTIONS["mail.from"] = "sentry@localhost"

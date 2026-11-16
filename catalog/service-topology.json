@@ -2838,7 +2838,7 @@
       "kind": "error-tracking",
       "category": "observability",
       "sourcePath": "apps/sentry/compose.yml",
-      "url": "https://sentry.albandrieu.com",
+      "url": "https://sentry.int.albandrieu.com",
       "description": "Self-hosted Sentry 26.8 errors-only application service.",
       "presentationRole": "service",
       "criticality": "high",
@@ -2893,7 +2893,8 @@
         "containerService": "nginx",
         "networks": [
           "intranet",
-          "sentry"
+          "sentry",
+          "traefik_network"
         ]
       },
       "monitoring": {

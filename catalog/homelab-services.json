@@ -527,8 +527,6 @@
       "internalHost": "172.17.0.24",
       "internalPort": 4000,
       "internalSecure": false,
-      "tunnelUrl": "https://litellm.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
       "external": false
     },

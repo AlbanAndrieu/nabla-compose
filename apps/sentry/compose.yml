@@ -3,7 +3,8 @@ name: sentry
 x-sentry-env: &sentry-env
   COMPOSE_PROFILES: errors-only
   SENTRY_CONF: /etc/sentry
-  SENTRY_SYSTEM_URL_PREFIX: https://sentry.albandrieu.com
+  # LAN-only since 16/11/2026: the public sentry.albandrieu.com route is retired.
+  SENTRY_SYSTEM_URL_PREFIX: https://sentry.int.albandrieu.com
   SENTRY_EVENT_RETENTION_DAYS: "90"
   SENTRY_POSTGRES_HOST: 172.17.0.24
   SENTRY_POSTGRES_PORT: "5432"
@@ -363,7 +364,7 @@ services:
       category: observability
       presentationRole: service
       criticality: high
-      url: https://sentry.albandrieu.com
+      url: https://sentry.int.albandrieu.com
       description: Self-hosted Sentry 26.8 errors-only application service.
       runtime:
         provider: truenas-app
@@ -625,6 +626,13 @@ services:
     image: nginx:1.31.3-alpine
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-edge
+      # LAN HTTPS name; pihole-dns-sync publishes it in the private *.int zone.
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.sentry.rule: Host(`sentry.int.albandrieu.com`)
+      traefik.http.routers.sentry.entrypoints: websecure
+      traefik.http.routers.sentry.tls.certresolver: letsencrypt
+      traefik.http.services.sentry.loadbalancer.server.port: "80"
     x-nabla:
       id: sentry-edge
       name: Sentry Edge
@@ -683,6 +691,7 @@ services:
       intranet:
         gw_priority: 1
       sentry:
+      traefik_network:
 
 networks:
   sentry:
@@ -690,3 +699,6 @@ networks:
   intranet:
     external: true
     name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network
