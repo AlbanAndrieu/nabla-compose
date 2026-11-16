@@ -1,6 +1,14 @@
 ---
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   suricata:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/suricata
     image: jasonish/suricata:8.0.6

@@ -33,8 +33,16 @@ x-nabla:
       description: Cloudflare Tunnel is planned to forward openwebui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.
       evidence:
         - apps/openwebui/compose.yml:ports
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   openwebui:
+    logging: *nabla-logging
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: openwebui
     restart: unless-stopped

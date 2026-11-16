@@ -1,7 +1,15 @@
 ---
 name: clickhouse
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   clickhouse:
+    logging: *nabla-logging
     image: docker.io/clickhouse/clickhouse-server:26.8.2.7
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/clickhouse

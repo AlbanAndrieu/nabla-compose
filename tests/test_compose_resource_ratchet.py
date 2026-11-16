@@ -1,9 +1,9 @@
-"""Services without a memory limit or log rotation may only decrease.
+"""Every service rotates its logs; services without a memory limit may only decrease.
 
-TrueNAS performance plan of 16/11 (docs/roadmap.md, items 6 and 8): limits
-come from memory.peak x 1.5. Docker keeps json-file logs without rotation on
-TrueNAS, so each new service must set both. Lower the ceilings when you fix
-an existing service.
+TrueNAS performance plan of 16/11 (docs/roadmap.md, items 6 and 8): Docker
+keeps json-file logs without rotation on TrueNAS, so each file shares the
+`x-logging: &nabla-logging` anchor. Memory limits come from memory.peak x 1.5;
+lower the ceiling when you cap an existing service.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_WITHOUT_MEMORY_LIMIT = 132
-MAX_WITHOUT_LOG_ROTATION = 151
 
 
 def _services() -> list[dict]:
@@ -38,6 +37,6 @@ def test_services_without_memory_limit_do_not_grow():
     assert len(missing) <= MAX_WITHOUT_MEMORY_LIMIT
 
 
-def test_services_without_log_rotation_do_not_grow():
+def test_every_service_rotates_its_logs():
     missing = [s for s in _services() if not s.get("logging", {}).get("options", {}).get("max-size")]
-    assert len(missing) <= MAX_WITHOUT_LOG_ROTATION
+    assert not missing

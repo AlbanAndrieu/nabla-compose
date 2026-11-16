@@ -1,7 +1,15 @@
 ---
 name: autoxpose
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   autoxpose:
+    logging: *nabla-logging
     image: mostafawahied/autoxpose:0.4.2
     container_name: autoxpose
     x-nabla:

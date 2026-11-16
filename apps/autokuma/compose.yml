@@ -1,8 +1,16 @@
 ---
 name: autokuma
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   autokuma:
+    logging: *nabla-logging
     image: ghcr.io/bigboot/autokuma:2.0.0
     container_name: autokuma
     labels:

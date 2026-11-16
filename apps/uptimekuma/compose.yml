@@ -1,8 +1,16 @@
 ---
 name: uptimekuma
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   uptimekuma:
+    logging: *nabla-logging
     image: louislam/uptime-kuma:2.5.10-rootless
     container_name: uptimekuma
     labels:

@@ -1,7 +1,15 @@
 ---
 name: netbox
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   netbox:
+    logging: *nabla-logging
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox
     restart: unless-stopped
@@ -88,6 +96,7 @@ services:
           backendPort: web
 
   netbox-worker:
+    logging: *nabla-logging
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox-worker
     restart: unless-stopped
@@ -132,6 +141,7 @@ services:
             - apps/netbox/compose.yml:netbox-worker
 
   netbox-housekeeping:
+    logging: *nabla-logging
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox-housekeeping
     restart: unless-stopped

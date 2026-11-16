@@ -1,8 +1,16 @@
 ---
 name: nginx
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   nginx:
+    logging: *nabla-logging
     image: nginx:1-alpine
     container_name: nginx
     x-nabla:

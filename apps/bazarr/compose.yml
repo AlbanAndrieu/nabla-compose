@@ -3,8 +3,16 @@
 # Design and acceptance: docs/arr-media-library-roadmap.md
 name: bazarr
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   bazarr:
+    logging: *nabla-logging
     image: ghcr.io/linuxserver/bazarr:1.6.2@sha256:7ef0e58216900dbce30b123e0eb65f5cb30e36f126de9474acdd2022fb069c54
     container_name: bazarr
     restart: unless-stopped
@@ -94,6 +102,7 @@ services:
       - traefik_network
 
   bazarr-exporter:
+    logging: *nabla-logging
     image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
     container_name: bazarr-exporter
     restart: unless-stopped

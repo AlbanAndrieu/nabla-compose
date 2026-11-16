@@ -1,7 +1,15 @@
 ---
 name: ollama
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   ollama:
+    logging: *nabla-logging
     image: docker.io/ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped

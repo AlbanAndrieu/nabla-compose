@@ -4,8 +4,16 @@
 # Design and acceptance: docs/arr-media-library-roadmap.md
 name: jellyfin
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   jellyfin:
+    logging: *nabla-logging
     image: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
     container_name: jellyfin
     restart: unless-stopped

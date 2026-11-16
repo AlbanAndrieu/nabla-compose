@@ -1,7 +1,15 @@
 ---
 name: pihole
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   pihole:
+    logging: *nabla-logging
     image: docker.io/pihole/pihole:2026.07.2
     container_name: pihole
     restart: unless-stopped
@@ -66,6 +74,7 @@ services:
       start_period: 60s
 
   pihole-dns-sync:
+    logging: *nabla-logging
     image: ghcr.io/cajuclc/traefik-pihole-sync:v0.0.1
     container_name: pihole-dns-sync
     labels:
@@ -120,6 +129,7 @@ services:
       - intranet
 
   pihole-exporter:
+    logging: *nabla-logging
     image: docker.io/ekofr/pihole-exporter:latest
     container_name: pihole-exporter
     labels:

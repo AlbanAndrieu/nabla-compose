@@ -15,8 +15,16 @@ x-nabla:
         port: 443
         target: tcp://82.66.4.247:443
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   traefik:
+    logging: *nabla-logging
     image: docker.io/traefik:v3.7.0
     container_name: traefik
     restart: unless-stopped
@@ -151,6 +159,7 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
 
   cloudflare-ddns:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/traefik-cloudflare-ddns
     image: favonia/cloudflare-ddns:1
@@ -198,6 +207,7 @@ services:
   #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
   dnsupdater:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/traefik-dnsupdater
     # Legacy Traefik -> Cloudflare companion. Keep it from owning records that

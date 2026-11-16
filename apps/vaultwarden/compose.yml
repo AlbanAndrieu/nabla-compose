@@ -5,8 +5,16 @@ x-nabla:
     probePolicy:
       rank: 6
       primaryEndpoint: component:default/vaultwarden
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   vaultwarden:
+    logging: *nabla-logging
     image: vaultwarden/server:1.37.3
     container_name: vaultwarden
     labels:
@@ -91,6 +99,7 @@ services:
   # BW_CLIENTID/BW_CLIENTSECRET/BW_PASSWORD are bootstrap secrets and cannot be
   # fetched from the same Vaultwarden session they are required to unlock.
   bitwarden-api:
+    logging: *nabla-logging
     image: ghcr.io/kimdre/bitwarden-rest-api-server:latest
     container_name: bitwarden-api
     labels:

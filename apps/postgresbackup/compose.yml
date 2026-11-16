@@ -9,8 +9,16 @@ name: postgresbackup
 # The image is the server image at the same digest, so client and server
 # versions always match. Point-in-time recovery is deliberately out of scope
 # (pgBackRest once PostgreSQL itself is a repository-managed Custom App).
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   postgresbackup:
+    logging: *nabla-logging
     image: postgres:18.6-trixie@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
     container_name: postgresbackup
     restart: "no"

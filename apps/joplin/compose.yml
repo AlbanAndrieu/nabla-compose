@@ -1,7 +1,15 @@
 ---
 name: joplin
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   joplin:
+    logging: *nabla-logging
     image: joplin/server:3.7.3@sha256:d951ce50b6d3d542393ebc4d08bd62d9a4fb0a6f6827abb861726c83560ecf97
     container_name: joplin
     restart: unless-stopped

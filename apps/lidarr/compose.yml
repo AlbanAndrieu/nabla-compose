@@ -3,8 +3,16 @@
 # Design and acceptance: docs/arr-media-library-roadmap.md
 name: lidarr
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   lidarr:
+    logging: *nabla-logging
     image: ghcr.io/linuxserver/lidarr:3.1.6@sha256:d5707cfe084da21a3864c7ef0edd9c0543b5e26c79c551f84dad5ef8683af8c7
     container_name: lidarr
     restart: unless-stopped
@@ -106,6 +114,7 @@ services:
       - traefik_network
 
   lidarr-exporter:
+    logging: *nabla-logging
     image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
     container_name: lidarr-exporter
     restart: unless-stopped

@@ -3,8 +3,16 @@
 # Design and acceptance: docs/arr-media-library-roadmap.md
 name: sonarr
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   sonarr:
+    logging: *nabla-logging
     image: ghcr.io/linuxserver/sonarr:4.0.20@sha256:673dc4609a5672bc8e46069c86ffcea283a86b48d34a6c93d8da8c24a1b87571
     container_name: sonarr
     restart: unless-stopped
@@ -106,6 +114,7 @@ services:
       - traefik_network
 
   sonarr-exporter:
+    logging: *nabla-logging
     image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
     container_name: sonarr-exporter
     restart: unless-stopped

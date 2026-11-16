@@ -1,8 +1,16 @@
 ---
 name: opencre
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   opencre:
+    logging: *nabla-logging
     image: ${OPENCRE_IMAGE:-ghcr.io/owasp/opencre/opencre:latest}
     container_name: opencre
     restart: unless-stopped

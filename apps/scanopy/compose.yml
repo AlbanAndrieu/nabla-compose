@@ -1,7 +1,15 @@
 ---
 name: scanopy
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   scanopy-daemon:
+    logging: *nabla-logging
     image: ghcr.io/scanopy/scanopy/daemon:v0.19.5@sha256:6b1acbde375dd2306aca6eba9388a94b7b28fb66eca46ffe484d4ce487b1d4c6
     container_name: scanopy-daemon
     # 17 zombies under scanopy, litellm and ntopng on 16/11: tini reaps them.
@@ -50,6 +58,7 @@ services:
       # through docker-socket-proxy, configured as a credential in the Scanopy UI.
 
   scanopy:
+    logging: *nabla-logging
     image: ghcr.io/scanopy/scanopy/server:v0.19.5@sha256:ec6a9b23af5094c009cb61d3078b4ba25c01471c9c3a126566b735b5df9cee3f
     container_name: scanopy
     # 17 zombies under scanopy, litellm and ntopng on 16/11: tini reaps them.

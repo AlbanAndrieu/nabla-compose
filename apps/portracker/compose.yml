@@ -1,7 +1,15 @@
 ---
 name: portracker
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   portracker:
+    logging: *nabla-logging
     image: mostafawahied/portracker:latest
     container_name: portracker
     x-nabla:

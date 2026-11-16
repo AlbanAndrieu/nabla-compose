@@ -1,7 +1,15 @@
 ---
 name: graylog
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   graylog:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/graylog
     image: docker.io/graylog/graylog:6.3.15

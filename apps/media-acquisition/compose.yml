@@ -14,8 +14,16 @@ x-nabla:
         External WireGuard VPN provider (P2P servers with NAT-PMP port
         forwarding). Only the media-acquisition namespace egresses through it.
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   gluetun:
+    logging: *nabla-logging
     image: ghcr.io/qdm12/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
     container_name: gluetun
     restart: unless-stopped
@@ -109,6 +117,7 @@ services:
       - traefik_network
 
   qbittorrent:
+    logging: *nabla-logging
     image: ghcr.io/linuxserver/qbittorrent:5.3.0@sha256:05c1454f9a32967affc1f34f67f8cc0cc57dd805dca45489fe797095a6286556
     container_name: qbittorrent
     restart: unless-stopped

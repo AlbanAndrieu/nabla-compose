@@ -27,8 +27,16 @@ x-nabla:
       strength: required
       description: Docker runtime is hosted on the TrueNAS platform.
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   homarr:
+    logging: *nabla-logging
     image: ghcr.io/homarr-labs/homarr:v2.6.0
     container_name: homarr
     labels:
@@ -106,6 +114,7 @@ services:
       - no-new-privileges:true
 
   homarr-sync:
+    logging: *nabla-logging
     # CPython 3.14.9 security patch, Alpine 3.24. Reconciler imports only
     # stdlib modules; full Homarr auth/API staging smoke is required before
     # redeploying this custom App. Never replace base image at runtime.

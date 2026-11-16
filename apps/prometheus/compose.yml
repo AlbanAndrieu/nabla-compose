@@ -4,8 +4,16 @@ x-nabla:
     probePolicy:
       rank: 8
       primaryEndpoint: component:default/prometheus
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   prometheus:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/prometheus
     image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
@@ -94,6 +102,7 @@ services:
     #   - "traefik.http.routers.prometheus-svc.service=prometheus"
 
   node-exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/prometheus-node-exporter
     network_mode: bridge
@@ -115,6 +124,7 @@ services:
     # networks: ["traefik_network"]
 
   alertmanager:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/prometheus-alertmanager
     network_mode: bridge
@@ -168,6 +178,7 @@ services:
   # remove them instead of marking Prometheus CRASHED for optional telemetry.
 
   pfsense-exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/pfsense-exporter
     network_mode: bridge

@@ -7,8 +7,16 @@ x-nabla:
       category: security
       description: Logical Wazuh security platform composed of manager, indexer, dashboard and forwarding workloads.
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   wazuh.manager:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/wazuh-manager
     image: wazuh/wazuh-manager:4.14.7
@@ -108,6 +116,7 @@ services:
           create_host_path: false
 
   wazuh.indexer:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/wazuh-indexer
     image: wazuh/wazuh-indexer:4.14.7
@@ -182,6 +191,7 @@ services:
           create_host_path: false
 
   wazuh.dashboard:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/wazuh-dashboard
     image: wazuh/wazuh-dashboard:4.14.7
@@ -253,6 +263,7 @@ services:
       - wazuh_dashboard_custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
 
   wazuh-forwarder:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/wazuh-forwarder
     profiles:

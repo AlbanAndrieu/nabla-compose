@@ -1,7 +1,15 @@
 ---
 name: nexus
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   nexus:
+    logging: *nabla-logging
     container_name: nexus
     image: sonatype/nexus3:3.92.3-alpine # 3.87.1-01
     x-nabla:

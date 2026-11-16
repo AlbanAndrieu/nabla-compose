@@ -1,7 +1,15 @@
 ---
 name: langflow
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   langflow:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/langflow
     # Shared global Langflow runtime for OpenRAG; this is not a private

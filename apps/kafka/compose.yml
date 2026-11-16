@@ -1,7 +1,15 @@
 ---
 name: kafka
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   kafka:
+    logging: *nabla-logging
     image: confluentinc/cp-kafka:7.6.6
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/kafka
@@ -72,6 +80,7 @@ services:
           - kafka
 
   kafka-exporter:
+    logging: *nabla-logging
     image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
     restart: unless-stopped
     # Last container of the 10/11 zombie sweep still running without a reaper.

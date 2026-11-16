@@ -1,6 +1,14 @@
 ---
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   opensearch-exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/opensearch-exporter
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0
@@ -37,6 +45,7 @@ services:
       - "${OPENSEARCH_EXPORTER_PORT:-9114}:9114"
 
   opensearch-security-exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/opensearch-security-exporter
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0

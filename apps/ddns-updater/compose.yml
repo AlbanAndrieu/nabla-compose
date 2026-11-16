@@ -1,7 +1,15 @@
 ---
 name: ddns-updater
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   ddns-updater:
+    logging: *nabla-logging
     image: ghcr.io/qdm12/ddns-updater:v2.10.0
     container_name: ddns-updater
     x-nabla:

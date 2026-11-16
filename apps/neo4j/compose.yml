@@ -1,8 +1,16 @@
 ---
 name: neo4j
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   neo4j-security:
+    logging: *nabla-logging
     image: ${NEO4J_IMAGE:-neo4j:5-community}
     container_name: neo4j-security
     restart: unless-stopped

@@ -1,7 +1,15 @@
 ---
 name: dependency-track
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   dependency-track-api:
+    logging: *nabla-logging
     image: ${DEPENDENCY_TRACK_API_IMAGE:-dependencytrack/apiserver:latest}
     container_name: dependency-track-api
     restart: unless-stopped
@@ -59,6 +67,7 @@ services:
             - apps/dependency-track/compose.yml:ALPINE_DATABASE_URL
 
   dependency-track:
+    logging: *nabla-logging
     image: ${DEPENDENCY_TRACK_FRONTEND_IMAGE:-dependencytrack/frontend:latest}
     container_name: dependency-track
     restart: unless-stopped
