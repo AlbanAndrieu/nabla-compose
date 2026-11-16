@@ -1,3 +1,37 @@
+# [0.94.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.93.0...0.94.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **catalog:** bind TrueNAS runtimes by App id and probe LanguageTool cheaply ([a57906b](https://github.com/AlbanAndrieu/nabla-compose/commit/a57906b414632993ee3712c3f1acb566c5c340a2))
+* **catalog:** drop the retired *-albandrieu public names ([6688fcc](https://github.com/AlbanAndrieu/nabla-compose/commit/6688fccb309efd936df4f7e0e927ed893f7e6b9c))
+* **catalog:** keep the Home Assistant and lidarr runtime contracts ([0fb133e](https://github.com/AlbanAndrieu/nabla-compose/commit/0fb133e67ec53d77eb58473beaa98c7a430f3272))
+* **catalog:** mark nine undeployed TrueNAS entities as planned ([6520f1d](https://github.com/AlbanAndrieu/nabla-compose/commit/6520f1d85d11d446b702a2f4f2946f1523c7174f))
+* **cloudflare:** refuse bypassed routes without a backend and retire workstation names ([425806e](https://github.com/AlbanAndrieu/nabla-compose/commit/425806e3d0b2f380dda534800888ed59a94fffe5))
+* **compose:** reap zombies in scanopy, litellm and ntopng ([6586431](https://github.com/AlbanAndrieu/nabla-compose/commit/6586431e9b154cafb9c5f1870c6068977a5a0d32))
+* **pfsense,ops:** accept an idle PHP-FPM pool and report cross-script consumers ([18cec99](https://github.com/AlbanAndrieu/nabla-compose/commit/18cec99ea7d67e100c805d03a8b0d7d32b921d22))
+* **plumber:** allow the LAN frontend origin instead of the retired public name ([299393c](https://github.com/AlbanAndrieu/nabla-compose/commit/299393cee396e76ea8dc6e4b81d5924f2779cd9f))
+* **prometheus:** reload rules after the hourly TrueNAS sync ([cba8016](https://github.com/AlbanAndrieu/nabla-compose/commit/cba8016bdb32c7c9b5134ee5f03e46749eb7c2e5))
+* **quality:** restore the executable bit of diagnose-redis.py ([b7f9040](https://github.com/AlbanAndrieu/nabla-compose/commit/b7f9040c9f87aa790d5c4f34a195ac099cfe76e2)), closes [#398](https://github.com/AlbanAndrieu/nabla-compose/issues/398)
+* **talos:** let the CSI resizer read Pods ([2ac2ffe](https://github.com/AlbanAndrieu/nabla-compose/commit/2ac2ffe36fa2b60658033fef306a6e923bada650))
+* **talos:** make the CSI smoke wait for its writer's marker ([6189fe9](https://github.com/AlbanAndrieu/nabla-compose/commit/6189fe9c8c207dc1ca1b06f341b38342b5917619))
+* **truenas:** call vm.stop with midclt --job ([64c9612](https://github.com/AlbanAndrieu/nabla-compose/commit/64c96123aa26d688c4f449fa13418e74eca65d46))
+* **truenas:** declare the live Custom Apps and drop ghost catalog Apps ([49654d9](https://github.com/AlbanAndrieu/nabla-compose/commit/49654d9a230a789d4b48544c00ef027cdd6da72a))
+* **truenas:** run the FastAPI integration check with sudo ([804e4ae](https://github.com/AlbanAndrieu/nabla-compose/commit/804e4aedc8ab9bb8fee8256dd776440957a931ea))
+
+
+### Features
+
+* **catalog:** add entities for five TrueNAS catalog Apps ([8dd2bfe](https://github.com/AlbanAndrieu/nabla-compose/commit/8dd2bfe1c2c4413ad3bfa144e916475dea670ed1))
+* **talos:** pin each node's LAN address and hostname ([1eeb9f4](https://github.com/AlbanAndrieu/nabla-compose/commit/1eeb9f4d02999595f1eeaa365bbed2ac893adeb7))
+* **truenas:** stop the Talos VMs through the versioned VM script ([89a1680](https://github.com/AlbanAndrieu/nabla-compose/commit/89a168090c4291b360d075a732eea89030a4531c))
+
+
+### Performance Improvements
+
+* **compose:** cap memory of the largest uncapped services and rotate the biggest log ([d7b14aa](https://github.com/AlbanAndrieu/nabla-compose/commit/d7b14aa381379fe0f7847af8a5323cbcafb6320b))
+* **truenas:** declare a 16K recordsize for the ntopng dataset ([a1c4b86](https://github.com/AlbanAndrieu/nabla-compose/commit/a1c4b861b2af8f1045df5604e2677c9752436938))
+
 # [0.93.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.92.0...0.93.0) (2026-11-16)
 
 
