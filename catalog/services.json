@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:1c1abbaaf29d8086aa6f886fbd6b67eac13ab45ad65f79c7e7eb2cf340a2eb8d",
+  "catalogRevision": "sha256:3155b35381435d846b48e072139e734edaa9dc00b804c54e7ae613af01d374d6",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2637,7 +2637,7 @@
       "category": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "sentry-web",
-      "url": "https://sentry.albandrieu.com",
+      "url": "https://sentry.int.albandrieu.com",
       "description": "Self-hosted Sentry 26.8 errors-only application service.",
       "presentationRole": "service",
       "criticality": "high",
@@ -2698,7 +2698,8 @@
         "containerService": "nginx",
         "networks": [
           "intranet",
-          "sentry"
+          "sentry",
+          "traefik_network"
         ]
       }
     },

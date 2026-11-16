@@ -924,6 +924,16 @@ function probe_fastapi_sample_sentry_if_running {
     functional_fail "FastAPI Sample -> Sentry edge health failed"
   fi
 
+  # LAN-only since 16/11/2026: the public name must no longer reach Sentry.
+  local sentry_public_status
+  sentry_public_status="$(curl --silent --max-time 8 --output /dev/null \
+    --write-out '%{http_code}' https://sentry.albandrieu.com/ || true)"
+  if [[ "${sentry_public_status}" == "000" ]]; then
+    functional_ok "Sentry public name retired: https://sentry.albandrieu.com/ does not answer"
+  else
+    functional_fail "Sentry public name still answers HTTP ${sentry_public_status}; retire its tunnel route, DNS record and Access app"
+  fi
+
   if [[ -n "${SENTRY_ACCESS_TOKEN:-}" ]]; then
     local sentry_api_body
     local sentry_api_status
@@ -949,47 +959,6 @@ function probe_fastapi_sample_sentry_if_running {
     fi
 
     rm -f "${sentry_api_body}"
-
-    if [[ -n "${CF_ACCESS_CLIENT_ID:-}" || -n "${CF_ACCESS_CLIENT_SECRET:-}" ]]; then
-      local sentry_public_body
-      local sentry_public_headers
-      local sentry_public_status
-
-      if [[ -z "${CF_ACCESS_CLIENT_ID:-}" || -z "${CF_ACCESS_CLIENT_SECRET:-}" ]]; then
-        functional_fail "Sentry public Access: CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be provided together"
-      else
-        sentry_public_body="$(mktemp)"
-        sentry_public_headers="$(mktemp)"
-        sentry_public_status="$(
-          curl \
-            --silent \
-            --show-error \
-            --max-time 8 \
-            --output "${sentry_public_body}" \
-            --dump-header "${sentry_public_headers}" \
-            --write-out '%{http_code}' \
-            --header @<(secrets_curl_headers \
-              Authorization "Bearer ${SENTRY_ACCESS_TOKEN}" \
-              CF-Access-Client-Id "${CF_ACCESS_CLIENT_ID}" \
-              CF-Access-Client-Secret "${CF_ACCESS_CLIENT_SECRET}") \
-            https://sentry.albandrieu.com/api/0/organizations/ || true
-        )"
-
-        if [[ "${sentry_public_status}" == "200" ]] && jq -e 'type == "array"' "${sentry_public_body}" >/dev/null 2>&1; then
-          functional_ok "Sentry public Access: Cloudflare Service Auth + Sentry User Auth accepted"
-        elif [[ "${sentry_public_status}" == "302" ]] && grep -Eqi 'cloudflareaccess\.com/cdn-cgi/access/login' "${sentry_public_headers}"; then
-          functional_fail "Sentry public Access: Cloudflare Service Auth policy did not accept the service token"
-        elif [[ "${sentry_public_status}" == "401" || "${sentry_public_status}" == "403" ]]; then
-          functional_fail "Sentry public Access: Cloudflare passed but Sentry rejected the User Auth Token (HTTP ${sentry_public_status})"
-        else
-          functional_fail "Sentry public Access: unexpected HTTP ${sentry_public_status}"
-        fi
-
-        rm -f "${sentry_public_body}" "${sentry_public_headers}"
-      fi
-    else
-      printf 'SKIP: Sentry public Cloudflare Service Auth check (CF_ACCESS_CLIENT_ID/SECRET not exported)\n'
-    fi
   else
     printf 'SKIP: Sentry MCP API token check (SENTRY_ACCESS_TOKEN is not exported)\n'
   fi

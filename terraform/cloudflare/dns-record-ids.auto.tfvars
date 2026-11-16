@@ -40,7 +40,6 @@ dns_tunnel_record_ids = {
   "reactive.albandrieu.com"               = "92254cc7cbcc83b71345ca7457934404" # gitleaks:allow
   "scrutiny.albandrieu.com"               = "454c706a149e809263c3021984240902" # gitleaks:allow
   "searxng.albandrieu.com"                = "4c4a3396a6adc458662f4b54a6abbe86" # gitleaks:allow
-  "sentry.albandrieu.com"                 = "83f4e05b1097fe12a43be811e8763987" # gitleaks:allow
   "traefik.albandrieu.com"                = "0774b3a20e29b4232f58e545fd0a7008" # gitleaks:allow
   "uptime-kuma.albandrieu.com"            = "0fc29a4407516a450b381e4b7aa57694" # gitleaks:allow
   "vaultwarden.albandrieu.com"            = "7aebc3d0801977833229b8652ba6a3f3" # gitleaks:allow
@@ -57,5 +56,6 @@ dns_retired_record_ids = {
   "ollama-gpu-albandrieu.albandrieu.com/CNAME"  = "b4e13dc6e4beff7ac140081560c43c02" # gitleaks:allow
   "plumber-albandrieu.albandrieu.com/CNAME"     = "0a74288976b211dca7bfe16f59a2bca3" # gitleaks:allow
   "portracker-albandrieu.albandrieu.com/CNAME"  = "e6d882f5d4e8aad3673b03e071ccef39" # gitleaks:allow
+  "sentry.albandrieu.com/CNAME"                 = "83f4e05b1097fe12a43be811e8763987" # gitleaks:allow
   "vaultwarden-albandrieu.albandrieu.com/CNAME" = "7509f987a27512ed1aecb0da5e448729" # gitleaks:allow
 }

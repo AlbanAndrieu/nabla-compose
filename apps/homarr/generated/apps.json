@@ -1446,7 +1446,7 @@
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "nginx",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:9005",
+      "href": "https://sentry.int.albandrieu.com",
       "syncEligible": true
     },
     {

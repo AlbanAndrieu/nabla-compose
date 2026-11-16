@@ -224,11 +224,6 @@ locals {
       service        = "http://172.17.0.24:31028"
     },
     {
-      hostname       = "sentry.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:9005"
-    },
-    {
       hostname       = "fastapi-sample.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:8091"

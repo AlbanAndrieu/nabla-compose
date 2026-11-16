@@ -60,11 +60,10 @@ services:
           description: LiteLLM exposes Cyberbro threat-intelligence tools through its MCP gateway.
           evidence:
             - apps/litellm/config.yaml:mcp_servers.cyberbro
+      # LAN only: the public litellm.albandrieu.com route was retired on 05/11/2026.
       exposure:
         - name: lan
-          hostnames:
-            - litellm.albandrieu.com
-          protocol: HTTPS
+          protocol: HTTP
           visibility: lan
           gatewayRef: resource:default/truenas
           backendPort: web
