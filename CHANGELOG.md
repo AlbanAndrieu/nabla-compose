@@ -1,3 +1,16 @@
+# [0.99.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.98.0...0.99.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **pfsense:** load shaper.inc before stopping the RRD collector ([d234e4f](https://github.com/AlbanAndrieu/nabla-compose/commit/d234e4f31a0f9ce048f115cc4e57998151077b41))
+* **pfsense:** report exhausted eMMC life and critical BKOPS ([d034e21](https://github.com/AlbanAndrieu/nabla-compose/commit/d034e215c42e3361277daa3c484cfdfc5783e517))
+
+
+### Features
+
+* **pfsense:** eMMC write diet, boot-window tools, docs/pfsense split ([8983b94](https://github.com/AlbanAndrieu/nabla-compose/commit/8983b9409dab5cb4cadfae105afbba433a7eab42))
+
 # [0.98.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.3...0.98.0) (2026-11-17)
 
 
