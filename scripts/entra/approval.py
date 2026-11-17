@@ -118,6 +118,8 @@ def verify(args: argparse.Namespace) -> None:
     allowed = args.allowed_signer.strip()
     if "\n" in allowed or "\r" in allowed or not allowed.startswith(KEY_PREFIX):
         raise ValueError("A single registered hardware FIDO2 public key is required")
+    if Path(args.allowed_signers_file).read_text(encoding="utf-8") != allowed + "\n":
+        raise ValueError("Authorized signer file must equal the configured FIDO2 key")
     Path(args.signature).stat()
     with subprocess.Popen(
         ["ssh-keygen", "-Y", "verify", "-n", NAMESPACE, "-I", PRINCIPAL,

@@ -116,7 +116,7 @@ jobs:
           [[ -z "${ARM_CLIENT_SECRET:-}" && -z "${ARM_ACCESS_KEY:-}" && -z "${ARM_SAS_TOKEN:-}" ]] || exit 2
           if [[ "$OPERATION" == apply ]]; then
             [[ "$APPLY_ENABLED" == true ]] || exit 2
-            [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ && ${@#SIGNATURE_B64} -gt 32 ]] || exit 2
+            [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ && ${#SIGNATURE_B64} -gt 32 ]] || exit 2
             [[ "$ALLOWED_SIGNER" == "entra-operator sk-ssh-ed25519@openssh.com "* ]] || exit 2
           fi
           echo "HCP local execution and Entra WIF are required; no credential printed."

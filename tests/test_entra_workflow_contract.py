@@ -10,7 +10,7 @@ class EntraWorkflowContract(unittest.TestCase):
     def test_no_persistent_credentials_and_no_lan_runner(self):
         data = WORKFLOW.read_text()
         self.assertIn("id-token: write", data)
-        self.assertIn("runs-on: ubuntu-latest", data)
+        self.assertIn("runs-on: ubuntu-24.04", data)
         self.assertNotIn("runs-on: self-hosted", data)
         self.assertNotIn("\n      ARM_CLIENT_SECRET:", data)
         self.assertNotIn("AWS_SECRET_ACCESS_KEY:", data)
@@ -20,10 +20,13 @@ class EntraWorkflowContract(unittest.TestCase):
         self.assertIn("workflow_dispatch:", data)
         self.assertIn("entra-lab-apply", data)
         self.assertIn("ENTRA_LAB_APPLY_ENABLED", data)
-        self.assertIn("APPLY_ENTRA_LAB", data)
+        self.assertIn("SIGNATURE_B64", data)
         self.assertIn('"$EXPECTED_SHA" == "$GITHUB_SHA"', data)
         self.assertIn("tofu plan -lock=false", data)
-        self.assertIn('tofu plan -input=false -no-color -out="$plan"', data)
+        self.assertIn("gh run download", data)
+        self.assertIn("falco-actions/start@", data)
+        self.assertIn("zizmor --offline", data)
+        self.assertIn('tofu plan -input=false -lock-timeout=5m -no-color -out="$plan"', data)
         self.assertIn('tofu apply -input=false -no-color "$plan"', data)
 
 

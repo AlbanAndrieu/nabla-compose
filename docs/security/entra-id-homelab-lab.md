@@ -1,145 +1,113 @@
-# H16 — Entra ID Free, Terraform, Talos, ZITADEL, SPIRE
+# Entra ID Free : HCP Terraform Free + YubiKey + Falco
 
-Date: 2026-11-14. Owner: nabla-compose. **CODED / remote apply NOT_RUN /
-Azure resources NOT_APPLIED / runtime NOT_VERIFIED**.
+Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 
-## Threat model and decisions
+## Decisions and threat model
 
-- Repository is public; **no self-hosted GitHub runner** connected to TrueNAS,
-  Talos or private Garage. Untrusted PRs get only static checks.
-- A YubiKey protects a HUMAN interactive sign-in (registered FIDO2 passkey)
-  on the workstation, not an automatic GitHub job. No PIV private key, FIDO
-  credential, CLI token cache or PAT is exported into GitHub.
-- CI authenticates via short-lived GitHub OIDC workload federation, not
-  long-lived Azure client secrets or certificates. Microsoft Graph and Blob
-  storage require separate Service Principals. Distinguish read-only plan
-  identities from write-capable apply identities.
-- Single H16 state location: Azure Blob backend with distributed native blob
-  lease, encryption, versioning and recovery. No concurrent Garage state.
-  The original Terragrunt unit was removed before any cloud apply.
-- Azure Blob requires a subscription and may have charges, unlike Entra Free.
-  A strict zero-cost alternative is HCP Terraform Free remote execution/state;
-  in that model GitHub triggers HCP runs, not direct GitHub `tofu apply`.
-- CI initially manages only two disposable apps + Service Principals.
-  `enable_group_management=false` avoids Group.ReadWrite.All:
-  groups/user membership need a separately reviewed human/bootstrap flow.
-  The negative-control Service Principal remains disabled.
-- One test user is created only by a workstation apply
-  (`enable_user_management=true`, pinned false in CI and rejected by
-  `check-plan.py`). Its one-time password comes from Vaultwarden and must be
-  changed at first sign-in; azuread 3.10.0 has no write-only password, so it
-  sits in state until then. Operator guide (FR):
-  [tenant and test user](../runbooks/entra-id-lab-tenant-and-test-user.md).
+- Use a **personal Entra ID tenant**, never the employer tenant.
+- **HCP Terraform Free** is the new name of Terraform Cloud. A Free workspace
+  supports up to 500 managed resources (confirm your current plan), but this
+  lab uses HCP for **remote state ONLY** and sets workspace execution mode
+  to **Local**: OpenTofu 1.12.5 runs on GitHub-hosted runner and on the
+  workstation, not inside HCP. No Azure Blob or Garage backend for this lab.
+- The HCP workspace manages state locking and versioning. Both CI and
+  workstation MUST use the same HCP organization/workspace; do not create a
+  second state. The HCP API team tokens are still long-lived credentials:
+  GitHub environment secrets must restrict plan/apply team tokens to a
+  dedicated workspace and be periodically rotated. HCP Free is not a way to
+  eliminate credentials to the state.
+- CI uses **GitHub OIDC → Entra** for provider authentication, with distinct
+  plan/apply application identities scoped to lab-owned objects. Workstation
+  login uses a separate personal Entra user via browser+YubiKey FIDO2.
+- Entra Graph application permission `Application.ReadWrite.OwnedBy` is
+  sensitive: never make the CI service principal owner of privileged company
+  apps. Tenant-wide group writes remain disabled in CI.
+- PRs run only offline validation: `zizmor`, OpenTofu formatting, negative
+  Python tests. Apply is **manual and signature-gated** from `master` only.
+  No self-hosted runner linked to TrueNAS. No plan/state binaries in artifacts.
 
-## GitHub to Entra federation
+## Bootstrap checklist (not done by this PR)
 
-Bootstrap separate app identities for Graph **plan** and **apply** and a
-separate blob-state identity per environment. For each identity, register
-a federated credential with:
+1. Create an HCP Terraform Free organization/workspace with **Local**
+   execution, and separate HCP teams/token permissions: plan reader,
+   apply state writer. Store their tokens as GitHub environment secret
+   `HCP_TF_TOKEN` in `entra-lab-plan` and `entra-lab-apply` respectively.
+   Limit those tokens to the single workspace, with short rotation.
+2. In Entra personal tenant create plan and apply Graph Service Principals
+   with correct owner/Graph permissions, admin consent, and federated
+   GitHub OIDC identities for
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-plan` and
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-apply`.
+   No client secrets and no company tenant permission.
+3. GitHub environment variables for both:
+   `ENTRA_LAB_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`,
+   `HCP_TF_ORGANIZATION`, `HCP_TF_WORKSPACE`.
+   Set the apply environment variable `ENTRA_LAB_APPLY_ENABLED=true`
+   only after security acceptance. In that environment register
+   `ENTRA_APPROVAL_ALLOWED_SIGNER` as one single-line OpenSSH
+   allowed-signers entry: `entra-operator sk-ssh-ed25519@openssh.com AAAA...`
+   with the **actual PUBLIC key** from the user's YubiKey SSH-FIDO2 key.
+   The private key must never leave the workstation/YubiKey.
+4. Restrict GitHub environments to `master`, configure reviewers (where
+   available), protect the workflow and authorization policy, disable admin
+   bypass. **No assertion of configured protections without UI evidence**.
+5. Configure the same HCP workspace on workstation via a locally created
+   `.tfbackend` file (outside Git) with `organization` and
+   `workspaces { name = "..." }`, and authenticate HCP CLI using an
+   independent personal HCP token. No HCP token in dotfiles.
+6. Confirm `tofu init -backend-config=... -lockfile=readonly`, test state
+   lock contention, HCP state history/restore, and Graph least privilege.
 
-- Issuer: `https://token.actions.githubusercontent.com`
-- Audience: `api://AzureADTokenExchange`
-- Subject for plan: `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-plan`
-- Subject for apply: `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-apply`
+## Hardware signature: plan → inspect → touch → apply
 
-The apply Graph principal should have no higher privileges than
-`Application.ReadWrite.OwnedBy`, and it must own **only disposable lab apps**.
-This role permits editing credentials of owned applications; do not assign it
-ownership of any privileged application. Do not grant Group.ReadWrite.All,
-Directory.ReadWrite.All, Application.ReadWrite.All or Azure Owner/Contributor.
-The plan identity gets read-only Graph permissions appropriate for the test.
-Admin consent and app ownership bootstrap are **manual tenant-admin actions**.
+1. After merge, manually run workflow **operation=plan** on `master`, with
+   `expected_sha=<40-char master HEAD>`. It obtains Graph OIDC read-only and
+   HCP state, computes a **create-only** plan, checks the allowlist, and
+   stores only the sanitized `challenge.json` as a 1-day GitHub artifact.
+   Its manifest binds: repository, SHA, tenant, HCP organization/workspace,
+   unique plan run ID, nonce, 90-minute expiry, list of action addresses and
+   SHA-256 of canonical `resource_changes` including before/after values.
+   The raw plan and state are not uploaded.
+2. On workstation, download the manifest for that plan run, inspect tenant,
+   object names and SHA. Sign its exact bytes with a registered FIDO2 SSH
+   YubiKey (touch/PIN as configured):
+   `ssh-keygen -Y sign -n nabla-entra-apply -f ~/.ssh/id_ed25519_sk_backup challenge.json`.
+   This creates `challenge.json.sig`; it does not expose the private key.
+   Never sign arbitrary challenge files or display HCP tokens.
+3. Trigger `operation=apply` on the exact same `master` SHA with
+   `plan_run_id` and base64 of `challenge.json.sig`. The apply GitHub
+   environment must approve and allow the run.
+4. GitHub downloads the original immutable challenge artifact, verifies
+   the earlier plan run succeeded on the SAME SHA, re-plans using HCP state
+   locking, checks the strict allowlist, then checks signature
+   (`ssh-keygen -Y verify`), hardware public-key type, nonce/expiry,
+   tenant/workspace/run ID and **exact canonical planned resource digest**.
+   Any drift, deletion, update, wrong key, wrong identity or expiry fails
+   before `tofu apply`. CI applies the SAME saved binary plan verified
+   in the job.
+5. This is **semantic plan equality**, not a byte-identical cross-run binary
+   plan; a changed value in the plan invalidates the approval. Replays may
+   be possible in the 90-minute window if the exact same resources are
+   recreated, so use short-lived manifest, master pinning, run-ID checks
+   and HCP state auditing. There is no global one-time nonce database yet.
 
-The **plan** Blob principal should have `Storage Blob Data Reader` on the
-state container; the workflow uses `tofu plan -lock=false` to avoid needing
-write/lease permissions. This preview is advisory and could race a workstation
-writer: the apply job MUST re-plan using its own state lease. The **apply**
-Blob principal requires `Storage Blob Data Contributor` at the same container
-scope. Require `use_azuread_auth=true` and OIDC.
-Do not use shared-key, SAS or storage account access keys. Configure encryption
-at rest, private containers, soft-delete, state versioning and restore tests.
-A GitHub-hosted runner needs a reachable Azure Blob endpoint; do not expose
-Garage S3 through a new WAN tunnel.
+## Runner runtime monitoring
 
-## GitHub environment controls (not automatically configured)
+`falcosecurity/falco-actions/start` + `stop`, SHA-pinned, runs Falco
+0.45.2 in live modern-eBPF mode on GitHub-hosted Ubuntu 24.04 during
+plan/apply. This is **runtime threat detection**, NOT a full managed EDR;
+alerts appear in run summary. Start failure blocks the privileged workflow.
+Falco does not substitute for SHA-pinned actions, minimized OAuth permissions,
+zizmor, GitHub environment rules or signature verification.
 
-Create `entra-lab-plan` and `entra-lab-apply`. Restrict deployment branches
-to `master`. Require approval on apply, disable admin bypass, protect workflow
-and source changes using repository rules, and keep `ENTRA_LAB_APPLY_ENABLED`
-unset until checks are complete. **A self-approval on a solo account is not
-independent control.** GitHub Environment rules could not be read through the
-current integration; they are NOT_VERIFIED.
+## Validation and rollback
 
-For each environment set non-secret environment variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `ENTRA_LAB_TENANT_ID` | Personal Entra tenant GUID |
-| `ENTRA_STATE_CLIENT_ID` | State-only OIDC principal client ID |
-| `ENTRA_GRAPH_CLIENT_ID` | Environment-specific Graph principal |
-| `ENTRA_STATE_SUBSCRIPTION_ID` | Subscription containing Blob storage |
-| `ENTRA_STATE_ACCOUNT` | Private Blob storage account name |
-| `ENTRA_STATE_CONTAINER` | Isolated state container name |
-| `ENTRA_LAB_APPLY_ENABLED` | Must be `true` only after approval (apply environment) |
-
-The workflow [entra-id-lab.yml](../../.github/workflows/entra-id-lab.yml)
-offers manual `validate`, `plan`, `apply`. For plan/apply require the exact
-40-character `master` commit SHA; apply also requires typing
-`APPLY_ENTRA_LAB`. The GitHub-hosted job has `id-token:write`, no
-write-capable repository token, no static Azure secrets, and refuses unintended
-deletions, updates, app grants or group writes. The plan is generated and
-applied within the same ephemeral job; no raw state/plan file in artifacts,
-PR comments, GitHub cache or logs. Commit `.terraform.lock.hcl` after
-workstation provider initialization (read-only provider download) before CI
-plan/apply can execute.
-
-## Workstation + YubiKey
-
-Authenticate through browser-based `az login --tenant <PERSONAL_TENANT>`.
-Register the YubiKey FIDO2 passkey on the account and verify the method used;
-merely inserting a YubiKey does not make an Azure CLI session hardware-bound.
-Avoid device-code login if a normal browser sign-in is available, since device
-codes are susceptible to phishing. Restrict `~/.azure` access; log out after
-work; don't copy CLI tokens into environment, CI logs or Vaultwarden.
-The workstation uses interactive user permissions and **the same Azure Blob
-backend/key** as CI. Azure Blob leases coordinate concurrent writers, unlike
-the previous host-local `flock`.
-
-## Negative acceptance checks
-
-1. Incorrect GitHub branch, actor, expected SHA, confirmation, missing
-   identities or missing environment flag: deny before obtaining cloud tokens.
-2. Reject `destroy`, `replace`, any `update`, any group/user creation,
-   externally named apps, any API grant, and an enabled `denied` principal.
-3. Verify least-privilege app ownership and Blob scope, native lease under
-   concurrent CI/workstation plans, backup, version history and recovery.
-4. Test signed-in admin, reader and denied identities; verify no elevated
-   Graph/ARM authorization. A disabled SP's denial is not by itself sufficient
-   to prove reader least privilege.
-5. Workstation must run `bash scripts/entra/entra-lab-preflight.sh` then
-   `tofu init/validate/plan`; CI static checks run without cloud credentials.
-6. Before activating apply, independently verify GitHub environment protection,
-   real WIF audience/subject, tenant scope, provider lock and backup recovery.
-
-**Unfinished security enhancement:** require a hardware-signed approval
-manifest for each plan (YubiKey SSH/FIDO2 signature verified by CI). This
-closes the gap between GitHub account approval and physical hardware approval;
-it is not yet implemented and must not be claimed as a current control.
-
-## Follow-up P1/P2
-
-- P1 Talos federation: after H01 CSI acceptance, private Kubernetes
-  ServiceAccount + publicly reachable OIDC discovery/JWKS with no public API
-  server; exact issuer/subject/audience, key rotation, negative JWT tests.
-- P1 ZITADEL: isolated internal OIDC/M2M sandbox, private DB, backup, PKCE,
-  service identity scopes, no dependency on Keycloak.
-- P2 SPIRE: SPIFFE IDs, workload attestation, short-lived JWT/X.509 SVIDs,
-  trust domain and revocation tests.
-- P3 optional Azure Arc Managed Identity pilot with separate cost review.
-
-Links: [H01 CSI](../kubernetes-csi-preflight.md),
-[existing PKI/OAuth plan](postgresql-fips-tls13-vault-oauth-20261110.md),
-[AzureAD provider](https://registry.terraform.io/providers/hashicorp/azuread/latest/docs),
-[OpenTofu Azure Blob backend](https://opentofu.org/docs/language/settings/backends/azurerm/),
-[GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use),
-[SPIRE](https://spiffe.io/).
+No authorization to use company tenant. No cloud apply performed.
+CODED != TESTED != DEPLOYED. Execute the offline tests on workstation,
+verify `zizmor --offline`, and review the provider lockfile before enabling
+apply. Never manually remove HCP state from a failed CI run.
+Sources: https://developer.hashicorp.com/terraform/cloud-docs/overview ;
+https://opentofu.org/docs/language/settings/backends/remote/ ;
+https://docs.zizmor.sh/integrations/ ;
+https://github.com/falcosecurity/falco-actions ;
+https://man.openbsd.org/ssh-keygen.1 .
