@@ -194,6 +194,7 @@ C'est probablement ce que tu constates sur `NETGEAR75`. Ça ne vient pas du Netg
 
    **Décidé le 17/11 : Netgate 4200 MAX** (NVMe, 4 ports indépendants, pfSense Plus inclus ; comparatif et étapes dans la [roadmap H07b](../../roadmap.md)).
 3. **D'ici là, limiter les écritures** si une fenêtre stable revient. Cela prolonge peut-être l'eMMC, sans réparer une puce qui lâche en quelques minutes :
+   - **fait le 17/11 entre 21:00 et 21:06** (boot WAN débranché) : attente de pfBlockerNG et CrowdSec, arrêt de la journalisation des règles par défaut et des graphes RRD ; trois `check` convergés, BE de repli resynchronisé. pfSense tenait encore 11 min après le boot, contre environ 4 min aux boots précédents ;
    - tout passer en une fois avec [`boot-window-apply.sh`](../../../scripts/pfsense/boot-window-apply.sh), pendant un boot WAN débranché (décision opérateur du 17/11) ;
    - garder pfBlockerNG et le bouncer CrowdSec arrêtés au boot : [`hold-packages-at-boot.php`](../../../scripts/pfsense/hold-packages-at-boot.php) (`check`/`apply`/`start`). Tant qu'ils sont arrêtés, leurs blocages ne s'appliquent plus ;
    - appliquer le script ci-dessous ;
