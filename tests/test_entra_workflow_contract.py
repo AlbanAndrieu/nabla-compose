@@ -28,6 +28,8 @@ class EntraWorkflowContract(unittest.TestCase):
         self.assertIn("zizmor --offline", data)
         self.assertNotIn("curl --fail", data)
         self.assertIn("with urlopen(request", data)
+        self.assertIn("total-count", data)
+        self.assertIn("dedicated organization", data)
         self.assertIn('tofu plan -input=false -lock-timeout=5m -no-color -out="$plan"', data)
         self.assertIn('tofu apply -input=false -no-color "$plan"', data)
 

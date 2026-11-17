@@ -12,10 +12,20 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
   workstation, not inside HCP. No Azure Blob or Garage backend for this lab.
 - The HCP workspace manages state locking and versioning. Both CI and
   workstation MUST use the same HCP organization/workspace; do not create a
-  second state. The HCP API team tokens are still long-lived credentials:
-  GitHub environment secrets must restrict plan/apply team tokens to a
-  dedicated workspace and be periodically rotated. HCP Free is not a way to
-  eliminate credentials to the state.
+  second state.
+- **Free security limitation:** regular HCP Terraform Free organizations have
+  ONLY the owners team, no custom teams or fine-grained workspace RBAC. The
+  CI HCP token is therefore **organization-owner-equivalent** even in the plan
+  workflow: it is NOT genuinely read-only. Provision a **dedicated HCP Free
+  organization containing only this disposable Entra lab workspace**; NEVER
+  put TrueNAS, Cloudflare, GitHub governance or other sensitive states there.
+  Rotate/revoke tokens; treat GitHub plan/apply environment protection as an
+  application safeguard, NOT an HCP permission boundary.
+- If the security requirement is **true read-only plan vs write-only apply**
+  state access without permanent HCP tokens, prefer a minimal Azure Blob
+  account with **Entra OIDC + container-scoped RBAC**, accepting a small
+  nonzero potential bill, or a paid HCP tier with custom RBAC. The free
+  alternative explicitly trades away this isolation.
 - CI uses **GitHub OIDC → Entra** for provider authentication, with distinct
   plan/apply application identities scoped to lab-owned objects. Workstation
   login uses a separate personal Entra user via browser+YubiKey FIDO2.
@@ -28,11 +38,13 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 
 ## Bootstrap checklist (not done by this PR)
 
-1. Create an HCP Terraform Free organization/workspace with **Local**
-   execution, and separate HCP teams/token permissions: plan reader,
-   apply state writer. Store their tokens as GitHub environment secret
-   `HCP_TF_TOKEN` in `entra-lab-plan` and `entra-lab-apply` respectively.
-   Limit those tokens to the single workspace, with short rotation.
+1. Create a **dedicated HCP Terraform Free organization containing exactly
+   one disposable Entra-lab workspace** in **Local** execution mode.
+   HCP Free does not support custom team/workspace RBAC. Configure the
+   HCP owner-scoped token in GitHub environment secret `HCP_TF_TOKEN`
+   only for this isolated organization; any separate plan/apply tokens are
+   still equally privileged in HCP. Rotate them and keep no other states
+   in this organization.
 2. In Entra personal tenant create plan and apply Graph Service Principals
    with correct owner/Graph permissions, admin consent, and federated
    GitHub OIDC identities for
@@ -111,3 +123,27 @@ https://opentofu.org/docs/language/settings/backends/remote/ ;
 https://docs.zizmor.sh/integrations/ ;
 https://github.com/falcosecurity/falco-actions ;
 https://man.openbsd.org/ssh-keygen.1 .
+
+## Vault, ZITADEL and SPIRE decision (17 November)
+
+Vault/OpenBao is the preferred secrets, PKI and dynamic PostgreSQL credential
+authority. Vault can also be an **OIDC provider**, but lacks the broad end-user
+IAM lifecycle, MFA and self-service coverage of ZITADEL; it is not a complete
+drop-in replacement. Vault's new SPIFFE JWT-SVID **secrets engine requires
+Enterprise license**; do not promise it in the free homelab. Standard
+Vault/OpenBao Kubernetes/JWT auth and PKI provide useful identity flows, but
+SPIRE remains the preferred independent node/workload attestation mechanism.
+A SPIRE server can use Vault PKI as upstream CA without replacing SPIRE.
+
+H16 stays independent of Keycloak. For the next experiments prioritize
+Vault/OpenBao Kubernetes auth + PKI, then SPIRE/attestation, then optional
+ZITADEL end-user IAM if needed. Never claim that PKI issuance alone attests
+a workload's runtime identity.
+
+## HCP migration scope
+
+Only the disposable Entra lab state is selected for HCP Free.
+[Risk-based migration decision](garage-hcp-state-migration-decision.md)
+documents why Garage states must NOT be bulk-migrated before inventory,
+state-secret review, cost/resource-count evaluation, verified backups
+and backend locking remediation.

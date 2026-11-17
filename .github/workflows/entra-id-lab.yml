@@ -203,6 +203,24 @@ jobs:
               sys.exit("DENIED: HCP workspace local mode could not be verified")
           if mode != "local":
               sys.exit("DENIED: HCP must use LOCAL execution mode for OpenTofu")
+          # HCP Free tokens are owners: fail if this org contains other states.
+          from urllib.parse import quote
+          url2 = "https://app.terraform.io/api/v2/organizations/{}/workspaces?page%5Bsize%5D=100".format(
+              quote(os.environ["HCP_ORG"], safe="")
+          )
+          request2 = Request(url2, headers={
+              "Authorization": "Bearer " + os.environ["TF_TOKEN_app_terraform_io"],
+              "Content-Type": "application/vnd.api+json",
+          })
+          try:
+              with urlopen(request2, timeout=20) as response:
+                  workspace_list = json.load(response)
+              names = [item["attributes"]["name"] for item in workspace_list["data"]]
+              meta = workspace_list.get("meta", {}).get("pagination", {})
+          except Exception:
+              sys.exit("DENIED: HCP dedicated organization inventory unavailable")
+          if meta.get("total-count") != 1 or names != [os.environ["HCP_WORKSPACE"]]:
+              sys.exit("DENIED: HCP Free organization must contain only this disposable workspace")
           PY
       - name: Init HCP remote state (no Azure Blob/Garage)
         shell: bash
