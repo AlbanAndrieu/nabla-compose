@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "pfsense" / "diagnose-recover.sh"
 IDENTITY_HELPER = ROOT / "scripts" / "pfsense" / "manage-api-identities.php"
 POSTURE_HELPER = ROOT / "scripts" / "pfsense" / "manage-posture.php"
-DOC = ROOT / "docs" / "pfsense-diagnose-recover.md"
+DOC = ROOT / "docs" / "pfsense" / "pfsense-diagnose-recover.md"
 
 
 class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):

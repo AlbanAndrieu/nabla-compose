@@ -146,7 +146,7 @@ bash scripts/pfsense/sample-oom-pressure.sh --check
 L'absence d'argument `--check` n'autorise **aucune** mutation.
 Ne pas multiplier les scrapes pfSense, reboots, mises à jour Snort
 ou reconstructions pfBlockerNG pendant le diagnostic.
-Voir [incident pfSense](../incidents/2026-10-24-pfsense-unbound-restarts.md).
+Voir [incident pfSense](../pfsense/incidents/2026-10-24-pfsense-unbound-restarts.md).
 
 ## 3. Services applicatifs (TrueNAS)
 

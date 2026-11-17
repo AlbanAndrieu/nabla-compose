@@ -57,7 +57,7 @@ TRUENAS_URL=https://truenas.albandrieu.com:7000
 TRUENAS_INSECURE_SKIP_VERIFY=false
 ```
 
-The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in [`roadmap.md`](./roadmap.md) and the [pfSense ingress exposure policy](./runbooks/pfsense-ingress-exposure-policy.md): HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
+The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in [`roadmap.md`](./roadmap.md) and the [pfSense ingress exposure policy](pfsense/runbooks/pfsense-ingress-exposure-policy.md): HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
 
 ## 2. Manual TrueNAS bootstrap boundary
 
@@ -707,7 +707,7 @@ so no checkout or CI run can mutate the homelab.
 
 ### DNS bootstrap dependency guard — 2026-09-27
 
-> Incident de référence : [pfSense/Talos DNS — 2026-09-27](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
+> Incident de référence : [pfSense/Talos DNS — 2026-09-27](pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md). Ce runbook doit préserver l'indépendance du DNS de bootstrap Talos vis-à-vis des Apps TrueNAS.
 
 
 A post-reboot LAN incident proved that pfSense Kea was distributing TrueNAS
@@ -738,7 +738,7 @@ Before bootstrap or after a TrueNAS reboot:
   must not remove general Internet DNS for the nodes.
 
 See
-[`docs/incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
+[`docs/pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md).
 
 
 ## 8. Transitional secrets: Vaultwarden + Doco-CD

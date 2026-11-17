@@ -243,7 +243,7 @@ collector configuration.
 The validated dual-export architecture, Cloudflare Network Flow dashboard,
 pfBlockerNG feed changes, PHP memory limit, Snort HTTP Inspect memcap and
 Netgate 1100 OOM incident are documented in
-[`docs/pfsense-flow-observability-memory.md`](../../docs/pfsense-flow-observability-memory.md).
+[`docs/pfsense/pfsense-flow-observability-memory.md`](../../docs/pfsense/pfsense-flow-observability-memory.md).
 
 ## pfSense NetFlow v5 → Akvorado: evidence (2026-10-23, operator)
 

@@ -9,7 +9,7 @@
 > ciblé. Un relevé DNS public ultérieur retourne `present` :
 > **dérive à corriger**, sans supprimer automatiquement les accès
 > des clients OpenTofu ou modifier les règles WAN dans cette PR.
-> [Audit multicouche](runbooks/pfsense-ingress-exposure-policy.md).
+> [Audit multicouche](pfsense/runbooks/pfsense-ingress-exposure-policy.md).
 
 
 This document separates DNS publication from request routing. A DNS component
@@ -145,7 +145,7 @@ hostname and an explicit Cloudflare Tunnel/Access or direct-ingress contract.
 
 ### DNS resilience
 
-Incident de référence : [`incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md) documente le cycle de dépendance Talos → Pi-hole/TrueNAS révélé lors du reboot du 27 septembre 2026, ainsi que le retour au resolver LAN pfSense/Unbound `172.17.0.1`.
+Incident de référence : [`incidents/2026-09-27-pfsense-dns-truenas-dependency.md`](pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md) documente le cycle de dépendance Talos → Pi-hole/TrueNAS révélé lors du reboot du 27 septembre 2026, ainsi que le retour au resolver LAN pfSense/Unbound `172.17.0.1`.
 
 General LAN DNS availability must not depend on every query traversing Pi-hole.
 pfSense/Unbound resolves public DNS independently and delegates only

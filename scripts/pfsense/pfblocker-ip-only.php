@@ -5,7 +5,7 @@
 //   ssh -p 9922 admin@172.17.0.1 "php -- check" < scripts/pfsense/pfblocker-ip-only.php
 // Then load the tables from the lists already on disk (no download):
 //   ssh -p 9922 admin@172.17.0.1 php /usr/local/www/pfblockerng/pfblockerng.php updateip
-// Runbook: docs/runbooks/pfsense-26.07-upgrade.md
+// Runbook: docs/pfsense/runbooks/pfsense-26.07-upgrade.md
 require_once('config.inc');
 require_once('util.inc');
 require_once('functions.inc');

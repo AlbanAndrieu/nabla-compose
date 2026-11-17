@@ -539,7 +539,7 @@ nexus-private-ingress-test:
     bash -n scripts/workstation/inspect-nexus-haproxy-frontend.sh
     python3 -m py_compile tests/test_nexus_haproxy_frontend_readonly.py
     python3 tests/test_nexus_haproxy_frontend_readonly.py -v
-    test -f docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg
+    test -f docs/pfsense/evidence/haproxy-2026-10-27.generated.redacted.cfg
     test -f tests/test_pfsense_haproxy_policy_audit.py
     python3 -m py_compile scripts/pfsense/audit-haproxy-ingress.py tests/test_pfsense_haproxy_policy_audit.py
     python3 tests/test_pfsense_haproxy_policy_audit.py -v

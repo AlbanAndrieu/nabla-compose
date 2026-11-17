@@ -443,7 +443,9 @@ else
   emit WARN pfblocker.last_update_completion incomplete "latest START has no later END marker"
 fi
 
-snort_conf="$(find /usr/local/etc/snort -type f -path '*mvneta0.4090/snort.conf' 2>/dev/null | head -n 1)"
+# Snort names its directory snort_<uuid>_<WAN device>: read the device so a hardware swap (1100 mvneta0.4090, 4200 igcN) keeps working.
+wan_if="$(awk '/<interfaces>/{i=1} i&&/<wan>/{w=1} w&&/<if>/{sub(/.*<if>/,"");sub(/<\/if>.*/,"");print;exit} i&&/<\/interfaces>/{exit}' /conf/config.xml 2>/dev/null)"
+snort_conf="$(find /usr/local/etc/snort -type f -path "*_${wan_if:-unknown}/snort.conf" 2>/dev/null | head -n 1)"
 if [ -n "$snort_conf" ]; then
   snort_memcap="$(grep -A12 'preprocessor http_inspect: global' "$snort_conf" 2>/dev/null | sed -n 's/.*memcap[[:space:]]\([0-9][0-9]*\).*/\1/p' | head -n 1)"
   snort_memcap="$(number_or_zero "$snort_memcap")"
@@ -471,7 +473,7 @@ else
   emit WARN snort.http_inspect_memcap missing "WAN generated snort.conf was not found"
 fi
 
-snort_runtime="$(ps axo command 2>/dev/null | grep '/usr/local/bin/snort ' | grep 'snort_56408_mvneta0.4090/snort.conf' | grep -v grep || true)"
+snort_runtime="$(ps axo command 2>/dev/null | grep '/usr/local/bin/snort ' | grep -F "_${wan_if:-unknown}/snort.conf" | grep -v grep || true)"
 if [ -n "$snort_runtime" ]; then
   emit PASS service.snort running "WAN Snort process is running in passive mode"
 else

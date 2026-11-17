@@ -1184,7 +1184,9 @@ done
 printf 'block_match_count=%s\n' "${BLOCK_MATCH_COUNT}"
 printf 'login_protection_match_count=%s\n' "${LOGIN_PROTECTION_MATCH_COUNT}"
 
-SNORT_CONF="$(find /usr/local/etc/snort -type f -path '*mvneta0.4090/snort.conf' 2>/dev/null | head -n 1)"
+# Snort names its directory snort_<uuid>_<WAN device>: read the device so a hardware swap (1100 mvneta0.4090, 4200 igcN) keeps working.
+WAN_IF="$(awk '/<interfaces>/{i=1} i&&/<wan>/{w=1} w&&/<if>/{sub(/.*<if>/,"");sub(/<\/if>.*/,"");print;exit} i&&/<\/interfaces>/{exit}' /conf/config.xml 2>/dev/null)"
+SNORT_CONF="$(find /usr/local/etc/snort -type f -path "*_${WAN_IF:-unknown}/snort.conf" 2>/dev/null | head -n 1)"
 if [ -n "${SNORT_CONF}" ]; then
   HTTP_BLOCK="$(awk '
     /^preprocessor http_inspect_server/ {capture=1}
@@ -1273,7 +1275,7 @@ else
 fi
 
 if grep -q '^ERROR: pfsense_remote_syslog_legacy_workstation=present' "${REPORT}"; then
-  fail "pfSense still sends syslog to the retired workstation 172.17.0.57:1514; see docs/runbooks/2026-11-14-pfsense-stale-workstation-targets.md"
+  fail "pfSense still sends syslog to the retired workstation 172.17.0.57:1514; see docs/pfsense/runbooks/2026-11-14-pfsense-stale-workstation-targets.md"
 fi
 
 if ((api_failures > 0)); then

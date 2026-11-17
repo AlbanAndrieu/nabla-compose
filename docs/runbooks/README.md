@@ -27,7 +27,7 @@ Les services qui requièrent une licence, des droits spéciaux ou des données r
 
 - [Retour d'expérience des migrations du 6 novembre](../incidents/2026-11-06-migrations-retour-experience.md) : App `STOPPED` mal appariée, WAF, OOM, OpenClaw, secrets et Pre-commit.
 - [Archive approuvée au 24 octobre](../archive/roadmap-through-2026-10-24.md) : preuves historiques non applicables sans nouveau préflight.
-- [Incident pfSense / Unbound](../incidents/2026-10-24-pfsense-unbound-restarts.md) : distinguer OOM, réseau et cause effective.
+- [Incident pfSense / Unbound](../pfsense/incidents/2026-10-24-pfsense-unbound-restarts.md) : distinguer OOM, réseau et cause effective.
 - [DefectDojo — accès privé](defectdojo-admin-access-recovery.md) : résolution DNS, TLS/SNI et accès auth.
 
 Les autres runbooks datés du répertoire restent consultables comme **matériau d'incident**, pas comme travaux à effectuer. Ils ne doivent pas être copiés dans la roadmap active.

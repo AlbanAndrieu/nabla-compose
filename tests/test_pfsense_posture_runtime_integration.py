@@ -7,7 +7,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "scripts/pfsense/audit-posture.sh"
 DIAGNOSE = ROOT / "scripts/pfsense/diagnose-recover.sh"
-ROADMAP = ROOT / "docs/roadmap.md"
+ROADMAP = ROOT / "docs/pfsense/roadmap.md"
 
 
 def test_posture_entrypoints_are_valid_bash():

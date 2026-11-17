@@ -5,7 +5,7 @@ Incident du 24 octobre :
 [reprise observabilité TrueNAS](../incidents/2026-10-24-truenas-observability-recovery.md).
 Les procédures mutantes sont **manuelles**, jamais exécutées par un
 diagnostic. Le détail DNS appartient au
-[runbook pfSense](../pfsense-diagnose-recover.md).
+[runbook pfSense](../pfsense/pfsense-diagnose-recover.md).
 
 ## État de référence prouvé
 

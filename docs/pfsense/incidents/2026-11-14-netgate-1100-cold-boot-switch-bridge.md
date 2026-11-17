@@ -4,7 +4,7 @@
 
 ## Résumé
 
-Le 14/11 vers 17:17 UTC, le pfSense a démarré à froid : ses journaux s'arrêtent sans ligne d'arrêt. Pendant ce démarrage, le commutateur interne du Netgate 1100 (Marvell 88E6141) a transmis les trames entre ses ports LAN et WAN, car le système n'avait pas encore appliqué les groupes VLAN. La VM Talos `taloscp01` (`br0` de TrueNAS) diffusait alors des requêtes DHCP. Le DHCP du LAN ne lui répondait plus, car sa réservation manquait dans la config de repli et Kea était quasi inactif. La Freebox en bridge lui a donné l'adresse publique `82.66.4.247`. Conséquences et suites côté Talos : [incident du 14/11](2026-11-14-talos-control-plane-public-wan-lease.md).
+Le 14/11 vers 17:17 UTC, le pfSense a démarré à froid : ses journaux s'arrêtent sans ligne d'arrêt. Pendant ce démarrage, le commutateur interne du Netgate 1100 (Marvell 88E6141) a transmis les trames entre ses ports LAN et WAN, car le système n'avait pas encore appliqué les groupes VLAN. La VM Talos `taloscp01` (`br0` de TrueNAS) diffusait alors des requêtes DHCP. Le DHCP du LAN ne lui répondait plus, car sa réservation manquait dans la config de repli et Kea était quasi inactif. La Freebox en bridge lui a donné l'adresse publique `82.66.4.247`. Conséquences et suites côté Talos : [incident du 14/11](../../incidents/2026-11-14-talos-control-plane-public-wan-lease.md).
 
 ## Preuves (16/11, lecture seule)
 
