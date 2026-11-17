@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "domains": [
+    {"name": "albandrieu.com", "mail_use": "unverified", "dkim_selectors": []},
+    {"name": "albanandrieu.com", "mail_use": "unverified", "dkim_selectors": []},
+    {"name": "bababou.com", "mail_use": "unverified", "dkim_selectors": []}
+  ]
+}

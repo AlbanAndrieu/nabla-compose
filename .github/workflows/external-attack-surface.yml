@@ -84,8 +84,8 @@ jobs:
             -severity info,low,medium,high,critical \
             -etags dos,fuzz,bruteforce,intrusive,default-login \
             -rl 20 -c 10 -timeout 5 -retries 0 -stats -si 60 \
-            -duc -or -jsonl -o nuclei-results/nuclei.jsonl
-          test -f nuclei-results/nuclei.jsonl || : > nuclei-results/nuclei.jsonl
+            -duc -or -jsonl -o nuclei-results/nuclei.raw.jsonl
+          test -f nuclei-results/nuclei.raw.jsonl || : > nuclei-results/nuclei.raw.jsonl
 
       - name: Summarize findings per host and severity
         if: always()
@@ -100,9 +100,18 @@ jobs:
             else
               echo "| Host | Severity | Template |"
               echo "| --- | --- | --- |"
-              jq -r '"| \(.host) | \(.info.severity) | \(."template-id") |"' nuclei-results/nuclei.jsonl | sort -u
+              jq -r '"| \(.host) | \(.info.severity) | \(."template-id") |"' nuclei-results/nuclei.raw.jsonl | sort -u
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Sanitize findings (no curl, extraction, URL path or response)
+        if: steps.nuclei.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/security/minimize-external-nuclei.py \
+            nuclei-results/nuclei.raw.jsonl nuclei-results/nuclei.jsonl
+          rm -f nuclei-results/nuclei.raw.jsonl
 
       - name: Upload findings (raw HTTP omitted, short retention)
         if: steps.nuclei.outcome == 'success'
@@ -112,3 +121,98 @@ jobs:
           path: nuclei-results/nuclei.jsonl
           retention-days: 7
           if-no-files-found: error
+
+  mail-auth:
+    name: Public DNS email anti-spoofing
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Ensure dig is available
+        run: |
+          if ! command -v dig >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install --no-install-recommends -y dnsutils
+          fi
+      - name: Audit owned domain apices (SPF/DMARC/DKIM/MTA-STS/TLS-RPT)
+        run: |
+          python3 scripts/security/check-public-mail-auth.py --output public-mail-results.json
+      - name: Upload value-blind mail posture
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-mail-posture-${{ github.run_id }}
+          path: public-mail-results.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  external-tcp-tls:
+    name: Manual outside-in TCP and TLS evidence
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install bounded Nmap TCP scanner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y nmap
+      - name: Scan reviewed WAN IP only; no raw banner or UDP scanning
+        run: |
+          nmap -sT -Pn -n --max-retries 1 --max-rate 10 --host-timeout 180s \
+            -p 21,22,23,25,53,80,110,143,443,445,465,587,993,995,2375,2376,3000,31085,3306,3389,4000,5432,5601,6379,6443,7000,8080,8082,8091,8443,9090,9200,9922,10443,18789,31090 \
+            -oX ports.xml 82.66.4.247
+      - name: Confirm public certificates and produce minimal JSON
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime as dt
+          import json
+          import socket
+          import ssl
+          import xml.etree.ElementTree as ET
+          xml = ET.parse("ports.xml")
+          ports = sorted(int(p.attrib["portid"]) for p in xml.findall(".//port")
+                         if p.find("state") is not None and
+                         p.find("state").attrib.get("state") == "open")
+          hosts = [("manager.albandrieu.com", 443),
+                   ("truenas.albandrieu.com", 7000),
+                   ("famp-albandrieu.albandrieu.com", 443),
+                   ("www.albanandrieu.com", 443),
+                   ("www.bababou.com", 443)]
+          tls = []
+          for hostname, port in hosts:
+              row = {"hostname": hostname, "port": port, "status": "UNVERIFIED"}
+              try:
+                  with socket.create_connection((hostname, port), timeout=6) as tcp:
+                      tcp.settimeout(6)
+                      with ssl.create_default_context().wrap_socket(tcp, server_hostname=hostname) as conn:
+                          cert = conn.getpeercert()
+                          expiry = dt.datetime.fromtimestamp(
+                              ssl.cert_time_to_seconds(cert["notAfter"]), dt.timezone.utc)
+                          row.update(status="TLS_CERT_VERIFIED", expires_at=expiry.isoformat(),
+                                     protocol=conn.version(), cipher=conn.cipher()[0])
+              except (OSError, ssl.SSLError, KeyError, ValueError):
+                  pass
+              tls.append(row)
+          with open("public-tcp-tls.json", "w", encoding="utf8") as file:
+              json.dump({"vantage": "github-hosted-outside-in",
+                         "port_scope": "36_selected_TCP_ports_not_full_65535",
+                         "wan_ip": "82.66.4.247", "open_tcp": ports, "tls": tls}, file, indent=2)
+          print("Open TCP ports:", ports)
+          print("TLS cert verified:", sum(x["status"] == "TLS_CERT_VERIFIED" for x in tls), "/", len(tls))
+          PY
+      - name: Upload minimized network report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-tcp-tls-${{ github.run_id }}
+          path: public-tcp-tls.json
+          retention-days: 7
+          if-no-files-found: warn
