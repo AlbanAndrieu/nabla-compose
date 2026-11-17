@@ -4,7 +4,7 @@
 utilisateur créé.** L'opérateur crée lui-même le compte, accepte les conditions
 et saisit téléphone et carte. Contexte et modèle de menace :
 [lab Entra H16](../security/entra-id-homelab-lab.md) ; module :
-[`terraform/entra-id-lab`](../../terraform/entra-id-lab/README.md).
+[`terraform/entra`](../../terraform/entra/README.md).
 
 ## 0. Quelle voie pour un tenant gratuit (vérifié le 15/11/2026)
 
@@ -77,13 +77,13 @@ ci-dessus qui le donne, avec quelques minutes de propagation.
 
 ## 3. Mot de passe initial (toi)
 
-Dans Vaultwarden, crée l'élément `nabla/lab/entra-id-lab-test-user` avec un
+Dans Vaultwarden, crée l'élément `nabla/lab/entra-test-user` avec un
 mot de passe généré d'au moins 16 caractères. Tu le transmets ensuite à
 OpenTofu sans jamais l'afficher :
 
 ```bash
 export BW_SESSION="$(bw unlock --raw)"
-export TF_VAR_test_user_initial_password="$(bw get password nabla/lab/entra-id-lab-test-user)"
+export TF_VAR_test_user_initial_password="$(bw get password nabla/lab/entra-test-user)"
 ```
 
 ## 4. Préflight, init, plan (toi)
@@ -92,7 +92,7 @@ export TF_VAR_test_user_initial_password="$(bw get password nabla/lab/entra-id-l
 cd ~/w/nabla-compose
 bash scripts/entra/entra-lab-preflight.sh
 export TF_VAR_tenant_id="$ENTRA_LAB_TENANT_ID" TF_VAR_lab_tenant_confirmed=true TF_VAR_enable_user_management=true
-cd terraform/entra-id-lab
+cd terraform/entra
 tofu init -backend-config="storage_account_name=$ENTRA_STATE_ACCOUNT" -backend-config="container_name=$ENTRA_STATE_CONTAINER"
 tofu validate
 umask 077
@@ -146,7 +146,7 @@ nouveau mot de passe dans l'élément Vaultwarden.
 - **Suppression** : `TF_VAR_enable_user_management=false` puis plan et apply
   (1 to destroy). L'utilisateur reste 30 jours dans les utilisateurs
   supprimés.
-- Test hors ligne : `TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra-id-lab test`.
+- Test hors ligne : `TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra test`.
 
 ## Dépannage
 

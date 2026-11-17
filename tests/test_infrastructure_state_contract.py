@@ -206,15 +206,16 @@ class InfrastructureStateContractTests(unittest.TestCase):
 
     def test_no_workflow_reaches_the_state_backend(self) -> None:
         # Garage is LAN-only and single-writer: plan/apply run on the workstation.
-        # H16 exception: the Entra lab plans/applies only its own Azure Blob state.
-        azure_state = {"entra-id-lab.yml": ROOT / "terraform/entra-id-lab/backend.tofu"}
+        # H16 exception: the Entra pilot plans/applies only its own HCP Terraform Free state
+        # (backend "remote", local execution on the runner), never Garage.
+        azure_state = {"entra.yml": ROOT / "terraform/entra/backend.tofu"}
         workflows = sorted((ROOT / ".github/workflows").glob("*.y*ml"))
         self.assertTrue(workflows)
         for workflow in workflows:
             text = workflow.read_text(encoding="utf-8")
             if workflow.name in azure_state:
                 backend = azure_state[workflow.name].read_text(encoding="utf-8")
-                self.assertRegex(backend, r'\bbackend\s+"azurerm"')
+                self.assertRegex(backend, r'\bbackend\s+"remote"')
                 self.assertNotRegex(text, r"\bterragrunt\b|\binfrastructure/|GARAGE_")
                 continue
             self.assertNotRegex(

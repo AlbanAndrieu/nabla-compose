@@ -1,6 +1,6 @@
 # Offline contract (mocked provider, no Azure call):
-#   tofu -chdir=terraform/entra-id-lab init -backend=false
-#   TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra-id-lab test
+#   tofu -chdir=terraform/entra init -backend=false
+#   TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra test
 mock_provider "azuread" {
   mock_data "azuread_client_config" {
     defaults = { tenant_id = "00000000-0000-0000-0000-000000000001" }

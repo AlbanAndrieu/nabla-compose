@@ -4,7 +4,7 @@ import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-LAB = ROOT / "terraform" / "entra-id-lab"
+LAB = ROOT / "terraform" / "entra"
 
 
 class EntraLabContract(unittest.TestCase):
@@ -28,7 +28,7 @@ class EntraLabContract(unittest.TestCase):
         self.assertRegex(variables, r'variable "enable_user_management" \{[^}]*default\s+= false')
         self.assertRegex(variables, r'variable "test_user_initial_password" \{[^}]*sensitive\s+= true')
         self.assertNotIn("test_user_initial_password", (LAB / "outputs.tofu").read_text())
-        workflow = (ROOT / ".github/workflows/entra-id-lab.yml").read_text()
+        workflow = (ROOT / ".github/workflows/entra.yml").read_text()
         self.assertIn('TF_VAR_enable_user_management: "false"', workflow)
 
     def test_refuses_remote_mode_without_running_azure(self):
@@ -44,7 +44,7 @@ class EntraLabContract(unittest.TestCase):
         backend = (LAB / "backend.tofu").read_text()
         self.assertIn('backend "remote"', backend)
         self.assertNotIn('backend "azurerm"', backend)
-        self.assertFalse((ROOT / "infrastructure/entra-id-lab/terragrunt.hcl").exists())
+        self.assertFalse((ROOT / "infrastructure/entra/terragrunt.hcl").exists())
         preflight = (ROOT / "scripts/entra/entra-lab-preflight.sh").read_text()
         self.assertIn("AGENT_EXECUTION_MODE", preflight)
         self.assertIn("az account show", preflight)
