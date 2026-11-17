@@ -137,14 +137,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
-            -H "Content-Type: application/vnd.api+json" \
-            "https://app.terraform.io/api/v2/organizations/$HCP_ORG/workspaces/$HCP_WORKSPACE")"
-          jq -e '.data.attributes["execution-mode"] == "local"' <<< "$response" >/dev/null || {
-            echo "DENIED: HCP workspace must use LOCAL execution for OpenTofu" >&2
-            exit 2
-          }
+          # Python keeps the bearer token out of process argv (including Falco).
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.request import Request, urlopen
+          url = "https://app.terraform.io/api/v2/organizations/{}/workspaces/{}".format(
+              os.environ["HCP_ORG"], os.environ["HCP_WORKSPACE"]
+          )
+          request = Request(url, headers={
+              "Authorization": "Bearer " + os.environ["TF_TOKEN_app_terraform_io"],
+              "Content-Type": "application/vnd.api+json",
+          })
+          try:
+              with urlopen(request, timeout=20) as response:
+                  mode = json.load(response)["data"]["attributes"]["execution-mode"]
+          except Exception:
+              sys.exit("DENIED: HCP workspace local mode could not be verified")
+          if mode != "local":
+              sys.exit("DENIED: HCP must use LOCAL execution mode for OpenTofu")
+          PY
       - name: Init HCP remote state (no Azure Blob/Garage)
         shell: bash
         run: |
