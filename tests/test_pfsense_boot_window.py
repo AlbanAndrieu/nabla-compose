@@ -15,6 +15,7 @@ WRAPPER = SCRIPTS / "boot-window-apply.sh"
 EXTCSD = """eMMC Life Time Estimation A [EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_A]: {a}
 eMMC Life Time Estimation B [EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_B]: {b}
 eMMC Pre EOL information [EXT_CSD_PRE_EOL_INFO]: {e}
+Background operations status [BKOPS_STATUS: {k}]
 """
 
 
@@ -32,12 +33,18 @@ class EmmcHealthTest(unittest.TestCase):
                                   text=True, env=env, check=False)
 
     def test_healthy_worn_and_eol_readings(self) -> None:
-        ok = self.run_emmc("check", EXTCSD.format(a="0x01", b="0x02", e="0x01"))
+        ok = self.run_emmc("check", EXTCSD.format(a="0x01", b="0x02", e="0x01", k="0x00"))
         self.assertIn("INFO: life_used_A=0x01 life_used_B=0x02 pre_eol=0x01", ok.stdout)
         self.assertIn("OK: wear indicators below warning levels", ok.stdout)
-        worn = self.run_emmc("check", EXTCSD.format(a="0x0b", b="0x03", e="0x01"))
+        worn = self.run_emmc("check", EXTCSD.format(a="0x09", b="0x03", e="0x01", k="0x00"))
         self.assertIn("WARN: over 80 % of rated life used", worn.stdout)
-        eol = self.run_emmc("check", EXTCSD.format(a="0x02", b="0x02", e="0x03"))
+        # Netgate 1100 reading of 17/11: life exhausted and critical background operations.
+        netgate = self.run_emmc("check", EXTCSD.format(a="0x0b", b="0x0b", e="0x01", k="0x03"))
+        self.assertIn("bkops_status=0x03", netgate.stdout)
+        self.assertIn("WARN: rated life exhausted", netgate.stdout)
+        self.assertIn("WARN: background operations critical", netgate.stdout)
+        self.assertNotIn("OK:", netgate.stdout)
+        eol = self.run_emmc("check", EXTCSD.format(a="0x02", b="0x02", e="0x03", k="0x00"))
         self.assertIn("WARN: pre_eol=urgent", eol.stdout)
 
     def test_check_without_mmc_utils_installs_nothing(self) -> None:
