@@ -42,8 +42,8 @@ class EntraLabContract(unittest.TestCase):
 
     def test_private_backend_and_read_only_preflight(self):
         backend = (LAB / "backend.tofu").read_text()
-        self.assertIn('backend "azurerm"', backend)
-        self.assertIn("use_azuread_auth = true", backend)
+        self.assertIn('backend "remote"', backend)
+        self.assertNotIn('backend "azurerm"', backend)
         self.assertFalse((ROOT / "infrastructure/entra-id-lab/terragrunt.hcl").exists())
         preflight = (ROOT / "scripts/entra/entra-lab-preflight.sh").read_text()
         self.assertIn("AGENT_EXECUTION_MODE", preflight)
