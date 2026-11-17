@@ -1,3 +1,15 @@
+# [0.98.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.3...0.98.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **edge:** retire four LAN-only tunnel routes, keep immich and nexus public ([e6b65c3](https://github.com/AlbanAndrieu/nabla-compose/commit/e6b65c35696e275002b11fd4d7dbbf1e9f09d39c))
+
+
+### Features
+
+* **ai:** TrueNAS CPU fallback and task-based LiteLLM routing ([6e0b2de](https://github.com/AlbanAndrieu/nabla-compose/commit/6e0b2de8dc910bc41201642cb5232001ff94f095))
+
 ## [0.97.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.2...0.97.3) (2026-11-16)
 
 
