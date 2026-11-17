@@ -64,10 +64,56 @@ jobs:
           python3 -m pip install --disable-pip-version-check zizmor==1.31.1
           zizmor --offline .github/workflows/entra-id-lab.yml
 
+  # This gate has NO Entra OIDC identity and NO HCP secret. Unapproved
+  # changes cannot start the privileged apply job.
+  approval_gate:
+    name: Verify hardware signature before privileged job
+    needs: static
+    if: "${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'apply' }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: "${{ github.token }}"
+      PLAN_RUN_ID: "${{ inputs.plan_run_id }}"
+      SIGNATURE_B64: "${{ inputs.signature_b64 }}"
+      ALLOWED_SIGNER: "${{ vars.ENTRA_APPROVAL_ALLOWED_SIGNER }}"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Download original challenge and verify YubiKey approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/master" ]] || exit 2
+          [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          [[ "$ALLOWED_SIGNER" == "entra-operator sk-ssh-ed25519@openssh.com "* ]] || exit 2
+          info="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PLAN_RUN_ID")"
+          jq -e --arg sha "$GITHUB_SHA" \
+            '.event == "workflow_dispatch" and .head_branch == "master" and .head_sha == $sha and .conclusion == "success"' \
+            <<< "$info" >/dev/null || exit 2
+          umask 077
+          mkdir -p "$RUNNER_TEMP/approval"
+          gh run download "$PLAN_RUN_ID" -R "$GITHUB_REPOSITORY" \
+            --name "entra-challenge-$PLAN_RUN_ID" --dir "$RUNNER_TEMP/approval"
+          printf '%s' "$SIGNATURE_B64" | base64 --decode > "$RUNNER_TEMP/approval/challenge.json.sig"
+          printf '%s\n' "$ALLOWED_SIGNER" > "$RUNNER_TEMP/approval/allowed_signers"
+          m="$RUNNER_TEMP/approval/challenge.json"
+          python3 scripts/entra/approval.py verify --metadata-only \
+            --manifest "$m" --signature "$RUNNER_TEMP/approval/challenge.json.sig" \
+            --allowed-signer "$ALLOWED_SIGNER" \
+            --allowed-signers-file "$RUNNER_TEMP/approval/allowed_signers" \
+            --sha "$GITHUB_SHA" --tenant "$(jq -r '.tenant' "$m")" \
+            --organization "$(jq -r '.hcp_organization' "$m")" \
+            --workspace "$(jq -r '.hcp_workspace' "$m")" --run-id "$PLAN_RUN_ID"
+
   remote:
     name: "Entra HCP ${{ inputs.operation }} (hardware gated)"
-    needs: static
-    if: "${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'plan' || inputs.operation == 'apply') }}"
+    needs: [static, approval_gate]
+    if: "${{ always() && needs.static.result == 'success' && github.event_name == 'workflow_dispatch' && (inputs.operation == 'plan' || (inputs.operation == 'apply' && needs.approval_gate.result == 'success')) }}"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:

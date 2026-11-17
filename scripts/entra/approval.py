@@ -109,12 +109,15 @@ def verify(args: argparse.Namespace) -> None:
     if (born.tzinfo is None or expiry.tzinfo is None or born > now + timedelta(minutes=1)
             or expiry <= now or expiry > born + timedelta(minutes=90)):
         raise ValueError("Expired or unreasonable manifest time window")
-    plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
-    if manifest["plan_sha256"] != fingerprint(plan):
-        raise ValueError("Planned resources changed since hardware approval")
-    changes = [{"address": x["address"], "actions": x["actions"]} for x in view(plan)]
-    if manifest["changes"] != changes:
-        raise ValueError("Manifest change list differs from actual plan")
+    if not args.metadata_only:
+        if not args.plan:
+            raise ValueError("A private plan is required for full verification")
+        plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
+        if manifest["plan_sha256"] != fingerprint(plan):
+            raise ValueError("Planned resources changed since hardware approval")
+        changes = [{"address": x["address"], "actions": x["actions"]} for x in view(plan)]
+        if manifest["changes"] != changes:
+            raise ValueError("Manifest change list differs from actual plan")
     allowed = args.allowed_signer.strip()
     if "\n" in allowed or "\r" in allowed or not allowed.startswith(KEY_PREFIX):
         raise ValueError("A single registered hardware FIDO2 public key is required")
@@ -139,9 +142,11 @@ def main() -> int:
     for arg in ("plan", "output", "sha", "tenant", "organization", "workspace", "run-id"):
         c.add_argument("--" + arg, required=True)
     v = sub.add_parser("verify")
-    for arg in ("plan", "manifest", "signature", "sha", "tenant", "organization", "workspace", "run-id",
+    for arg in ("manifest", "signature", "sha", "tenant", "organization", "workspace", "run-id",
                 "allowed-signer", "allowed-signers-file"):
         v.add_argument("--" + arg, required=True)
+    v.add_argument("--plan")
+    v.add_argument("--metadata-only", action="store_true")
     args = p.parse_args()
     try:
         (create if args.command == "create" else verify)(args)
