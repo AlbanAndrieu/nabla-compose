@@ -47,6 +47,9 @@ class DisableRrdGraphingTest(unittest.TestCase):
             stubs = Path(tmp)
             (stubs / "config.inc").write_text(STUB_CONFIG, encoding="utf-8")
             (stubs / "rrd.inc").write_text(STUB_RRD, encoding="utf-8")
+            # The real enable_rrd_graphing() needs read_altq_config() from shaper.inc (17/11 apply failure).
+            (stubs / "functions.inc").write_text("<?php\n", encoding="utf-8")
+            (stubs / "shaper.inc").write_text("<?php\nfunction read_altq_config() {}\n", encoding="utf-8")
             (stubs / "config.json").write_text(json.dumps(config), encoding="utf-8")
             pidfile = stubs / "updaterrd.sh.pid"
             if running:

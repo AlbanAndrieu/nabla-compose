@@ -9,6 +9,9 @@
 //   ssh -p 9922 admin@172.17.0.1 "php -- check" < scripts/pfsense/disable-rrd-graphing.php
 // then "php -- apply", then check again. "php -- revert" turns graphing back on (SSD hardware).
 require_once('config.inc');
+require_once('functions.inc');
+// enable_rrd_graphing() calls read_altq_config() from shaper.inc even when it only stops the collector.
+require_once('shaper.inc');
 require_once('rrd.inc');
 
 $mode = $argv[1] ?? 'check';
