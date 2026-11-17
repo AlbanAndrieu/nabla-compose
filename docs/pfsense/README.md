@@ -5,6 +5,7 @@ Tout ce qui concerne le pare-feu pfSense (Netgate 1100, bientôt Netgate 4200 MA
 ## Contenu
 
 - [Roadmap pfSense](roadmap.md) : sécurité, écarts H07, stabilisation H07b et remplacement du 1100, historique P0 du 15/11.
+- [Étude de décommissionnement](decommission-study.md) : ce que la Freebox Ultra peut reprendre, scénarios et phases (17/11).
 - Documentation :
   - [Diagnostic et reprise](pfsense-diagnose-recover.md)
   - [Upgrade 26.03.1 → 26.07](pfsense-upgrade-26-07.md)
@@ -15,6 +16,7 @@ Tout ce qui concerne le pare-feu pfSense (Netgate 1100, bientôt Netgate 4200 MA
   - [politique d'exposition](runbooks/pfsense-ingress-exposure-policy.md)
   - [provenance des décisions CrowdSec](runbooks/crowdsec-pfsense-decision-provenance.md)
   - [cibles workstation obsolètes](runbooks/2026-11-14-pfsense-stale-workstation-targets.md)
+  - [Freebox en mode routeur, et retour en bridge](runbooks/freebox-router-mode.md)
 - [Incidents](incidents/), du 08/09 au 17/11/2026 (WebConfigurator 502, Unbound OOM, pont du démarrage à froid, eMMC défaillante).
 - [Preuves](evidence/) : instantané HAProxy expurgé, lu par `config/ingress-access-policy.json` et les tests.
 
@@ -66,8 +68,8 @@ Atom C1110, 4 Go de RAM, SSD NVMe de 128 Go à la place de l'eMMC, 4 ports 2,5 G
 | Chemin | Volume au 17/11 |
 |---|---|
 | `docs/pfsense/` | ce dossier |
-| `scripts/pfsense/` | 40 fichiers |
-| `tests/test_pfsense_*.py` | 32 tests |
+| `scripts/pfsense/` | 46 fichiers, dont l'outil API Freebox |
+| `tests/test_pfsense_*.py` | 37 tests |
 | Recettes `pfsense-*` du `justfile` | 31 |
 | `.agents/skills/pfsense-api-debugging/` | 1 skill |
 

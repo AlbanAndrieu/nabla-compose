@@ -125,7 +125,7 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 
 ### H07 / H07b — pfSense
 
-Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité).
+Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité). Le même jour : [étude de décommissionnement de pfSense](pfsense/decommission-study.md), à trancher avant de commander le 4200. Sa phase 0 touche aussi des services TrueNAS (Traefik, Pi-hole, ddns-updater, Tailscale).
 
 ## P1 — Performance, stockage et restauration TrueNAS
 
