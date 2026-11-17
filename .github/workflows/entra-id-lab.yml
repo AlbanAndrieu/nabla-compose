@@ -43,6 +43,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Harden the GitHub-hosted runner (community audit)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -81,6 +85,10 @@ jobs:
       SIGNATURE_B64: "${{ inputs.signature_b64 }}"
       ALLOWED_SIGNER: "${{ vars.ENTRA_APPROVAL_ALLOWED_SIGNER }}"
     steps:
+      - name: Harden the GitHub-hosted runner (community audit)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -142,6 +150,10 @@ jobs:
       ALLOWED_SIGNER: "${{ vars.ENTRA_APPROVAL_ALLOWED_SIGNER }}"
       GH_TOKEN: "${{ github.token }}"
     steps:
+      - name: Harden the GitHub-hosted runner (community audit)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
       - name: Deny wrong branch, SHA, identity, tenant, or missing HCP configuration
         shell: bash
         env:
@@ -166,12 +178,6 @@ jobs:
             [[ "$ALLOWED_SIGNER" == "entra-operator sk-ssh-ed25519@openssh.com "* ]] || exit 2
           fi
           echo "HCP local execution and Entra WIF are required; no credential printed."
-      - name: Start open-source Falco runtime detector (ephemeral runner)
-        uses: falcosecurity/falco-actions/start@558a3ceeee9403e1c875ffbeb704c34c93e24752
-        with:
-          mode: live
-          falco-version: "0.45.2"
-          verbose: false
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -298,9 +304,3 @@ jobs:
           path: "${{ runner.temp }}/challenge.json"
           if-no-files-found: error
           retention-days: 1
-      - name: Stop Falco and summarize runtime alerts
-        if: always()
-        uses: falcosecurity/falco-actions/stop@558a3ceeee9403e1c875ffbeb704c34c93e24752
-        with:
-          mode: live
-          verbose: false

@@ -103,14 +103,37 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
    recreated, so use short-lived manifest, master pinning, run-ID checks
    and HCP state auditing. There is no global one-time nonce database yet.
 
-## Runner runtime monitoring
+## Runner runtime protection — GitHub-hosted only
 
-`falcosecurity/falco-actions/start` + `stop`, SHA-pinned, runs Falco
-0.45.2 in live modern-eBPF mode on GitHub-hosted Ubuntu 24.04 during
-plan/apply. This is **runtime threat detection**, NOT a full managed EDR;
-alerts appear in run summary. Start failure blocks the privileged workflow.
-Falco does not substitute for SHA-pinned actions, minimized OAuth permissions,
-zizmor, GitHub environment rules or signature verification.
+The workflow uses **StepSecurity Harden-Runner Community** on each job
+(`static`, `approval_gate`, and `remote`), pinned to immutable SHA
+`05e31511f85b41b11d1cf0ef85d0992719546e2c` (v2.21.0).
+**These are ephemeral GitHub-hosted `ubuntu-24.04` runners, NOT Talos
+Pods or any self-hosted Kubernetes runner.** The first job step enables
+`egress-policy: audit` before checkout; review connections per step,
+processes and file writes, then approve the exact destinations needed
+for OpenTofu, HCP Terraform, Microsoft Graph, GitHub APIs and provider
+downloads. A future PR may change the policy to `block` with a tested
+`allowed-endpoints` list. No speculative allowlist is enabled.
+
+Comparison to Falco: Harden-Runner is specialized for ephemeral GitHub Actions,
+has built-in network egress auditing/blocking, process/file correlation and
+Community features free for public repositories on GitHub-hosted runners.
+Falco is a general Linux/eBPF runtime detection engine and is better suited
+to **a separate Talos workload security initiative**. We have removed the
+Falco actions from the Entra workflow to avoid redundant privileged agents
+and runner overhead; **Falco is not deployed on Talos**.
+
+StepSecurity's Community agent sends operational telemetry/metadata to
+StepSecurity; evaluate privacy and logs before assigning sensitive cloud
+permissions. Free Community does NOT protect self-hosted ARC/Talos runners
+(Enterprise licensing would be needed). Deployment and real network evidence
+remain **NOT_RUN** until CI is explicitly executed.
+
+Sources:
+- https://www.stephane-robert.info/en/docs/github-actions/security/harden-runner/
+- https://github.com/step-security/harden-runner
+- https://github.com/falcosecurity/falco
 
 ## Validation and rollback
 
