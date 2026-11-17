@@ -12,6 +12,9 @@ services:
     logging: *nabla-logging
     image: docker.io/ollama/ollama:latest
     container_name: ollama
+    # qwen3.5:4b (~3.4 GB) + nomic-embed-text (~0.3 GB) + 8k KV cache: about 4.5 GB.
+    # TrueNAS had 5.5 GiB available on 17/11: raise only after freeing RAM (roadmap).
+    mem_limit: 6g
     restart: unless-stopped
     # Reap orphaned ollama children; the app PID 1 left zombies (diagnostic 2026-11-04).
     init: true
@@ -52,15 +55,17 @@ services:
     environment:
       - TZ=Europe/Paris
       - OLLAMA_HOST=0.0.0.0:30068
-      - OLLAMA_KEEP_ALIVE=72h
+      # CPU-only (no GPU is passed to this container): LiteLLM sends qwen-cpu here when the
+      # workstation GPU is off. Idle models unload after 30 min to give the RAM back to ZFS ARC.
+      - OLLAMA_KEEP_ALIVE=30m
       - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_MAX_LOADED_MODELS=1
+      # qwen3.5:4b (qwen-cpu) and nomic-embed-text (embedding-local) stay loaded together.
+      - OLLAMA_MAX_LOADED_MODELS=2
       - OLLAMA_MAX_QUEUE=4
-      # - CUDA_VISIBLE_DEVICES="" # force CPU, no GPU
-      - OLLAMA_CONTEXT_LENGTH=4096 # 32768 too big for RTX 2060
+      # Same num_ctx as the qwen-cpu route: another value reloads the model.
+      - OLLAMA_CONTEXT_LENGTH=8192
       - OLLAMA_FLASH_ATTENTION=1
       - OLLAMA_MODELS=/mnt/cpool/model/ollama/
-      - OLLAMA_GPU_OVERHEAD=268435456
       - OLLAMA_KV_CACHE_TYPE=q8_0
       # - OLLAMA_API_KEY=${OLLAMA_API_KEY} # <-- Place your API key in .env or .env.secrets.
     healthcheck:

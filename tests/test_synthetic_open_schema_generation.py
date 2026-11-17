@@ -39,8 +39,9 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
     # TrueNAS FastAPI Sample observer were declared external; hello.int is an
     # explicit direct (non-Access) exception. 2026-11-05: LiteLLM is no longer
     # published on the Internet (owner decision). 2026-11-13: AdGuard Home is
-    # LAN-only (owner decision); its tunnel route was removed.
-    assert public_count == 27
+    # LAN-only (owner decision); its tunnel route was removed. 2026-11-17: Nexus
+    # keeps its public route behind Access (owner decision).
+    assert public_count == 28
     assert len(by_kind["DnsCheck"]) == public_count
     assert len(by_kind["TlsCheck"]) == public_count
     assert len(by_kind["HttpCheck"]) == public_count
@@ -57,7 +58,7 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
     ]
 
     # Every public exposure except the direct hello.int exception requires Access.
-    assert len(protected) == 26
+    assert len(protected) == 27
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"

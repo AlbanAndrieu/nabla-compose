@@ -200,6 +200,35 @@ model_list:
       num_ctx: 32768
       think: false
 
+  # CPU fallback on TrueNAS when the workstation GPU is off (17/11). Never routed to
+  # 172.17.0.57, so it cannot reload the GPU model; num_ctx matches OLLAMA_CONTEXT_LENGTH.
+  # Needs "ollama pull qwen3.5:4b" in the TrueNAS ollama App (9/10 on the 13/11 bench).
+  - model_name: qwen-cpu
+    litellm_params:
+      model: ollama_chat/qwen3.5:4b
+      api_base: "http://172.17.0.24:30068"
+      num_ctx: 8192
+      think: false
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # Task-based routing with LiteLLM's local complexity scorer (no external call, <1 ms):
+  # short questions go to qwen, code and multi-step reasoning to qwen-think (same GPU
+  # instance, reasoning on). Local tiers only: a paid tier is an owner decision.
+  - model_name: auto
+    litellm_params:
+      model: auto_router/complexity_router
+      complexity_router_config:
+        tiers:
+          SIMPLE: qwen
+          MEDIUM: qwen
+          COMPLEX: qwen-think
+          REASONING: qwen-think
+      complexity_router_default_model: qwen
+
   # Optional generic external providers: do not enable until the matching
   # private runtime credentials and model availability have been validated.
   # - model_name: gpt-image
@@ -252,10 +281,12 @@ litellm_settings:
   fallbacks:
     # Only use aliases configured on this TrueNAS proxy.
     # Private paid upstream routes remain outside this deployment.
-    # Another local model would only swap the GPU model; the GPU routes share one instance.
-    - { "qwen": [] }
-    - { "qwen-think": [] }
-    - { "rr-json": [] }
+    # The GPU routes share one instance; when the workstation is off they fall back
+    # to the TrueNAS CPU model, which never touches the GPU.
+    - { "qwen": ["qwen-cpu"] }
+    - { "qwen-think": ["qwen-cpu"] }
+    - { "rr-json": ["qwen-cpu"] }
+    - { "qwen-cpu": [] }
     # Explicitly no alternate paid/local model for this budget-scoped service.
     - { "fastapi-qwen": [] }
     # Strict paid-model order for Hermes (no local/random model substitution).

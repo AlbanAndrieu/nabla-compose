@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:d9468b89986ea48705ae1cdf8aaa9856efe01ec1442a42147346e95ab65484f8",
+  "catalogRevision": "sha256:8fc7d2cadbef5067a9cf77abec08041eb857c428b437af9deffa2ec9a9d21d14",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3409,17 +3409,23 @@
       "x-nabla": {
         "exposure": [
           {
+            "access": {
+              "required": true
+            },
             "backend": {
               "appProtocol": "http",
               "host": "172.17.0.24",
               "port": 30041
             },
-            "gatewayRef": "resource:default/truenas",
-            "name": "lan",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "immich.albandrieu.com"
+            ],
+            "name": "public",
             "probePath": "/api/server/ping",
-            "protocol": "HTTP",
+            "protocol": "HTTPS",
             "source": "catalog/catalog-info.yaml",
-            "visibility": "lan"
+            "visibility": "public"
           }
         ],
         "runtime": {
@@ -4765,17 +4771,23 @@
       "x-nabla": {
         "exposure": [
           {
+            "access": {
+              "required": true
+            },
             "backend": {
               "appProtocol": "http",
               "host": "172.17.0.24",
               "port": 8081
             },
             "backendPort": "web",
-            "gatewayRef": "resource:default/truenas",
-            "name": "lan",
-            "protocol": "HTTP",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "nexus.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
             "source": "apps/nexus/compose.yml#services/nexus",
-            "visibility": "lan"
+            "visibility": "public"
           }
         ],
         "runtime": {

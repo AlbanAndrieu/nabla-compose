@@ -635,10 +635,12 @@
       "name": "Nexus Repository",
       "description": "Repository manager for development artifacts and package proxies.",
       "iconSrc": "assets/selfh-icons/sonatype-nexus-repository.png",
-      "external": false,
+      "external": true,
       "internalHost": "172.17.0.24",
       "internalPort": 8081,
-      "internalSecure": false
+      "internalSecure": false,
+      "tunnelUrl": "https://nexus.albandrieu.com",
+      "tunnelSecure": true
     },
     {
       "id": "ntopng",

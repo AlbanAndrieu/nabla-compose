@@ -881,13 +881,18 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
 x-nabla:
+  # Public through the Cloudflare tunnel behind Access (owner decision, 17/11/2026).
   exposure:
-    - name: lan
-      protocol: HTTP
-      visibility: lan
-      gatewayRef: resource:default/truenas
+    - name: public
+      hostnames:
+        - immich.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
       backend: http://172.17.0.24:30041
       probePath: "/api/server/ping"
+      access:
+        required: true
   runtime:
     provider: truenas-app
     appId: immich
