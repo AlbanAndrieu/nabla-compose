@@ -133,7 +133,8 @@ run_fix_check php_generator_mode "/bin/sh -s -- check" "${here}/repair-be-php-ge
 run_fix_check fallback_be_config "/bin/sh -s -- check auto" "${here}/sync-fallback-be-config.sh"
 run_fix_check be_own_country "php -- check" "${here}/be-drop-own-country.php"
 run_fix_check pflow "php -- check" "${here}/reconcile-pflow.php"
-# Drop this line once 26.07 is the running BE (pfsense-26.07-upgrade.md).
+run_fix_check default_pass_logging "php -- check" "${here}/stop-default-pass-logging.php"
+# Drop this line once 26.07 is the running BE (docs/pfsense/runbooks/pfsense-26.07-upgrade.md), or after the 4200 MAX swap.
 run_fix_check fallback_exclusion "/bin/sh -s -- check default_20260824183037" "${here}/exclude-be-from-fallback.sh"
 drift_count=$((drift_count+fix_drift))
 echo "==> Summary"

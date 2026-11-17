@@ -2,7 +2,7 @@
 // Retire the pfSense targets that still aim at the workstation 172.17.0.57.
 // Run from the workstation, check first, then apply:
 //   ssh -p 9922 admin@172.17.0.1 "php -- check" < scripts/pfsense/retire-workstation-targets.php
-// Runbook: docs/runbooks/2026-11-14-pfsense-stale-workstation-targets.md
+// Runbook: docs/pfsense/runbooks/2026-11-14-pfsense-stale-workstation-targets.md
 require_once('config.inc');
 require_once('util.inc');
 require_once('functions.inc');

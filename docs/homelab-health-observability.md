@@ -86,7 +86,7 @@ For these components, capacity and pressure are valid first-class signals.
 The Netgate 1100 is a constrained critical edge component. Its memory budget,
 pfBlockerNG feed hardening, Snort memcap tuning and pflow/IPFIX offload to
 TrueNAS/Akvorado are documented in
-[`docs/pfsense-flow-observability-memory.md`](./pfsense-flow-observability-memory.md).
+[`docs/pfsense/pfsense-flow-observability-memory.md`](pfsense/pfsense-flow-observability-memory.md).
 
 Treat kernel memory-reclaim kills as a critical platform-pressure symptom even
 when an individual firewall daemon later restarts successfully.

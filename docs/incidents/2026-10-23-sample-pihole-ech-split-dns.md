@@ -33,7 +33,7 @@ ou déploiement applicatif n'a été effectué lors du diagnostic.
 
 ## Rapprochement avec incidents anciens
 
-- [2026-09-27 — DNS DHCP TrueNAS/Talos](2026-09-27-pfsense-dns-truenas-dependency.md) :
+- [2026-09-27 — DNS DHCP TrueNAS/Talos](../pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md) :
   à l'époque, Kea annonçait `172.17.0.24`. **Ce n'est plus le cas**.
 - [2026-10-10 — hostname Vaultwarden public vers TrueNAS](2026-10-10-vaultwarden-public-split-dns.md) :
   même symptôme de bypass Cloudflare et HTTP 404, mais origine de

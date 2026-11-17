@@ -2,7 +2,7 @@
   "schema_version": 1,
   "description": "Expected access policy, not proof of live Cloudflare/DNS/pfSense firewall enforcement. Unknown evidence must never be called PASS.",
   "haproxy_frontend": "main_Web_HTTPS",
-  "generated_snapshot": "docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg",
+  "generated_snapshot": "docs/pfsense/evidence/haproxy-2026-10-27.generated.redacted.cfg",
   "evidence_contract": {
     "cloudflare_tunnel": "host-to-origin routing and Access policy must be read from Cloudflare config/API; no inferred status",
     "public_dns": "external authoritative A/AAAA/CNAME evidence; LAN split DNS is not public reachability",

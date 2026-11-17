@@ -2,7 +2,7 @@
 // Add the October DHCP static mappings (Talos .50-.52 and others) missing after a boot-environment
 // fallback. Match by MAC, never overwrite; print IP and hostname only, no MAC. Check first, then apply:
 //   ssh -p 9922 admin@172.17.0.1 "php -- check" < scripts/pfsense/restore-dhcp-staticmaps.php
-// Runbook: docs/runbooks/pfsense-26.07-upgrade.md
+// Runbook: docs/pfsense/runbooks/pfsense-26.07-upgrade.md
 require_once('config.inc');
 require_once('functions.inc');
 require_once('services.inc');

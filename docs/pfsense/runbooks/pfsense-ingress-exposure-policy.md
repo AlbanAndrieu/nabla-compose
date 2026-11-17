@@ -3,7 +3,7 @@
 **Référence 27 octobre 2026.** Les intentions de sécurité sont dans
 `config/ingress-access-policy.json`. Le fichier fourni par l'opérateur,
 `/var/etc/haproxy/haproxy.cfg` (généré à 20:47), a été enregistré sous
-`docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg`,
+`docs/pfsense/evidence/haproxy-2026-10-27.generated.redacted.cfg`,
 **expurgé et non déployable**. Aucun certificat, secret, IP WAN ou
 adresse source externe n'a été délibérément conservé dans cette preuve.
 Ne jamais éditer le fichier généré sur pfSense ni enregistrer la version

@@ -9,7 +9,7 @@ WebConfigurator/API listener on TCP/10443.
 Current policy and remaining actions stay in
 [`pfsense-ingress-exposure-policy.md`](../runbooks/pfsense-ingress-exposure-policy.md),
 [`pfsense-php-fpm-hardening.md`](../pfsense-php-fpm-hardening.md) and
-[`roadmap.md`](../roadmap.md).
+[`roadmap.md`](../../roadmap.md).
 
 ## Proven kernel memory failures
 

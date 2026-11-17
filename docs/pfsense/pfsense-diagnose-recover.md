@@ -98,7 +98,7 @@ Le DNS direct et le reverse PTR Free sont des sujets distincts.
   supplémentaire, connectivité IPv6 littérale
   `2606:4700:4700::1111` depuis un client LAN, puis DNS AAAA.
   Préserver `Unbound > Outgoing Network Interfaces = All`
-  pour le Domain Override privé [déjà documenté](dns-ingress-ownership.md).
+  pour le Domain Override privé [déjà documenté](../dns-ingress-ownership.md).
 
 **DONE IPv6** : /64 global LAN, client SLAAC opérationnel,
 route IPv6 Internet, tests AAAA et sécurité ingress vérifiés
@@ -277,7 +277,7 @@ la notification GUI avant d'avoir vérifié l'état distant. Sources :
 the HTTP listener responded, while the PHP-FPM/webConfigurator upstream did not
 serve the request. It does **not** prove an invalid API key, a PF block, or an
 Unbound failure. See the
-[dated pfSense platform incident](./incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
+[dated pfSense platform incident](incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
 for the historical evidence and the
 [FastAPI incident register](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/incidents.md)
 for the original observer chronology.
@@ -470,7 +470,7 @@ la zone interne. `just pfsense-split-dns-check` et
 `int.albandrieu.com` vers Pi-hole, avec `outgoing_interface=all`.
 `just pfsense-drift` agrège cet invariant, l'audit posture/capacité
 et les preuves du Boot Environment ; voir
-[contrat de réparation et de portée](dns-ingress-ownership.md).
+[contrat de réparation et de portée](../dns-ingress-ownership.md).
 
 ## Normal read-only check### Lecture simplifiée des anomalies Unbound (15/11/2026)
 

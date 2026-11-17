@@ -62,7 +62,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 - [Migration operator](./runbooks/truenas-migration-operator.md)
 - [Catalog v2 two-wave restart](./runbooks/catalog-v2-truenas-two-wave-restart.md)
 - [Talos and TrueNAS batch upgrade](./runbooks/2026-10-23-fast-batch-migration.md)
-- [pfSense Plus 26.07 sur le Netgate 1100 : environnements de boot et upgrade](./runbooks/pfsense-26.07-upgrade.md)
+- [pfSense Plus 26.07 sur le Netgate 1100 : environnements de boot et upgrade](pfsense/runbooks/pfsense-26.07-upgrade.md)
 - [Operator tools and TrueNAS upgrade coupling](./truenas-operator-tools.md)
 - [Deployment automation](./truenas-deployment-automation.md)
 - [Prompt de déploiement pour une session Claude sur TrueNAS](runbooks/claude-remote-truenas-rollout-prompt.md) : ordre complet, ProtonVPN en dernière étape.
@@ -86,13 +86,14 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 
 ## Network edge: pfSense, DNS, Cloudflare
 
-- [pfSense Plus 26.03.1 → 26.07 upgrade (Netgate arm64)](./pfsense-upgrade-26-07.md)
+- [pfSense: index, roadmap and `nabla-pfsense` extraction scope](pfsense/README.md) — pfSense docs, runbooks, incidents and evidence live under `docs/pfsense/` since 2026-11-17
+- [pfSense Plus 26.03.1 → 26.07 upgrade (Netgate arm64)](pfsense/pfsense-upgrade-26-07.md)
 
-- [pfSense diagnosis/recovery and WebConfigurator 502](./pfsense-diagnose-recover.md)
-- [pfSense flow observability and memory](./pfsense-flow-observability-memory.md)
-- [pfSense PHP-FPM hardening](./pfsense-php-fpm-hardening.md)
-- [pfSense ingress exposure policy](./runbooks/pfsense-ingress-exposure-policy.md)
-- [CrowdSec decision provenance on pfSense](./runbooks/crowdsec-pfsense-decision-provenance.md)
+- [pfSense diagnosis/recovery and WebConfigurator 502](pfsense/pfsense-diagnose-recover.md)
+- [pfSense flow observability and memory](pfsense/pfsense-flow-observability-memory.md)
+- [pfSense PHP-FPM hardening](pfsense/pfsense-php-fpm-hardening.md)
+- [pfSense ingress exposure policy](pfsense/runbooks/pfsense-ingress-exposure-policy.md)
+- [CrowdSec decision provenance on pfSense](pfsense/runbooks/crowdsec-pfsense-decision-provenance.md)
 - [Cloudflare Tunnel/Access and self-hosted Sentry platform diagnostics](./cloudflare-sentry-platform-diagnostics.md)
 - [Cloudflare Tunnel/DNS/Access as OpenTofu](../terraform/cloudflare/README.md)
 - [Nexus private DNS ingress](./runbooks/nexus-private-dns-ingress.md)
@@ -145,22 +146,23 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 All date-specific incidents belong under [`incidents/`](./incidents/).
 
 - [2026-09-07 · ClickHouse / Langfuse failure modes](./incidents/2026-09-07-clickhouse-langfuse-failure-modes.md)
-- [2026-09-08/10 · pfSense WebConfigurator/API 502](./incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
+- [2026-09-08/10 · pfSense WebConfigurator/API 502](pfsense/incidents/2026-09-08-pfsense-webconfigurator-http-502.md)
 - [2026-09-11 · Sentry Taskbroker / project-config](./incidents/2026-09-11-sentry-taskbroker-project-config.md)
 - [2026-09-11 · TrueNAS CSI VolumeAttachment / publishContext](./incidents/2026-09-11-truenas-csi-publishcontext-rbac.md)
 - [2026-09-11 · TrueNAS controlled reboot](./incidents/2026-09-11-truenas-reboot.md)
-- [2026-09-27 · pfSense/Talos DNS dependency after TrueNAS reboot](./incidents/2026-09-27-pfsense-dns-truenas-dependency.md)
-- [2026-10-08 · pfSense Unbound OOM and WAN WebConfigurator exposure](./incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
+- [2026-09-27 · pfSense/Talos DNS dependency after TrueNAS reboot](pfsense/incidents/2026-09-27-pfsense-dns-truenas-dependency.md)
+- [2026-10-08 · pfSense Unbound OOM and WAN WebConfigurator exposure](pfsense/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
 - [2026-10-10 · post-reboot Git checkout, DSOMM, Gatus, Bitwarden adapter](./incidents/2026-10-10-post-reboot-git-dsomm-gatus-vaultwarden.md)
 - [2026-10-10 · Vaultwarden public split-DNS](./incidents/2026-10-10-vaultwarden-public-split-dns.md)
 - [2026-10-23 · Sample / Chrome ECH Pi-hole override](./incidents/2026-10-23-sample-pihole-ech-split-dns.md)
-- [2026-10-24 · pfSense Unbound restarts, 02:10 OOM, DNSBL cycle](./incidents/2026-10-24-pfsense-unbound-restarts.md)
+- [2026-10-24 · pfSense Unbound restarts, 02:10 OOM, DNSBL cycle](pfsense/incidents/2026-10-24-pfsense-unbound-restarts.md)
 - [2026-10-24 · TrueNAS Prometheus, Pyroscope and exporters recovery](./incidents/2026-10-24-truenas-observability-recovery.md)
 - [2026-10-25 · workstation `hide-location.service` DNS rewrite](./incidents/2026-10-25-workstation-dns-hide-location.md)
 - [2026-10-27 · FastAPI TrueNAS build, Docker Hub 429](./incidents/2026-10-27-fastapi-truenas-build-dockerhub-429.md)
 - [2026-11-04 · TrueNAS `app.query` blocked by a stuck container lock](./incidents/2026-11-04-truenas-app-query-stuck-container-lock.md)
 - [2026-11-06 · migration lessons: STOPPED App binding, WAF, OOM, OpenClaw, secrets, pre-commit](./incidents/2026-11-06-migrations-retour-experience.md)
-- [2026-11-13 · pfSense Unbound OOM during Snort rules rebuild, then boot environment rollback](./incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
+- [2026-11-13 · pfSense Unbound OOM during Snort rules rebuild, then boot environment rollback](pfsense/incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
+- [2026-11-17 · pfSense freezes: Netgate 1100 eMMC timeouts suspend the ZFS pool (GUI, SSH, syslog, then DHCP stall)](pfsense/incidents/2026-11-17-pfsense-userland-freeze.md)
 
 Incident documents retain evidence needed for diagnosis: symptoms, commands,
 observations, root cause, recovery boundary and acceptance. They are not the

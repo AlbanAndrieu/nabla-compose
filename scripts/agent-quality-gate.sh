@@ -573,7 +573,7 @@ fi
 edge_security_contract_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
-    apps/crowdsec/*|scripts/pfsense/diagnose-recover.sh|scripts/truenas/deploy-crowdsec.sh|scripts/truenas/diagnose-crowdsec-cutover.sh|scripts/lib/truenas.sh|tests/test_pfsense_diagnose_recover_contract.py|tests/test_crowdsec_cutover_contract.py|docs/pfsense-diagnose-recover.md|docs/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
+    apps/crowdsec/*|scripts/pfsense/diagnose-recover.sh|scripts/truenas/deploy-crowdsec.sh|scripts/truenas/diagnose-crowdsec-cutover.sh|scripts/lib/truenas.sh|tests/test_pfsense_diagnose_recover_contract.py|tests/test_crowdsec_cutover_contract.py|docs/pfsense/pfsense-diagnose-recover.md|docs/pfsense/incidents/2026-10-08-pfsense-unbound-oom-wan-exposure.md)
       edge_security_contract_scope_changed=true
       break
       ;;

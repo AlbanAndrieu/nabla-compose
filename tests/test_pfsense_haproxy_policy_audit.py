@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/pfsense/audit-haproxy-ingress.py"
-SNAPSHOT = ROOT / "docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg"
+SNAPSHOT = ROOT / "docs/pfsense/evidence/haproxy-2026-10-27.generated.redacted.cfg"
 POLICY = ROOT / "config/ingress-access-policy.json"
 
 spec = importlib.util.spec_from_file_location("nabla_haproxy_policy", SCRIPT)

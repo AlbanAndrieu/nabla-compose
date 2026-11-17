@@ -294,7 +294,7 @@ de preuve contiennent des IP sensibles et restent uniquement
 dans le stockage privé local.
 
 **Réception P0 encore ouverte :** [procédure de preuve d'une décision
-nouvelle et de son retrait dans PF](../../docs/runbooks/crowdsec-pfsense-decision-provenance.md).
+nouvelle et de son retrait dans PF](../../docs/pfsense/runbooks/crowdsec-pfsense-decision-provenance.md).
 La procédure commence en lecture seule ; toute décision synthétique est
 optionnelle et nécessite un accord explicite de l'opérateur.
 

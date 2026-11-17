@@ -1,8 +1,8 @@
 # Nexus — diagnostic DNS/HTTPS privé
 
 **Référence de sécurité commune :**
-[Politique d'exposition HAProxy, Tunnel, DNS et PF](pfsense-ingress-exposure-policy.md)
-et [instantané HAProxy expurgé](../evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg).
+[Politique d'exposition HAProxy, Tunnel, DNS et PF](../pfsense/runbooks/pfsense-ingress-exposure-policy.md)
+et [instantané HAProxy expurgé](../pfsense/evidence/haproxy-2026-10-27.generated.redacted.cfg).
 Ce snapshot montre aussi `acl vault` et `acl s3` **sans refus**, avec une
 route Traefik générique vers `*.int` : l'accès S3 public ou privé est
 **contradictoire entre les sources** ; ne pas clore ce conflit sur le seul
@@ -465,4 +465,4 @@ disparition du routeur et de l'A privé par `pihole-dns-sync`.
   le chemin LAN hairpin ; preuve WAN toujours manquante.
 
 [Architecture DNS](../dns-ingress-ownership.md) ·
-[Incident pfSense Unbound / DNSBL (H-04)](../incidents/2026-10-24-pfsense-unbound-restarts.md)
+[Incident pfSense Unbound / DNSBL (H-04)](../pfsense/incidents/2026-10-24-pfsense-unbound-restarts.md)
