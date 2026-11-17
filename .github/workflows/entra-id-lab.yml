@@ -1,5 +1,5 @@
 ---
-name: Entra ID lab - OIDC gated
+name: Entra ID lab - signed HCP OpenTofu
 
 on:
   pull_request:
@@ -7,9 +7,8 @@ on:
     paths:
       - terraform/entra-id-lab/**
       - scripts/entra/**
-      - tests/test_entra_id_lab_contract.py
-      - tests/test_entra_plan_policy.py
-      - tests/test_entra_workflow_contract.py
+      - tests/test_entra_*.py
+      - .pre-commit-config.yaml
       - .github/workflows/entra-id-lab.yml
   workflow_dispatch:
     inputs:
@@ -18,27 +17,31 @@ on:
         options: [validate, plan, apply]
         default: validate
         required: true
-        description: "Apply needs a protected environment and Azure Blob state"
       expected_sha:
         type: string
         required: false
-        description: "Full 40-character master commit SHA for plan/apply"
-      confirmation:
+        description: "Exact 40-character master SHA for plan/apply"
+      plan_run_id:
         type: string
         required: false
-        description: "For apply type APPLY_ENTRA_LAB"
+        description: "Apply only: successful plan run ID containing the signed challenge"
+      signature_b64:
+        type: string
+        required: false
+        description: "Apply only: base64 OpenSSH FIDO2 signature of challenge.json"
 
 permissions:
   contents: read
 
 concurrency:
-  group: entra-id-lab-state
+  group: entra-id-lab-remote-state
   cancel-in-progress: false
 
 jobs:
   static:
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
+    name: Entra policy, zizmor and signature contracts (offline)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -47,23 +50,31 @@ jobs:
         with:
           tofu_version: 1.12.5
           tofu_wrapper: false
-      - name: Validate offline security contracts
+      - name: Offline security and formatting
         shell: bash
         run: |
           set -euo pipefail
           tofu fmt -check -diff terraform/entra-id-lab
           bash -n scripts/entra/entra-lab-preflight.sh
-          python3 -m unittest tests.test_entra_id_lab_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract -v
+          python3 -m unittest tests.test_entra_id_lab_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract tests.test_entra_approval -v
+      - name: zizmor pinned offline audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check zizmor==1.31.1
+          zizmor --offline .github/workflows/entra-id-lab.yml
 
   remote:
+    name: "Entra HCP ${{ inputs.operation }} (hardware gated)"
     needs: static
     if: "${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'plan' || inputs.operation == 'apply') }}"
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     environment:
       name: "${{ inputs.operation == 'apply' && 'entra-lab-apply' || 'entra-lab-plan' }}"
     permissions:
       contents: read
+      actions: read
       id-token: write
     env:
       TF_IN_AUTOMATION: "true"
@@ -74,38 +85,47 @@ jobs:
       TF_VAR_lab_tenant_confirmed: "true"
       TF_VAR_tenant_id: "${{ vars.ENTRA_LAB_TENANT_ID }}"
       TF_VAR_ci_graph_client_id: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
-      ARM_CLIENT_ID: "${{ vars.ENTRA_STATE_CLIENT_ID }}"
+      ARM_CLIENT_ID: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
       ARM_TENANT_ID: "${{ vars.ENTRA_LAB_TENANT_ID }}"
-      ARM_SUBSCRIPTION_ID: "${{ vars.ENTRA_STATE_SUBSCRIPTION_ID }}"
       ARM_USE_OIDC: "true"
-      ARM_USE_AZUREAD: "true"
       ARM_USE_CLI: "false"
-      STATE_ACCOUNT: "${{ vars.ENTRA_STATE_ACCOUNT }}"
-      STATE_CONTAINER: "${{ vars.ENTRA_STATE_CONTAINER }}"
+      TF_TOKEN_app_terraform_io: "${{ secrets.HCP_TF_TOKEN }}"
+      HCP_ORG: "${{ vars.HCP_TF_ORGANIZATION }}"
+      HCP_WORKSPACE: "${{ vars.HCP_TF_WORKSPACE }}"
       APPLY_ENABLED: "${{ vars.ENTRA_LAB_APPLY_ENABLED }}"
+      ALLOWED_SIGNER: "${{ vars.ENTRA_APPROVAL_ALLOWED_SIGNER }}"
+      GH_TOKEN: "${{ github.token }}"
     steps:
-      - name: Fail closed on wrong branch, actor, SHA or missing identities
+      - name: Deny wrong branch, SHA, identity, tenant, or missing HCP configuration
         shell: bash
         env:
           OPERATION: "${{ inputs.operation }}"
           EXPECTED_SHA: "${{ inputs.expected_sha }}"
-          CONFIRMATION: "${{ inputs.confirmation }}"
+          PLAN_RUN_ID: "${{ inputs.plan_run_id }}"
+          SIGNATURE_B64: "${{ inputs.signature_b64 }}"
         run: |
           set -euo pipefail
           [[ "$GITHUB_REF" == "refs/heads/master" ]] || exit 2
           [[ "$GITHUB_ACTOR" == "$GITHUB_REPOSITORY_OWNER" ]] || exit 2
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || exit 2
           [[ "$TF_VAR_tenant_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
-          for value in "$ARM_CLIENT_ID" "$TF_VAR_ci_graph_client_id" "$ARM_SUBSCRIPTION_ID"; do
-            [[ "$value" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
-          done
-          [[ "$STATE_ACCOUNT" =~ ^[a-z0-9]{3,24}$ ]] || exit 2
-          [[ "$STATE_CONTAINER" =~ ^[a-z0-9-]{3,63}$ ]] || exit 2
+          [[ "$ARM_CLIENT_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
+          [[ "$HCP_ORG" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
+          [[ "$HCP_WORKSPACE" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
+          [[ -n "$TF_TOKEN_app_terraform_io" ]] || exit 2
           [[ -z "${ARM_CLIENT_SECRET:-}" && -z "${ARM_ACCESS_KEY:-}" && -z "${ARM_SAS_TOKEN:-}" ]] || exit 2
           if [[ "$OPERATION" == apply ]]; then
-            [[ "$APPLY_ENABLED" == true && "$CONFIRMATION" == APPLY_ENTRA_LAB ]] || exit 2
+            [[ "$APPLY_ENABLED" == true ]] || exit 2
+            [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ && ${@#SIGNATURE_B64} -gt 32 ]] || exit 2
+            [[ "$ALLOWED_SIGNER" == "entra-operator sk-ssh-ed25519@openssh.com "* ]] || exit 2
           fi
-          echo "OIDC prerequisites configured; no token printed."
+          echo "HCP local execution and Entra WIF are required; no credential printed."
+      - name: Start open-source Falco runtime detector (ephemeral runner)
+        uses: falcosecurity/falco-actions/start@558a3ceeee9403e1c875ffbeb704c34c93e24752
+        with:
+          mode: live
+          falco-version: "0.45.2"
+          verbose: false
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -113,20 +133,57 @@ jobs:
         with:
           tofu_version: 1.12.5
           tofu_wrapper: false
-      - name: Initialize native-locked Azure Blob backend
-        working-directory: terraform/entra-id-lab
+      - name: Ensure HCP workspace uses Local mode (OpenTofu CLI executes on runner)
         shell: bash
         run: |
           set -euo pipefail
-          test -f .terraform.lock.hcl || { echo "Missing reviewed provider lock file"; exit 2; }
-          tofu init -input=false -lockfile=readonly \
-            -backend-config="storage_account_name=$STATE_ACCOUNT" \
-            -backend-config="container_name=$STATE_CONTAINER"
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+            -H "Content-Type: application/vnd.api+json" \
+            "https://app.terraform.io/api/v2/organizations/$HCP_ORG/workspaces/$HCP_WORKSPACE")"
+          jq -e '.data.attributes["execution-mode"] == "local"' <<< "$response" >/dev/null || {
+            echo "DENIED: HCP workspace must use LOCAL execution for OpenTofu" >&2
+            exit 2
+          }
+      - name: Init HCP remote state (no Azure Blob/Garage)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          {
+            echo 'hostname = "app.terraform.io"'
+            printf 'organization = "%s"\n' "$HCP_ORG"
+            printf 'workspaces { name = "%s" }\n' "$HCP_WORKSPACE"
+          } > "$RUNNER_TEMP/hcp.tfbackend"
+          cd terraform/entra-id-lab
+          test -f .terraform.lock.hcl || { echo "Missing pinned provider lockfile"; exit 2; }
+          tofu init -input=false -lockfile=readonly -backend-config="$RUNNER_TEMP/hcp.tfbackend"
           tofu validate -no-color
-      - name: Plan, enforce creation-only policy, optionally apply exact local plan
+      - name: Verify the source plan run and fetch its public challenge
+        if: inputs.operation == 'apply'
+        shell: bash
+        env:
+          PLAN_RUN_ID: "${{ inputs.plan_run_id }}"
+          SIGNATURE_B64: "${{ inputs.signature_b64 }}"
+        run: |
+          set -euo pipefail
+          info="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PLAN_RUN_ID")"
+          jq -e --arg sha "$GITHUB_SHA" \
+            '.event == "workflow_dispatch" and .head_branch == "master" and .head_sha == $sha and .conclusion == "success"' \
+            <<< "$info" >/dev/null || exit 2
+          mkdir -p "$RUNNER_TEMP/entra-challenge"
+          gh run download "$PLAN_RUN_ID" -R "$GITHUB_REPOSITORY" \
+            --name "entra-challenge-$PLAN_RUN_ID" --dir "$RUNNER_TEMP/entra-challenge"
+          test -s "$RUNNER_TEMP/entra-challenge/challenge.json" || exit 2
+          umask 077
+          printf '%s' "$SIGNATURE_B64" | base64 --decode > "$RUNNER_TEMP/entra-challenge/challenge.json.sig"
+          test -s "$RUNNER_TEMP/entra-challenge/challenge.json.sig" || exit 2
+          printf '%s\n' "$ALLOWED_SIGNER" > "$RUNNER_TEMP/entra-challenge/allowed_signers"
+      - name: Fresh policy-approved plan, hardware signature, and same-plan apply
         shell: bash
         env:
           OPERATION: "${{ inputs.operation }}"
+          PLAN_RUN_ID: "${{ inputs.plan_run_id }}"
         run: |
           set -euo pipefail
           umask 077
@@ -135,17 +192,38 @@ jobs:
           trap 'rm -f "$plan" "$json"' EXIT
           cd terraform/entra-id-lab
           if [[ "$OPERATION" == plan ]]; then
-            # Advisory READ-ONLY plan: blob data Reader cannot take a lease.
-            # Real apply re-plans later using native distributed state locking.
             tofu plan -lock=false -input=false -no-color -out="$plan"
           else
-            tofu plan -input=false -no-color -out="$plan"
+            tofu plan -input=false -lock-timeout=5m -no-color -out="$plan"
           fi
           tofu show -json "$plan" > "$json"
           python3 ../../scripts/entra/check-plan.py "$json"
-          if [[ "$OPERATION" == apply ]]; then
-            tofu apply -input=false -no-color "$plan"
-            echo "Applied the policy-approved plan generated in this job." >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$OPERATION" == plan ]]; then
+            python3 ../../scripts/entra/approval.py create \
+              --plan "$json" --output "$RUNNER_TEMP/challenge.json" \
+              --sha "$GITHUB_SHA" --tenant "$TF_VAR_tenant_id" \
+              --organization "$HCP_ORG" --workspace "$HCP_WORKSPACE" --run-id "$GITHUB_RUN_ID"
           else
-            echo "Plan-only; binary plan and state were not uploaded." >> "$GITHUB_STEP_SUMMARY"
+            python3 ../../scripts/entra/approval.py verify \
+              --plan "$json" --manifest "$RUNNER_TEMP/entra-challenge/challenge.json" \
+              --signature "$RUNNER_TEMP/entra-challenge/challenge.json.sig" \
+              --allowed-signer "$ALLOWED_SIGNER" \
+              --allowed-signers-file "$RUNNER_TEMP/entra-challenge/allowed_signers" \
+              --sha "$GITHUB_SHA" --tenant "$TF_VAR_tenant_id" \
+              --organization "$HCP_ORG" --workspace "$HCP_WORKSPACE" --run-id "$PLAN_RUN_ID"
+            tofu apply -input=false -no-color "$plan"
           fi
+      - name: Upload ONLY sanitized challenge (never the state or binary plan)
+        if: inputs.operation == 'plan'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: entra-challenge-${{ github.run_id }}
+          path: "${{ runner.temp }}/challenge.json"
+          if-no-files-found: error
+          retention-days: 1
+      - name: Stop Falco and summarize runtime alerts
+        if: always()
+        uses: falcosecurity/falco-actions/stop@558a3ceeee9403e1c875ffbeb704c34c93e24752
+        with:
+          mode: live
+          verbose: false
