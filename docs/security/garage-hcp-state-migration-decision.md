@@ -46,6 +46,8 @@ to the state**, an appropriately secured **Azure Blob** container with
 Entra OIDC is preferable to HCP Free's owners-only permission model, despite
 possible storage costs. Evaluate cost/budget alerts first.
 
+**New P1 evaluation, not a migration:** the [private PostgreSQL `pg` locking POC](opentofu-postgresql-private-locking-poc.md) tests native advisory locks on local loopback / SSH tunnel only. Unlike an external lock service, the `pg` backend would also store the state in PostgreSQL. Do not expose PostgreSQL or change any Garage state as part of this POC.
+
 ## Migration acceptance gates
 
 - Evidence: state count, resource counts and backend target documented

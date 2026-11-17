@@ -257,6 +257,31 @@ storage. Then evaluate three Vault replicas, TLS, tested snapshots/restore,
 auto-unseal/recovery, Kubernetes workload auth/JWT, Keycloak/OIDC for humans,
 External Secrets and enforced NetworkPolicy once the chosen CNI supports it.
 
+## Decision 2026-11-17 · Falco on Talos vs CI, and planned SPIRE
+
+**Falco is already included in the Talos platform roadmap.** The existing
+`falco-values.yaml`, pinned Helm versions, readiness checks and
+`scripts/talos/install-platform-tools.sh --apply falco` are evidence of
+CODED installation tooling, **not evidence of a live DaemonSet**.
+Falco remains **NOT_INSTALLED / PREFLIGHT_READY**, and no rollout is
+authorized by this documentation.
+
+The Entra GitHub workflow instead uses **StepSecurity Harden-Runner Community**
+on ephemeral GitHub-hosted Ubuntu runners in `egress-policy: audit`.
+That runner is outside Talos; no Harden-Runner Agent was installed on
+Kubernetes, and the CI no longer contains Falco Actions.
+
+**SPIRE is now in the Talos roadmap as P2 / PLANNED / NOT_DEPLOYED**,
+at the operator's request. Pre-conditions: H01 CSI/reclaim/NetworkPolicy
+accepted, node identity/PSAT and workload selectors defined, private
+trust domain, short-lived X.509/JWT SVIDs, root/intermediate CA strategy
+(Vault/OpenBao PKI optional), negative authorization tests and rollback.
+Do not deploy SPIRE, create a privileged namespace, DaemonSet or WAN route
+until the prerequisites and separate implementation review are accepted.
+
+Related: [H16 identity runbook](security/entra-id-homelab-lab.md),
+[portfolio](roadmap-portfolio.md).
+
 ## Falco
 
 Falco remains independent from CSI. Phase 1 uses the pinned Helm chart with a
