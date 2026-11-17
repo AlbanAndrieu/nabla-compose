@@ -222,13 +222,23 @@ def _backstage_public_services(payload: dict[str, Any]) -> list[dict[str, Any]]:
         exposures = (entity.get("x-nabla") or {}).get("exposure") or []
         if not isinstance(exposures, list):
             raise ValueError("invalid Backstage v2 exposure list")
-        public = [route for route in exposures if isinstance(route, dict) and route.get("visibility") == "public" and route.get("protocol") == "HTTPS"]
+        public = [
+            route
+            for route in exposures
+            if isinstance(route, dict)
+            and route.get("visibility") == "public"
+            and route.get("protocol") == "HTTPS"
+        ]
         for route in public:
             hostnames = route.get("hostnames")
             if not isinstance(hostnames, list) or len(hostnames) != 1:
                 raise ValueError(f"{entity_ref}: public route must have one reviewed hostname")
             host = hostnames[0]
-            if not isinstance(host, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,250}", host) or not host.endswith(".albandrieu.com"):
+            if (
+                not isinstance(host, str)
+                or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,250}", host)
+                or not host.endswith(".albandrieu.com")
+            ):
                 raise ValueError(f"{entity_ref}: invalid public DNS hostname")
             route_name = route.get("name")
             service_id = entity_ref.split("/", 1)[-1]

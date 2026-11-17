@@ -117,7 +117,9 @@ def test_legacy_v1_catalog_is_not_a_synthetic_source() -> None:
     import pytest
 
     with pytest.raises(ValueError, match="requires Backstage catalog v2"):
-        MODULE.generate_resources({"services": [{"id": "legacy", "external": True, "tunnelUrl": "https://legacy.albandrieu.com"}]})
+        MODULE.generate_resources(
+            {"services": [{"id": "legacy", "external": True, "tunnelUrl": "https://legacy.albandrieu.com"}]}
+        )
 
 
 def test_v2_monitors_have_unique_ids_and_explicit_revision() -> None:
