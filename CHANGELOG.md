@@ -1,3 +1,16 @@
+# [0.100.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.99.0...0.100.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **h16:** tighten FIDO signer binding and document HCP-only state [skip ci] ([ab068e1](https://github.com/AlbanAndrieu/nabla-compose/commit/ab068e191fa87c0da70e197ac815598637c9f760))
+
+
+### Features
+
+* **h16:** add explicit YubiKey workstation sign-only helper [skip ci] ([592e622](https://github.com/AlbanAndrieu/nabla-compose/commit/592e62284b6918c40a500ff9d3415d01cec7cdf9))
+* **h16:** add tamper-evident YubiKey SSHSIG approval manifest [skip ci] ([937fb5b](https://github.com/AlbanAndrieu/nabla-compose/commit/937fb5b740340cd29a7cf3c1dc02858bb6ba3ea0))
+
 # [0.99.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.98.0...0.99.0) (2026-11-17)
 
 
