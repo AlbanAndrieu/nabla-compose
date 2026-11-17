@@ -4,6 +4,17 @@ name: External attack surface (homelab)
 # Scheduled and manual only: it hits production, so it is never a PR gate.
 on:
   workflow_dispatch:
+    inputs:
+      scan_profile:
+        description: "Manual scope (run only the selected scan)"
+        required: true
+        type: choice
+        default: mail
+        options:
+          - mail
+          - nuclei
+          - network
+          - all
   schedule:
     - cron: "41 4 * * 1"
 
@@ -19,6 +30,7 @@ env:
 
 jobs:
   nuclei:
+    if: ${{ github.event_name == 'schedule' || inputs.scan_profile == 'nuclei' || inputs.scan_profile == 'all' }}
     runs-on: ubuntu-latest
     # Site Alban's 2 req/s scan never finished inside its 15 min job timeout (19/10 to 09/11).
     timeout-minutes: 45
@@ -124,6 +136,7 @@ jobs:
 
   mail-auth:
     name: Public DNS email anti-spoofing
+    if: ${{ github.event_name == 'schedule' || inputs.scan_profile == 'mail' || inputs.scan_profile == 'all' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -151,7 +164,7 @@ jobs:
 
   external-tcp-tls:
     name: Manual outside-in TCP and TLS evidence
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scan_profile == 'network' || inputs.scan_profile == 'all') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

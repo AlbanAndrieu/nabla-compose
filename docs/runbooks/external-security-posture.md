@@ -85,3 +85,11 @@ state, Prometheus /metrics, OpenAPI, WordPress login and common admin paths.
 It never sends a GET, follows redirects, reads bodies or uses credentials.
 A negative-control missing path helps distinguish SPA fallback 200 from a
 path needing review. Results are classifications, not proof of leaked secrets.
+
+## Manual workflow dispatch scope
+
+Choose `scan_profile=mail` (the safe default), `nuclei`, `network`, or
+`all`. The schedule executes only mail and Nuclei; no TCP/port scan is
+scheduled. Choosing `network` avoids Nuclei's HTTP workload while the
+Netgate remains unstable. A combined `all` run requires deliberate operator
+selection and is not the safe default.
