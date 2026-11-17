@@ -208,11 +208,18 @@ jobs:
           print("Open TCP ports:", ports)
           print("TLS cert verified:", sum(x["status"] == "TLS_CERT_VERIFIED" for x in tls), "/", len(tls))
           PY
+      - name: HEAD-only access probes for sensitive and admin paths
+        shell: bash
+        run: |
+          python3 scripts/security/check-public-exposure-paths.py \
+            --output public-path-head.json
       - name: Upload minimized network report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-tcp-tls-${{ github.run_id }}
-          path: public-tcp-tls.json
+          path: |
+            public-tcp-tls.json
+            public-path-head.json
           retention-days: 7
           if-no-files-found: warn

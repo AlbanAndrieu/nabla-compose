@@ -21,6 +21,7 @@ def module(name: str, path: str):
 
 mail = module("public_mail", "scripts/security/check-public-mail-auth.py")
 nuclei = module("public_nuclei", "scripts/security/minimize-external-nuclei.py")
+head = module("public_head", "scripts/security/check-public-exposure-paths.py")
 
 
 class ExternalPostureTest(unittest.TestCase):
@@ -57,6 +58,16 @@ class ExternalPostureTest(unittest.TestCase):
                                  "dkim_selectors": []})["checks"]
         self.assertEqual(report["spf"], "UNVERIFIED")
         self.assertEqual(report["dmarc"], "UNVERIFIED")
+
+    def test_head_probes_never_claim_exposure_from_status_alone(self):
+        self.assertEqual(head.classify(200, 200), "FALLBACK_2XX_UNVERIFIED")
+        self.assertEqual(head.classify(200, 404), "REVIEW_2XX_NOT_PROVEN")
+        self.assertEqual(head.classify(403, 404), "DENIED_OBSERVED")
+        self.assertEqual(head.classify(302, 404), "REDIRECT_UNVERIFIED")
+        self.assertEqual(head.classify(None, 404), "UNVERIFIED")
+        for expected in ("/.env", "/.git/config", "/terraform.tfstate",
+                         "/metrics", "/api", "/wp-login.php"):
+            self.assertIn(expected, head.PATHS)
 
     def test_raw_nuclei_secrets_are_never_published(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -76,3 +76,12 @@ Amass, Subfinder, httpx, Naabu, Nmap, Nuclei, testssl.sh and
 Global Cyber Alliance Domain Security Scanner / checkdmarc supply the
 individual discovery, DNS, TLS and email checks. Nothing is installed
 or deployed automatically by this runbook.
+
+## Manual bounded disclosure-path proof
+
+The workflow_dispatch TCP/TLS job also performs an unauthenticated HTTPS
+HEAD-only probe on the reviewed virtual hosts for .env, .git, Terraform
+state, Prometheus /metrics, OpenAPI, WordPress login and common admin paths.
+It never sends a GET, follows redirects, reads bodies or uses credentials.
+A negative-control missing path helps distinguish SPA fallback 200 from a
+path needing review. Results are classifications, not proof of leaked secrets.
