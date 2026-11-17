@@ -767,7 +767,7 @@ secrets-history:
 make-help:
     make help
 
-# Generate outside-in Synthetic Open Schema YAML from the exposure catalog.
+# Generate outside-in Synthetic Open Schema YAML from Backstage v2 exposure intent.
 sos-generate:
     python scripts/generate-synthetic-open-schema.py
 
