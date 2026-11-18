@@ -871,9 +871,10 @@ Ordre de déploiement mis à jour :
 - `promtool` n'a pas pu être exécuté dans la session (téléchargement refusé) :
   la syntaxe PromQL de `media.rules.yml` et des nouveaux jobs est vérifiée par
   la CI, pas localement.
-- La configuration Alloy n'a pas été validée par le binaire `alloy` ; à
-  contrôler au premier redémarrage d'Alloy (`/-/healthy`, composants
-  `loki.source.docker` sains).
+- Configuration Alloy validée le 18/11 par `alloy validate` de l'image
+  déployée `grafana/alloy:v1.18.0`, sans réseau (le binaire local v1.16.2 ne
+  connaît pas `udp_queue_size`). Au premier redémarrage, contrôler encore
+  `/-/healthy` et les composants `loki.source.docker`.
 - Exportarr v2.3.0 (août 2025) reste la dernière version publiée ; ses noms de
   métriques ont été vérifiés dans le source de ce tag.
 - Le module `terraform/media` et le réconciliateur ont été testés avec des
