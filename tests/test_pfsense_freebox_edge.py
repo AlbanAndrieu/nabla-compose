@@ -51,6 +51,11 @@ class FakeFreebox:
                 fake.calls.append((method, self.path, self.headers.get("X-Fbx-App-Auth")))
                 fake.route(self, method, self.path, body)
 
+            def close_connection_now(self) -> None:
+                # The real box changes subnet before answering: the client sees no reply.
+                self.close_connection = True
+                self.connection.close()
+
             def do_GET(self) -> None:
                 self.handle_any("GET")
 
@@ -94,9 +99,20 @@ class FakeFreebox:
             return h.reply(None, False, 400, "internal_error")
         if rest == "/lan/config/":
             if method == "PUT":
-                s["lan"]["mode"] = body["mode"]
+                old = s["lan"]["ip"]
+                s["lan"].update(body)
+                if s["lan"]["ip"] != old:
+                    # Model a box that carries the pool's host numbers over to the new /24.
+                    prefix = s["lan"]["ip"].rsplit(".", 1)[0]
+                    for key in ("ip_range_start", "ip_range_end"):
+                        s["dhcp"][key] = f"{prefix}.{s['dhcp'][key].rsplit('.', 1)[1]}"
+                    s["dhcp"]["gateway"] = s["lan"]["ip"]
+                    if s.get("drop_after_move"):
+                        return h.close_connection_now()
             return h.reply(s["lan"])
         if rest == "/dhcp/config/":
+            if method == "PUT":
+                s["dhcp"].update(body)
             return h.reply(s["dhcp"])
         if rest == "/dhcp/static_lease/":
             if method == "POST":
@@ -187,6 +203,46 @@ class FreeboxEdgeTest(unittest.TestCase):
         again = self.run_cli("set-mode", "router", "--yes")
         self.assertIn("OK: lan mode is already router", again.stdout)
         self.assertEqual(len(self.box.writes()), 1)
+
+    def test_set_lan_ip_shrinks_the_pool_before_moving_the_box(self) -> None:
+        self.box.state["lan"]["mode"] = "router"
+        dry = self.run_cli("set-lan-ip", "192.168.10.1")
+        self.assertEqual(dry.returncode, 0, dry.stdout)
+        self.assertIn("CHANGE: DHCP pool 192.168.1.10-192.168.1.50 -> 192.168.1.100-192.168.1.199", dry.stdout)
+        self.assertIn("CHANGE: Freebox LAN address 192.168.1.254 -> 192.168.10.1", dry.stdout)
+        self.assertIn("dry run", dry.stdout)
+        self.assertEqual(self.box.writes(), [])
+        self.box.state["settings"] = False
+        self.assertIn("lacks the 'settings' permission", self.run_cli("set-lan-ip", "192.168.10.1", "--yes").stdout)
+        self.assertEqual(self.box.writes(), [])
+        self.box.state["settings"] = True
+        done = self.run_cli("set-lan-ip", "192.168.10.1", "--yes")
+        self.assertEqual(done.returncode, 0, done.stdout)
+        self.assertEqual(self.box.writes(), [("PUT", "/api/v16/dhcp/config/"), ("PUT", "/api/v16/lan/config/")])
+        self.assertIn("OK: DHCP pool 192.168.1.10-192.168.1.50 -> 192.168.1.100-192.168.1.199", done.stdout)
+        self.assertEqual(self.box.state["lan"]["ip"], "192.168.10.1")
+        self.assertEqual((self.box.state["dhcp"]["ip_range_start"], self.box.state["dhcp"]["ip_range_end"]),
+                         ("192.168.10.100", "192.168.10.199"))
+        again = self.run_cli("set-lan-ip", "192.168.10.1", "--yes")
+        self.assertIn("OK: Freebox LAN address 192.168.10.1, DHCP pool 192.168.10.100-192.168.10.199", again.stdout)
+        self.assertEqual(len(self.box.writes()), 2)
+
+    def test_set_lan_ip_treats_a_dropped_link_after_the_move_as_expected(self) -> None:
+        self.box.state["lan"]["mode"] = "router"
+        self.box.state["drop_after_move"] = True
+        result = self.run_cli("set-lan-ip", "192.168.10.1", "--yes")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("WARN: Freebox unreachable after the LAN address change (expected)", result.stdout)
+
+    def test_set_lan_ip_refuses_unsafe_targets(self) -> None:
+        self.assertIn("only applies in router mode", self.run_cli("set-lan-ip", "192.168.10.1").stdout)
+        self.box.state["lan"]["mode"] = "router"
+        self.assertIn("falls inside the DHCP pool", self.run_cli("set-lan-ip", "192.168.10.150").stdout)
+        for refused in ("8.8.8.8", "172.17.0.1"):
+            outside = self.run_cli("set-lan-ip", refused)
+            self.assertEqual(outside.returncode, 2)
+            self.assertIn("only accepts a LAN address in 192.168.0.0/16", outside.stderr)
+        self.assertEqual(self.box.writes(), [])
 
     def test_pin_wan_creates_the_lease_and_dmz_once_in_router_mode(self) -> None:
         refused = self.run_cli("pin-wan", "--wan-mac", WAN_MAC, "--wan-ip", "192.168.1.2", "--dmz", "--yes")

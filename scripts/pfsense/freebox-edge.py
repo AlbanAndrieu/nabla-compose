@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Freebox OS API helper for the edge uplink: LAN mode (router/bridge) and pfSense's WAN lease and DMZ.
+"""Freebox OS API helper for the edge uplink: LAN mode and address, pfSense's WAN lease and DMZ.
 
 Freebox OS SDK: https://dev.freebox.fr/sdk/os/ (login, lan, dhcp, nat, connection).
 Procedure: docs/pfsense/runbooks/freebox-router-mode.md
 
-- Reads only need the app token. set-mode and pin-wan also need the app's "settings" permission
+- Reads only need the app token. set-mode, set-lan-ip and pin-wan also need the app's "settings" permission
   (Freebox OS > Paramètres de la Freebox > Gestion des accès > Applications) and --yes; without
   --yes they print the planned change and write nothing.
 - The app token is a secret: it comes from FREEBOX_APP_TOKEN or --token-file and is never printed.
@@ -37,6 +37,10 @@ MODES = ("router", "bridge")
 
 class FreeboxError(RuntimeError):
     pass
+
+
+class FreeboxLinkError(FreeboxError):
+    """Transport failure (no reply), as opposed to an API error the Freebox answered."""
 
 
 class Freebox:
@@ -72,7 +76,7 @@ class Freebox:
             except ValueError:
                 raise FreeboxError(f"{method} {path}: HTTP {exc.code}") from None
         except (urllib.error.URLError, OSError) as exc:
-            raise FreeboxError(f"{method} {path}: {getattr(exc, 'reason', exc)}") from None
+            raise FreeboxLinkError(f"{method} {path}: {getattr(exc, 'reason', exc)}") from None
 
     def call(self, method: str, path: str, body: object = None) -> object:
         payload = self._send(method, self.api + path, body)
@@ -263,6 +267,60 @@ def cmd_pin_wan(box: Freebox, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_lan_ip(box: Freebox, args: argparse.Namespace) -> int:
+    lan = box.call("GET", "/lan/config/")
+    if lan_mode(lan) != "router":
+        raise FreeboxError("set-lan-ip only applies in router mode")
+    dhcp = box.call("GET", "/dhcp/config/") or {}
+    netmask = dhcp.get("netmask") or "255.255.255.0"
+    target = ipaddress.ip_address(args.ip)
+    new_net = ipaddress.ip_network(f"{target}/{netmask}", strict=False)
+    old_net = ipaddress.ip_network(f"{lan.get('ip')}/{netmask}", strict=False)
+    host = int(target) - int(new_net.network_address)
+    if not 1 <= args.dhcp_first <= args.dhcp_last < new_net.num_addresses - 1:
+        raise FreeboxError(f"--dhcp-first/--dhcp-last must be host numbers of {new_net}")
+    if args.dhcp_first <= host <= args.dhcp_last:
+        raise FreeboxError(f"{target} falls inside the DHCP pool .{args.dhcp_first}-.{args.dhcp_last}")
+
+    def pool(net: ipaddress.IPv4Network) -> tuple[str, str]:
+        return str(net.network_address + args.dhcp_first), str(net.network_address + args.dhcp_last)
+
+    current = (dhcp.get("ip_range_start"), dhcp.get("ip_range_end"))
+    plan = []
+    if lan.get("ip") != str(target):
+        # Shrink the pool first, inside the current subnet: if the Freebox carries the host numbers over
+        # to the new subnet, it never hands out the homelab's static addresses (TrueNAS .24, ...).
+        if current != pool(old_net):
+            plan.append(("DHCP pool {}-{} -> {}-{}".format(*current, *pool(old_net)), "PUT", "/dhcp/config/",
+                         dict(zip(("ip_range_start", "ip_range_end"), pool(old_net)))))
+        plan.append((f"Freebox LAN address {lan.get('ip')} -> {target}", "PUT", "/lan/config/", {"ip": str(target)}))
+    elif current != pool(new_net):
+        plan.append(("DHCP pool {}-{} -> {}-{}".format(*current, *pool(new_net)), "PUT", "/dhcp/config/",
+                     dict(zip(("ip_range_start", "ip_range_end"), pool(new_net)))))
+    for label, *_ in plan:
+        print(f"CHANGE: {label}")
+    if not plan:
+        print(f"OK: Freebox LAN address {target}, DHCP pool {pool(new_net)[0]}-{pool(new_net)[1]}")
+    suffix = "" if args.yes or not plan else " (dry run, add --yes to apply)"
+    print(f"summary: {len(plan)} change(s), mode=set-lan-ip{suffix}")
+    if not plan or not args.yes:
+        return 0
+    require_settings(box)
+    for label, method, path, body in plan:
+        try:
+            box.call(method, path, body)
+            print(f"OK: {label}")
+        except FreeboxLinkError:
+            if path != "/lan/config/":
+                raise
+            # The box leaves the old subnet: this host keeps talking to it only after a DHCP renewal.
+            print("WARN: Freebox unreachable after the LAN address change (expected): renew this host's "
+                  "DHCP lease, then run check and set-lan-ip again to verify the DHCP pool")
+            return 0
+    print("OK: written; renew the DHCP leases of the LAN clients, then run set-lan-ip again to verify")
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--base-url", default=DEFAULT_URL)
@@ -284,7 +342,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             cmd.add_argument("mode", choices=MODES)
         if name == "pin-wan":
             cmd.add_argument("--dmz", action="store_true")
+    lan_ip = sub.add_parser("set-lan-ip")
+    lan_ip.add_argument("ip", type=ipaddress.IPv4Address)
+    lan_ip.add_argument("--dhcp-first", type=int, default=100, help="first host number of the DHCP pool")
+    lan_ip.add_argument("--dhcp-last", type=int, default=199, help="last host number of the DHCP pool")
+    lan_ip.add_argument("--yes", action="store_true")
     args = parser.parse_args(argv)
+    # Freebox OS answers invalid_gateway_ip ("L'IP doit être de type 192.168.x.x") to anything else
+    # (observed 2026-11-18 on API 16.1): refuse it before the first write.
+    if getattr(args, "ip", None) is not None and args.ip not in ipaddress.IPv4Network("192.168.0.0/16"):
+        parser.error("Freebox OS only accepts a LAN address in 192.168.0.0/16")
     if getattr(args, "wan_mac", None) and not MAC_RE.match(args.wan_mac):
         parser.error("--wan-mac must look like aa:bb:cc:dd:ee:ff")
     if getattr(args, "wan_ip", None):
@@ -297,7 +364,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 COMMANDS = {"discover": cmd_discover, "register": cmd_register, "check": cmd_check,
-            "set-mode": cmd_set_mode, "pin-wan": cmd_pin_wan}
+            "set-mode": cmd_set_mode, "set-lan-ip": cmd_set_lan_ip, "pin-wan": cmd_pin_wan}
 
 
 def main(argv: list[str]) -> int:
