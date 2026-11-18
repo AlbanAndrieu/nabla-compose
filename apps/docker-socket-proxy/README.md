@@ -17,8 +17,8 @@ chaque déploiement.
 - **Lecture seule** : `POST=0`, pas d'`EXEC`, pas d'endpoint Swarm. `:ro` sur le
   socket ne protège rien à lui seul : seule la liste blanche compte.
 - **Réseau dédié `docker-proxy`** (interne, sans sortie) partagé uniquement avec
-  les consommateurs : `pihole-dns-sync`, `autoxpose`, `homarr`, `gatus` (sonde TCP)
-  et l'audit manuel `watchtower`.
+  les consommateurs : `pihole-dns-sync`, `autoxpose`, `homarr`, `dozzle`, `gatus`
+  (sonde TCP) et l'audit manuel `watchtower`.
 - **Risque résiduel** : `CONTAINERS=1` autorise `GET /containers/{id}/json`, qui
   renvoie les variables d'environnement de tous les conteneurs. Le réseau dédié
   limite cette lecture aux consommateurs ci-dessus au lieu des ~90 services

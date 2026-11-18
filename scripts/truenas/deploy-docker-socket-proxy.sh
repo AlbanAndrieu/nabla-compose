@@ -26,7 +26,7 @@ REPLACE="${2:-}"
 APP_ID="${NABLA_DOCKER_PROXY_APP_ID:-docker-socket-proxy}"
 NETWORK="${NABLA_DOCKER_PROXY_DEDICATED_NETWORK:-docker-proxy}"
 CANONICAL_ROOT="${NABLA_DOCKER_PROXY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-CONSUMERS=(pihole-dns-sync autoxpose homarr gatus)
+CONSUMERS=(pihole-dns-sync autoxpose homarr gatus dozzle)
 
 case "${MODE}" in
   --check | --apply) ;;
