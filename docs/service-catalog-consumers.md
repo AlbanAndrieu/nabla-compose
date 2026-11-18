@@ -250,10 +250,14 @@ For multi-layer catalog errors, use the
 `scripts/generate-synthetic-open-schema.py` generates one SOS v1 YAML
 resource per check (`<service>-public-{dns,tls,http}.yaml` under
 `generated/synthetic-open-schema/`) for the independent FastAPI
-Cloud/outside-in observer, not for the TrueNAS Gatus observer. Public exposure
-intent still comes from `catalog/homelab-services.json` as a **transitional
-exposure overlay**; it must move to the canonical v2 exposure authority before
-the legacy catalog is removed.
+Cloud/outside-in observer, not for the TrueNAS Gatus observer. Public exposure intent now comes from canonical Backstage v2
+`catalog/generated/entities.json` (`x-nabla.exposure`), rather than the retired
+`catalog/homelab-services.json` synthetic input. Its generated resources carry
+`nabla_entity_ref` for correlation. The Backstage snapshot currently declares
+33 public HTTPS routes versus 28 in the legacy overlay: five intentionality
+mismatches (Immich, n8n, Reactive Resume, Scrutiny, TrueNAS) require provider
+reconciliation before deleting historical operational files. A declared public
+route is not evidence that its endpoint is reachable.
 
 Cloudflare Access protected HTTP checks only carry environment placeholders
 (`CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}`,

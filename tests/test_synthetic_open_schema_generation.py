@@ -10,7 +10,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "generate-synthetic-open-schema.py"
-CATALOG = ROOT / "catalog" / "homelab-services.json"
+CATALOG = ROOT / "catalog" / "generated" / "entities.json"
 
 SPEC = importlib.util.spec_from_file_location("generate_sos", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
@@ -31,7 +31,7 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
 
     public_count = sum(
         MODULE._public_url(service) is not None
-        for service in _catalog()["services"]
+        for service in MODULE._backstage_public_services(_catalog())
         if isinstance(service, dict)
     )
     # Garage S3 API and Admin API are internal-only since #254 (no public route).
@@ -41,7 +41,7 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
     # published on the Internet (owner decision). 2026-11-13: AdGuard Home is
     # LAN-only (owner decision); its tunnel route was removed. 2026-11-17: Nexus
     # keeps its public route behind Access (owner decision).
-    assert public_count == 28
+    assert public_count == 33
     assert len(by_kind["DnsCheck"]) == public_count
     assert len(by_kind["TlsCheck"]) == public_count
     assert len(by_kind["HttpCheck"]) == public_count
@@ -57,8 +57,8 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
         and resource["metadata"]["labels"]["cloudflare_access"] == "required"
     ]
 
-    # Every public exposure except the direct hello.int exception requires Access.
-    assert len(protected) == 27
+    # Explicit v2 policy includes a small set of public routes without Access.
+    assert len(protected) == 28
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"
@@ -109,3 +109,23 @@ def test_writer_emits_one_runner_compatible_yaml_per_resource(tmp_path: Path) ->
     assert sample["kind"] in {"DnsCheck", "TlsCheck", "HttpCheck"}
     assert sample["metadata"]["labels"]["observer"] == "fastapi-cloud"
     assert sample["metadata"]["labels"]["scope"] == "outside-in"
+    assert sample["metadata"]["labels"]["source"] == "backstage-v2"
+    assert sample["metadata"]["labels"]["nabla_entity_ref"]
+
+
+def test_legacy_v1_catalog_is_not_a_synthetic_source() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="requires Backstage catalog v2"):
+        MODULE.generate_resources(
+            {"services": [{"id": "legacy", "external": True, "tunnelUrl": "https://legacy.albandrieu.com"}]}
+        )
+
+
+def test_v2_monitors_have_unique_ids_and_explicit_revision() -> None:
+    catalog = _catalog()
+    assert catalog["catalogRevision"].startswith("sha256:")
+    monitors = [r for r in MODULE.generate_resources(catalog) if r["kind"] == "HttpCheck"]
+    ids = [r["metadata"]["labels"]["nabla_service_id"] for r in monitors]
+    assert len(ids) == len(set(ids))
+    assert all(r["metadata"]["labels"]["nabla_entity_ref"] for r in monitors)

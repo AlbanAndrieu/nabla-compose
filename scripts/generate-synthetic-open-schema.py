@@ -14,7 +14,7 @@ from urllib.parse import urlsplit, urlunsplit
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE = ROOT / "catalog" / "homelab-services.json"
+DEFAULT_SOURCE = ROOT / "catalog" / "generated" / "entities.json"
 DEFAULT_OUTPUT = ROOT / "generated" / "synthetic-open-schema"
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -73,7 +73,7 @@ def _labels(service_id: str, access_required: bool) -> dict[str, str]:
         "nabla_service_id": service_id,
         "observer": "fastapi-cloud",
         "scope": "outside-in",
-        "source": "homelab-services-transition",
+        "source": "backstage-v2",
         "cloudflare_access": "required" if access_required else "not-required",
     }
 
@@ -88,7 +88,7 @@ def _metadata(
     return {
         "name": f"{service_id}-{suffix}",
         "title": f"{service.get('name') or service_id} · {suffix.upper()}",
-        "labels": _labels(service_id, access_required),
+        "labels": {**_labels(service_id, access_required), "nabla_entity_ref": str(service["entityRef"])},
     }
 
 
@@ -201,11 +201,80 @@ def _http_check(
     }
 
 
+def _backstage_public_services(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project only reviewed HTTPS route intent from the canonical Backstage v2 graph.
+
+    Routes are desired exposure, not proof of external reachability. A missing
+    URL, invalid hostname or duplicate monitor identity fails closed.
+    """
+    if payload.get("schemaVersion") != 2 or payload.get("model") != "backstage":
+        raise ValueError("Synthetic Open Schema requires Backstage catalog v2")
+    entities = payload.get("entities")
+    if not isinstance(entities, list):
+        raise ValueError("Backstage v2 entities must be a list")
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entity in entities:
+        if not isinstance(entity, dict) or not isinstance(entity.get("entityRef"), str):
+            raise ValueError("invalid Backstage v2 entity")
+        entity_ref = entity["entityRef"]
+        metadata = entity.get("metadata") or {}
+        exposures = (entity.get("x-nabla") or {}).get("exposure") or []
+        if not isinstance(exposures, list):
+            raise ValueError("invalid Backstage v2 exposure list")
+        public = [
+            route
+            for route in exposures
+            if isinstance(route, dict)
+            and route.get("visibility") == "public"
+            and route.get("protocol") == "HTTPS"
+        ]
+        for route in public:
+            hostnames = route.get("hostnames")
+            if not isinstance(hostnames, list) or len(hostnames) != 1:
+                raise ValueError(f"{entity_ref}: public route must have one reviewed hostname")
+            host = hostnames[0]
+            if (
+                not isinstance(host, str)
+                or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,250}", host)
+                or not host.endswith(".albandrieu.com")
+            ):
+                raise ValueError(f"{entity_ref}: invalid public DNS hostname")
+            route_name = route.get("name")
+            service_id = entity_ref.split("/", 1)[-1]
+            if len(public) > 1:
+                service_id += "-" + _slug(route_name)
+            if service_id in seen:
+                raise ValueError(f"duplicate SOS monitor identity: {service_id}")
+            seen.add(service_id)
+            port = route.get("port")
+            if port is not None and (type(port) is not int or not 1 <= port <= 65535):
+                raise ValueError(f"{entity_ref}: invalid HTTPS port")
+            access = route.get("access") or {}
+            if not isinstance(access, dict):
+                raise ValueError(f"{entity_ref}: invalid access policy")
+            required = access.get("required")
+            if required is not None and not isinstance(required, bool):
+                raise ValueError(f"{entity_ref}: invalid access.required")
+            # In absence of explicit policy, require Access for Tunnel routes.
+            if required is None:
+                required = route.get("gatewayRef") == "resource:default/cloudflare-tunnel"
+            result.append({
+                "id": service_id,
+                "entityRef": entity_ref,
+                "name": metadata.get("title") or metadata.get("name") or service_id,
+                "external": True,
+                "endpointEnabled": True,
+                "tunnelUrl": f"https://{host}" + (f":{port}" if port else ""),
+                "healthPath": route.get("probePath") or "",
+                "cloudflareAccessRequired": required,
+            })
+    return result
+
+
 def generate_resources(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return deterministic SOS resources for explicitly public HTTPS services."""
-    services = payload.get("services")
-    if not isinstance(services, list):
-        raise ValueError("catalog services must be a list")
+    """Return deterministic SOS resources from canonical Backstage v2 exposure."""
+    services = _backstage_public_services(payload)
 
     resources: list[dict[str, Any]] = []
     for service in sorted(
