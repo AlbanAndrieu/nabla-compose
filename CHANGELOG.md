@@ -1,3 +1,17 @@
+# [0.103.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.102.0...0.103.0) (2026-11-18)
+
+
+### Features
+
+* **edge:** move Dozzle behind the socket proxy, Redis env_file, opt-in CrowdSec bouncer ([9e409f2](https://github.com/AlbanAndrieu/nabla-compose/commit/9e409f2a96a5d52542f672dae552e33ef9ccd2a0))
+* **freebox:** add set-lan-ip and document the R7000 router ([4ba0c3a](https://github.com/AlbanAndrieu/nabla-compose/commit/4ba0c3a769206beeae3ecb4611d2f0cecce69cfc))
+
+
+### Performance Improvements
+
+* **compose:** cap memory of 30 services from the 18/11 memory.peak (1/2) ([734c61a](https://github.com/AlbanAndrieu/nabla-compose/commit/734c61a10a1a37caf9bb58d5ab8c69de678028fc))
+* **compose:** cap memory of 41 more services and ratchet 132 -> 59 (2/2) ([cf87b82](https://github.com/AlbanAndrieu/nabla-compose/commit/cf87b8245f510e56454584a170a4ba7b4e7c5316))
+
 # [0.102.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.101.0...0.102.0) (2026-11-18)
 
 
