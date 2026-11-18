@@ -13,6 +13,7 @@ services:
     image: ghcr.io/analogj/scrutiny:v0.9.3-web
     container_name: scrutiny
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/scrutiny
     x-nabla:
@@ -86,6 +87,7 @@ services:
     image: ghcr.io/analogj/scrutiny:v0.9.3-collector
     container_name: scrutiny-collector
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/scrutiny-collector
     x-nabla:

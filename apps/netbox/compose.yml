@@ -13,6 +13,7 @@ services:
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox
     restart: unless-stopped
+    mem_limit: 1792m
     user: "netbox:root"
     env_file:
       - /mnt/cpool/secrets/runtime/netbox/.env.secrets
@@ -100,6 +101,7 @@ services:
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox-worker
     restart: unless-stopped
+    mem_limit: 448m
     user: "netbox:root"
     env_file:
       - /mnt/cpool/secrets/runtime/netbox/.env.secrets

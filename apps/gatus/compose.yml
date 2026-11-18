@@ -34,6 +34,7 @@ services:
           access:
             required: true
     restart: unless-stopped
+    mem_limit: 128m
     ports:
       - name: web
         target: 8080

@@ -83,6 +83,7 @@ services:
           access:
             required: true
     restart: unless-stopped
+    mem_limit: 576m
     env_file:
       - /mnt/cpool/secrets/runtime/homarr/.env.secrets
     environment:

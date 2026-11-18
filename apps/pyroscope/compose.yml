@@ -49,6 +49,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: web
     restart: unless-stopped
+    mem_limit: 320m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/pyroscope
     ports:

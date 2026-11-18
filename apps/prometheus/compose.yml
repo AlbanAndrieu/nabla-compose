@@ -19,6 +19,7 @@ services:
     image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
     container_name: prometheus
     restart: unless-stopped
+    mem_limit: 896m
     x-nabla:
       id: prometheus
       name: Prometheus
@@ -108,6 +109,7 @@ services:
     network_mode: bridge
     image: quay.io/prometheus/node-exporter:v1.12.1
     restart: unless-stopped
+    mem_limit: 128m
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -130,6 +132,7 @@ services:
     network_mode: bridge
     image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     restart: unless-stopped
+    mem_limit: 128m
     x-nabla:
       id: prometheus-alertmanager
       name: Alertmanager
@@ -185,6 +188,7 @@ services:
     image: ghcr.io/pfrest/pfsense_exporter:${PFSENSE_EXPORTER_IMG:-v0.0.10}
     container_name: pfsense-exporter
     restart: unless-stopped
+    mem_limit: 128m
     x-nabla:
       id: pfsense-exporter
       name: pfSense Exporter

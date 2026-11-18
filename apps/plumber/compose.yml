@@ -13,6 +13,7 @@ services:
     image: ${PLUMBER_FRONTEND_IMAGE:-docker.io/getplumber/frontend:v2.37.3@sha256:a55dc86d7803fc271ccd9172578a2177b4b325870dcac699105d23f68e860dd4}
     container_name: plumber
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/plumber
     env_file:
@@ -62,6 +63,7 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:v2.44.1@sha256:76a83cafdb5aa218852e94700334e48072dd10f94700ea938f67e7aa25ec9fae}
     container_name: plumber-api
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/plumber-api
     env_file:
@@ -147,6 +149,7 @@ services:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:v2.44.1@sha256:76a83cafdb5aa218852e94700334e48072dd10f94700ea938f67e7aa25ec9fae}
     container_name: plumber-worker
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/plumber-worker
     command: ["--worker"]

@@ -56,6 +56,11 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: websecure
     env_file:
+      # Canonical runtime first: it only adds CROWDSEC_BOUNCER_LAPI_KEY, legacy
+      # files listed after it keep winning for every variable they define.
+      # Optional so a missing file never blocks the ingress.
+      - path: /mnt/cpool/secrets/runtime/traefik/.env.secrets
+        required: false
       - /mnt/cpool/traefik/.env
       - /mnt/cpool/traefik/.env.secrets
     environment:
@@ -84,7 +89,14 @@ services:
       - "--entrypoints.websecure.http.tls.domains[0].sans=*.int.albandrieu.com" # *.local.albandrieu.com
       # - "--providers.file.filename=/etc/traefik/routes.yml"
 
+      # Versioned dynamic config: opt-in CrowdSec middleware crowdsec@file.
+      - "--providers.file.directory=/etc/traefik-dynamic"
       - "--providers.file.watch=true"
+
+      # CrowdSec bouncer plugin, pinned (Renovate does not track it). See
+      # apps/crowdsec/README.md "Bouncer Traefik" before attaching it to a router.
+      - "--experimental.plugins.bouncer.modulename=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
+      - "--experimental.plugins.bouncer.version=v1.8.1"
 
       # Docker provider
       - "--providers.docker=true"
@@ -110,8 +122,14 @@ services:
       # Logging
       # - "--log.level=INFO"
       - "--log.level=DEBUG"
+      # JSON file acquired by CrowdSec (apps/crowdsec/acquis.d/traefik.yaml).
+      # Headers are dropped except User-Agent, needed by the HTTP scenarios.
       - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
       - "--accesslog.bufferingsize=100"
+      - "--accesslog.fields.headers.defaultmode=drop"
+      - "--accesslog.fields.headers.names.User-Agent=keep"
 
       # Metrics
       - "--metrics.prometheus=true"
@@ -144,6 +162,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/localtime:/etc/localtime:ro
       - /mnt/cpool/traefik/:/etc/traefik/
+      - /mnt/cpool/traefik/logs:/var/log/traefik
+      - ./dynamic:/etc/traefik-dynamic:ro
       # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro
 
     networks: ["traefik_network"]

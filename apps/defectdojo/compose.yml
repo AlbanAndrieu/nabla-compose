@@ -62,6 +62,7 @@ services:
   defectdojo-uwsgi:
     logging: *nabla-logging
     <<: *defectdojo-django
+    mem_limit: 960m
     container_name: defectdojo-uwsgi
     depends_on:
       defectdojo-initializer:
@@ -106,6 +107,7 @@ services:
   defectdojo-celerybeat:
     logging: *nabla-logging
     <<: *defectdojo-django
+    mem_limit: 320m
     container_name: defectdojo-celerybeat
     depends_on:
       defectdojo-initializer:
@@ -139,6 +141,7 @@ services:
   defectdojo-celeryworker:
     logging: *nabla-logging
     <<: *defectdojo-django
+    mem_limit: 320m
     container_name: defectdojo-celeryworker
     depends_on:
       defectdojo-initializer:
@@ -176,6 +179,7 @@ services:
     image: ${DEFECTDOJO_NGINX_IMAGE:-defectdojo/defectdojo-nginx@sha256:dfc78638ba09530ebf85bbf6a89465496f4e71510104a4acf8ee8cd29d6f1ac8}
     container_name: defectdojo
     restart: unless-stopped
+    mem_limit: 128m
     depends_on:
       defectdojo-uwsgi:
         condition: service_started

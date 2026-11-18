@@ -40,10 +40,19 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: redis
     restart: unless-stopped
-    # Fail closed: a missing REDIS_AUTH must not start Redis with a public password.
-    command: >
-      --requirepass ${REDIS_AUTH:?REDIS_AUTH is required}
-      --maxmemory-policy noeviction
+    # REDIS_AUTH comes from the container env, not Compose interpolation of a
+    # project .env (Q18). Re-entering the entrypoint keeps the drop to the redis
+    # user. Fail closed: an empty REDIS_AUTH must not start Redis without a password.
+    env_file:
+      - /mnt/cpool/secrets/runtime/redis/.env.secrets
+    command:
+      - sh
+      - -c
+      - >-
+        : "$${REDIS_AUTH:?REDIS_AUTH is required}";
+        exec docker-entrypoint.sh redis-server
+        --requirepass "$$REDIS_AUTH"
+        --maxmemory-policy noeviction
     ports:
       - name: redis
         target: 6379
@@ -54,7 +63,10 @@ services:
     volumes:
       - /mnt/cpool/redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # Authenticated PING: REDISCLI_AUTH keeps the password off argv, grep hides the reply.
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$$REDIS_AUTH" redis-cli ping | grep -qx PONG
       interval: 10s
       timeout: 5s
       retries: 5
@@ -71,9 +83,11 @@ services:
     image: oliver006/redis_exporter:latest
     container_name: redis_exporter
     restart: unless-stopped
+    # REDIS_PASSWORD is rendered from the same Vaultwarden field as REDIS_AUTH.
+    env_file:
+      - /mnt/cpool/secrets/runtime/redis/.env.secrets
     environment:
       REDIS_ADDR: "redis:6379"
-      REDIS_PASSWORD: ${REDIS_AUTH:?REDIS_AUTH is required}
     ports:
       - 9121:9121
     depends_on:

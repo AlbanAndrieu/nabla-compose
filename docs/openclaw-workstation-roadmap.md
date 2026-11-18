@@ -14,7 +14,7 @@
 
 - **Propriétaire unique :** `nabla-openclaw` pour le Gateway, le cron, le heartbeat, les policies et leurs modifications. Le dépôt Compose garde l'infra TrueNAS, les clés LiteLLM, les scripts de diagnostic inter-hôtes et les chemins de secours documentés.
 - Les artefacts temporaires Workstation `HEARTBEAT-SCRATCH.template.md` et `apply-openclaw-heartbeat-scratch.py` ainsi que l'inventaire Git pré-cutover ont été retirés : ils n'ont plus de consommateur runtime. Le contrat [`test_openclaw_policy_relocation.py`](../tests/test_openclaw_policy_relocation.py) interdit leur retour.
-- Les autres diagnostics et wrappers `scripts/workstation/openclaw-*` sont **encore présents** : certains sont référencés par `justfile`, des tests ou la procédure de rollback. Ne pas les supprimer en masse. Le retrait total n'est pas encore accepté tant que la parité de leurs consommateurs n'est pas démontrée.
+- Les autres diagnostics et wrappers `scripts/workstation/openclaw-*` sont **encore présents** : certains sont référencés par `justfile`, des tests ou la procédure de rollback. Ne pas les supprimer en masse. Le retrait total n'est pas encore accepté tant que la parité de leurs consommateurs n'est pas démontrée. Revu le 18/11 : encore utilisés par une vingtaine de recettes `justfile`, 7 scripts et environ 14 tests ; seuls `openclaw-heartbeat-gitops.py` et `openclaw-host-context.py` ont une copie dans nabla-openclaw. Suppression reportée.
 - Remplacer progressivement les actions de mutation du Gateway source par les commandes du dépôt dédié. Aucun `systemctl --user enable`, `--apply` cron ou test de génération ne doit être déclenché par un simple audit Compose.
 
 ## P2 — Clôture de compatibilité

@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-MAX_WITHOUT_MEMORY_LIMIT = 132
+MAX_WITHOUT_MEMORY_LIMIT = 59
 
 
 def _services() -> list[dict]:

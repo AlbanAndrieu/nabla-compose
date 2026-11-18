@@ -403,7 +403,7 @@ After successful migration:
 
 ## P0.7 — legacy Doco-CD compatibility
 
-Existing Doco-CD `external_secrets` and `bitwarden-api` consumers remain until inventoried and replaced. New migrations must use direct `bw`/renderer flows.
+Existing Doco-CD `external_secrets` and `bitwarden-api` consumers remain until inventoried and replaced. New migrations must use direct `bw`/renderer flows. Inventoried on 2026-11-18 ([consumers](runbooks/2026-11-18-secrets-consumers-inventory.md)): the three `external_secrets` are read by no project that Doco-CD deploys (it deploys only vaultwarden and garage), so the `bitwarden-api` adapter is a retirement candidate; runtime proof `NOT_RUN`.
 
 Unattended Doco-CD access uses the dedicated restricted account/collection described in `docs/vaultwarden-truenas-dococd-account.md`.
 
@@ -446,5 +446,5 @@ This migration is complete when:
 - at least one full reboot proves canonical materialization survives/re-renders correctly;
 - `.bashrc` no longer globally exports service-only secrets unnecessarily;
 - git-crypt remains a verified encrypted secondary recovery source;
-- Doco-CD adapter retirement has a complete consumer inventory;
-- the service-creation/modification skills prevent new legacy layout from being introduced.
+- Doco-CD adapter retirement has a complete consumer inventory; done 2026-11-18 ([inventory](runbooks/2026-11-18-secrets-consumers-inventory.md)), retirement itself still open;
+- the service-creation/modification skills prevent new legacy layout from being introduced. Enforced since 2026-11-18 by `tests/test_compose_legacy_env_ratchet.py`: any new `/mnt/cpool/<app>/.env*` path fails, and the 9 legacy paths (Wave B) can only be removed.

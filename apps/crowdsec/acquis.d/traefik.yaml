@@ -1,0 +1,9 @@
+---
+# Traefik JSON access log (apps/traefik/compose.yml --accesslog.filepath).
+# force_inotify: keep watching when Traefik has not created the file yet.
+source: file
+filenames:
+  - /logs/traefik/access.log
+force_inotify: true
+labels:
+  type: traefik

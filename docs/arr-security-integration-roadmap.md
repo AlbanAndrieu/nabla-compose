@@ -95,8 +95,8 @@ Current Nabla features are useful:
 
 Recommended hardening:
 
-1. replace the direct Docker socket bind with the existing `docker-socket-proxy` where the required endpoints are supported;
-2. default `DOZZLE_ENABLE_ACTIONS=false` and `DOZZLE_ENABLE_SHELL=false` unless an operator explicitly enables break-glass mode;
+1. replace the direct Docker socket bind with the existing `docker-socket-proxy` where the required endpoints are supported; **CODED 2026-11-18** (`DOCKER_HOST=tcp://docker-socket-proxy:2375`, read-only endpoints already exposed, `POST=0`); redeploy pending (the App is stopped);
+2. default `DOZZLE_ENABLE_ACTIONS=false` and `DOZZLE_ENABLE_SHELL=false` unless an operator explicitly enables break-glass mode; **CODED 2026-11-18**;
 3. keep MCP disabled from untrusted/external networks and treat it as an administrative capability;
 4. use Dozzle agents for remote Docker engines rather than exposing Docker TCP sockets;
 5. expose Dozzle only on the internal Traefik path/Access policy; never public anonymous access;

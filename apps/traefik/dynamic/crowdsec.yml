@@ -1,0 +1,24 @@
+---
+# Opt-in CrowdSec bouncer. No router uses it by default; attach one router at a
+# time with the label traefik.http.routers.<router>.middlewares=crowdsec@file
+# (procedure: apps/crowdsec/README.md, "Bouncer Traefik").
+http:
+  middlewares:
+    crowdsec:
+      plugin:
+        bouncer:
+          enabled: true
+          # stream: one LAPI poll per minute, decisions served from memory.
+          crowdsecMode: stream
+          updateIntervalSeconds: 60
+          # Fail open: a LAPI outage keeps the last known decisions and never
+          # blocks traffic; startup does not wait for the LAPI either.
+          updateMaxFailure: -1
+          streamStartupBlock: false
+          httpTimeoutSeconds: 5
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: crowdsec:8080
+          # File-provider Go template (sprig env), rendered from the canonical
+          # runtime dotenv. Never enable providers.file.debugLogGeneratedTemplate:
+          # it would log the rendered key.
+          crowdsecLapiKey: '{{ env "CROWDSEC_BOUNCER_LAPI_KEY" }}'

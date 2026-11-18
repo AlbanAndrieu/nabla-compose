@@ -38,6 +38,7 @@ services:
           evidence:
             - apps/postgres-exporter/compose.yml:DATA_SOURCE_NAME
     restart: unless-stopped
+    mem_limit: 128m
     # Scoped runtime secret materialized from Vaultwarden by the operator.
     # Do not inherit all application DB secrets or interpolate a missing DSN.
     env_file:

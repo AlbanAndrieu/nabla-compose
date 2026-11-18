@@ -139,6 +139,8 @@ def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
         reconcile = APP_DEPLOY_LIB.read_text(encoding="utf-8") + TRUENAS_LIB.read_text(encoding="utf-8")
         assert "truenas_reconcile_custom_app" in reconcile
         assert "NABLA_RUNTIME_CHANGE_APPROVED" in reconcile
+    elif "truenas_reconcile_custom_app" in script:
+        reconcile = TRUENAS_LIB.read_text(encoding="utf-8")
     else:
         reconcile = script
     # Jobs go through the shared truenas_job_compact helper (midclt call -j).

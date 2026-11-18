@@ -30,7 +30,7 @@ class DoclingDeployPreflightTest(unittest.TestCase):
         prepare = source.index(
             'bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"'
         )
-        execute = source.index('  truenas_job_compact app.update "${APP_ID}"')
+        execute = source.index('truenas_reconcile_custom_app "${APP_ID}"')
         self.assertLess(verify, guard)
         self.assertLess(guard, prepare)
         self.assertLess(prepare, execute)

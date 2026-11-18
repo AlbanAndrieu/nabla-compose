@@ -71,6 +71,20 @@ services:
           evidence:
             - apps/crowdsec/compose.yml:SURICATA_LOG_DIR
             - apps/crowdsec/acquis.d/security.yaml
+        - target: traefik
+          type: dependsOn
+          strength: optional
+          description: CrowdSec parses the Traefik JSON access log with the crowdsecurity/traefik collection.
+          evidence:
+            - apps/crowdsec/acquis.d/traefik.yaml
+            - apps/traefik/compose.yml:--accesslog.filepath
+        - target: traefik
+          type: providesApi
+          strength: optional
+          description: The LAPI serves the opt-in Traefik bouncer middleware crowdsec@file over traefik_network.
+          evidence:
+            - apps/traefik/dynamic/crowdsec.yml:crowdsecLapiHost
+            - apps/crowdsec/compose.yml:traefik_network
         - target: prometheus
           type: observedBy
           strength: optional
@@ -90,7 +104,7 @@ services:
       - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
         required: false
     environment:
-      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata
+      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik
       # pfSense evidence on 2026-10-10 showed an internal leaky-bucket spin:
       # 19,899,999 failed sends / 19,900,000 attempts with sigclosed=0.
       # Keep the rest of the pfSense collection while removing only this scenario.
@@ -114,6 +128,15 @@ services:
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
         target: /logs/suricata
         read_only: true
+      # Short syntax on purpose: a missing log directory must not block startup.
+      - /mnt/cpool/traefik/logs:/logs/traefik:ro
+    # traefik_network only lets the Traefik bouncer reach crowdsec:8080; the
+    # LAPI stays LAN-bound and is never routed by Traefik (no traefik.enable).
+    networks: ["default", "traefik_network"]
+
+networks:
+  traefik_network:
+    external: true
 
 volumes:
   crowdsec_config:

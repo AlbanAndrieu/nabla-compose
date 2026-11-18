@@ -1007,9 +1007,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - litellm-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:4000
@@ -1623,9 +1621,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - reactive-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:3008

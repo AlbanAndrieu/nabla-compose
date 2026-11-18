@@ -189,7 +189,7 @@
     },
     {
       "dependsOn": [
-        "resource:default/docker"
+        "component:default/docker-socket-proxy"
       ],
       "ref": "component:default/dozzle"
     },
@@ -999,7 +999,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:8fc7d2cadbef5067a9cf77abec08041eb857c428b437af9deffa2ec9a9d21d14"
+        "value": "sha256:70313b0968fd2278cc4b0bede2fc188e01f12c8a09af87dbd46550c2fe9271c6"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1007,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:8fc7d2ca-dbef-5067-a9cf-77abec08041e",
+  "serialNumber": "urn:uuid:70313b09-68fd-2278-cc4b-0bede2fc188e",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
