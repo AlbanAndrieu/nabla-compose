@@ -120,6 +120,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/opensearch-dashboards
     image: docker.io/opensearchproject/opensearch-dashboards:3.6.0
+    mem_limit: 448m
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-dashboards
     x-nabla:
       id: opensearch-dashboards

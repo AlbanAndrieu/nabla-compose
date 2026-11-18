@@ -46,6 +46,7 @@ services:
             control: static-content-no-data
             reviewAfter: null
     restart: unless-stopped
+    mem_limit: 128m
     environment:
       UID: 1000
       GID: 1000

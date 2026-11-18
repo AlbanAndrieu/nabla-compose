@@ -23,6 +23,7 @@ services:
     container_name: wazuh-manager
     hostname: wazuh.manager
     restart: unless-stopped
+    mem_limit: 1536m
     x-nabla:
       id: wazuh-manager
       name: Wazuh Manager
@@ -198,6 +199,7 @@ services:
     container_name: wazuh-dashboard
     hostname: wazuh.dashboard
     restart: unless-stopped
+    mem_limit: 384m
     x-nabla:
       id: wazuh-dashboard
       name: Wazuh Dashboard

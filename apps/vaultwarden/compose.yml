@@ -50,6 +50,7 @@ services:
           access:
             required: false
     restart: unless-stopped
+    mem_limit: 256m
     user: "568:568" # TrueNAS apps user
     environment:
       DOMAIN: "https://vaultwarden.albandrieu.com"
@@ -134,6 +135,7 @@ services:
           evidence:
             - apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com
     restart: unless-stopped
+    mem_limit: 512m
     init: true
     user: "568:568" # TrueNAS apps user
     environment:

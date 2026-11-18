@@ -94,6 +94,7 @@ services:
       com.albandrieu.nabla.entity-ref: component:default/sentry-memcached
     image: memcached:1.6.45-alpine
     restart: unless-stopped
+    mem_limit: 128m
     command: ["-I", "1M"]
     healthcheck:
       test: ["CMD-SHELL", "echo stats | nc 127.0.0.1 11211 >/dev/null"]
@@ -123,6 +124,7 @@ services:
   snuba-api:
     logging: *nabla-logging
     <<: *snuba-service
+    mem_limit: 1g
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-api
     x-nabla:
@@ -177,6 +179,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-errors-consumer
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - rust-consumer
       - --storage
@@ -205,6 +208,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-outcomes-consumer
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - rust-consumer
       - --storage
@@ -233,6 +237,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-outcomes-billing-consumer
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - rust-consumer
       - --storage
@@ -263,6 +268,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-group-attributes-consumer
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - rust-consumer
       - --storage
@@ -291,6 +297,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-replacer
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - replacer
       - --storage
@@ -315,6 +322,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-subscription-consumer-events
     <<: *snuba-service
+    mem_limit: 1g
     command:
       - subscriptions-scheduler-executor
       - --dataset
@@ -424,6 +432,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-events-consumer
     <<: *sentry-service
+    mem_limit: 704m
     command:
       - run
       - consumer
@@ -446,6 +455,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-attachments-consumer
     <<: *sentry-service
+    mem_limit: 1152m
     command:
       - run
       - consumer
@@ -468,6 +478,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-post-process-forwarder-errors
     <<: *sentry-service
+    mem_limit: 704m
     command:
       - run
       - consumer
@@ -510,6 +521,7 @@ services:
           evidence:
             - apps/sentry/compose.yml:TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS=kafka:9092
     restart: unless-stopped
+    mem_limit: 128m
     environment:
       TASKBROKER_KAFKA_CLUSTERS__DEFAULT__ADDRESS: kafka:9092
       TASKBROKER_DB_PATH: /opt/sqlite/taskbroker-activations.sqlite
@@ -526,6 +538,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-taskscheduler
     <<: *sentry-service
+    mem_limit: 448m
     command: ["run", "taskworker-scheduler"]
     depends_on:
       sentry-migrate:
@@ -605,6 +618,7 @@ services:
           evidence:
             - /mnt/cpool/secrets/runtime/sentry/.env.secrets:RELAY_REDIS_URL
     restart: unless-stopped
+    mem_limit: 640m
     env_file:
       - /mnt/cpool/secrets/runtime/sentry/.env.secrets
     environment:
@@ -667,6 +681,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: web
     restart: unless-stopped
+    mem_limit: 128m
     ports:
       - name: web
         target: 80

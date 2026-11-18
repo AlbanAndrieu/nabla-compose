@@ -38,6 +38,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    mem_limit: 640m
     environment:
       # /api/initialize is unauthenticated until the first org claims the daemon: listen on
       # docker0 (TrueNAS pool 10.200.0.0/16), which host.docker.internal reaches, not the LAN.
@@ -104,6 +105,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: web
     restart: unless-stopped
+    mem_limit: 704m
     env_file:
       # Must define SCANOPY_DATABASE_URL for role/database scanopy on 172.17.0.24:5432.
       - /mnt/cpool/secrets/runtime/scanopy/.env.secrets
