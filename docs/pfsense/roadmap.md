@@ -6,7 +6,7 @@
 
 Recommandations du diagnostic du 17/11 ([fiche](incidents/2026-11-17-pfsense-userland-freeze.md)). Le gain vient surtout de la configuration, pas de la marque du pare-feu. Chaque point passe par un script versionné (`check` puis `apply`) ou de l'IaC, avec une réception datée.
 
-- [ ] **Matériel x86 avec SSD** : Netgate 4200 MAX décidé le 17/11 (NVMe, 4 Go, ports indépendants) ; voir « Gels userland » dans H07b. Supprime aussi le pont LAN/WAN des démarrages à froid.
+- [ ] **Matériel x86 avec SSD** : Netgate 4200 MAX décidé le 17/11 (NVMe, 4 Go, ports indépendants) ; voir « Gels userland » dans H07b. **Avant commande** : trancher entre A et B dans l'[étude de décommissionnement](decommission-study.md). En A, pas de 4200. Supprime aussi le pont LAN/WAN des démarrages à froid.
 - [ ] **Segmentation en VLAN** : LAN, serveurs (TrueNAS, Talos), IoT/Home Assistant, invités (`NETGEAR75`) et administration, avec refus par défaut entre segments et ouvertures explicites. Réception : matrice de flux testée (un client invité ne joint ni TrueNAS ni la GUI pfSense). Prérequis : le 4200 et un point d'accès Wi-Fi capable de VLAN (à vérifier).
 - [ ] **Administration par VPN seulement** : fermer SSH 9922 côté WAN et passer par WireGuard. La garde WAN de la GUI 10443 reste en place. Réception : scan externe (port fermé), accès VPN testé, sshguard toujours actif.
 - [ ] **Clés FIDO2** : remplacer la clé logicielle `ssh-ed25519` d'`admin` et `albandrieu` par des clés `sk-ssh-ed25519@openssh.com` (YubiKey), avec une clé de secours hors ligne. Réception : connexion par clé matérielle, refus de l'ancienne clé.
@@ -76,7 +76,48 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
     4. une fois le 26.07 en service, retirer la ligne `fallback_exclusion` de `check-drift.sh`. Sinon, remettre le stable et noter la cause vue sur la console.
 - [x] **Clé USB de réinstallation** : l'image du ticket TAC *Firmware Access* est l'installeur en ligne déjà sur la clé ; pas d'image hors ligne pour le 1100. La réinstallation passe par le WAN branché sur la Freebox (procédure dans le runbook).
 
+## Décommissionnement de pfSense (étude du 17/11)
+
+[Étude](decommission-study.md) : rôles relevés sur pfSense, ce que la Freebox Ultra peut reprendre, scénarios A (décommissionner), B (Freebox en routeur avec pfSense derrière) et C (statu quo). Chaque étape est réversible, et pfSense reste en place jusqu'à la phase 2.
+
+**Phase 0, utile dans les trois scénarios** (Freebox en bridge, pfSense inchangé) :
+
+- [x] **0.1 Inventaire versionné**, fait le 17/11 : [`inventory.php`](../../scripts/pfsense/inventory.php) exporte en lecture seule les interfaces, les baux fixes (sans MAC), les redirections et l'état de leur règle de passage, les alias (nombre d'entrées et usages, jamais leur contenu), HAProxy, ACME, DNS et VPN. Deux exécutions identiques ; la sortie reste dans `logs/`.
+- [ ] **0.2 Supprimer les 13 redirections WAN obsolètes**, par script versionné. Constat de l'inventaire : 10 règles de passage désactivées, 3 orphelines, 0 état établi ; cibles mortes (Vault, Nomad et Consul vers `127.17.0.55`, ancien FreeNAS) ou non exposées. Supprimer aussi les 9 alias inutilisés. Toute ouverture future passe par Cloudflare Access/Tunnel ou Tailscale. Réception : 0 redirection, sondes extérieures inchangées.
+- [ ] **0.3 Ingress hors de pfSense** : les 2 frontends HAProxy actifs (`Web_HTTPS` 443 et `freenas` 7000) vont vers le tunnel Cloudflare et Traefik sur TrueNAS, avec les certificats en DNS-01 ; les 5 désactivés sont supprimés. Réception : plus rien n'écoute sur le WAN de pfSense.
+- [ ] **0.4 DNS par Pi-hole** : le DHCP de pfSense distribue Pi-hole (`172.17.0.24`) en principal et un secondaire hors TrueNAS ; DNSSEC activé dans Pi-hole. TrueNAS garde un résolveur qui n'est pas Pi-hole. Réception : `int.albandrieu.com` et les noms publics résolus par Pi-hole ; Pi-hole arrêté, les noms publics résolus quand même.
+- [ ] **0.5 Services annexes** : DynDNS vers ddns-updater ; WireGuard vers Tailscale ou le WireGuard de la Freebox ; bouncer CrowdSec dans Traefik.
+- [ ] **0.6 App Freebox au moindre privilège** : décocher les droits par défaut (Explorateur, VM, Appels, Contacts, Téléchargements, TV, PVR). « Modification des réglages » seulement pour la bascule.
+
+**Phase 1, décision de l'opérateur** :
+
+- [ ] A ou B, et donc commande du 4200 ou non. Critères : accepter ou non un réseau à plat (IoT, Wi-Fi, Talos et TrueNAS sur le même `/24`), sans IDS ni journal pare-feu.
+
+**Phase 2, bascule de la Freebox en routeur** :
+
+- [ ] **B** : [procédure Freebox](runbooks/freebox-router-mode.md), WAN de pfSense en DHCP puis épinglé, avec la DMZ.
+- [ ] **A** :
+  - en routeur, tester si la Freebox accepte `172.17.0.1/24` comme adresse LAN, ce qui évite de renuméroter ;
+  - régler la plage `.100`–`.200` et le DNS Pi-hole ;
+  - créer les 39 baux fixes avec un script `plan`/`apply` (Kea vers l'API Freebox) ;
+  - fusionner les 7 hôtes du VLAN OPT dans le LAN ;
+  - recâbler le switch du LAN sur la Freebox.
+
+  Retour arrière : recâbler pfSense et repasser la Freebox en bridge.
+
+**Phase 3, décommissionnement (A seulement)** :
+
+- [ ] export chiffré de `config.xml` ;
+- [ ] révoquer le nœud Tailscale, le pair WireGuard, les comptes ACME et les clés RESTAPI ;
+- [ ] retirer les cibles Prometheus, Gatus, Loki et Zabbix, ainsi que la source Akvorado ;
+- [ ] archiver `scripts/pfsense` et `docs/pfsense` (dépôt `nabla-pfsense` en archive) ;
+- [ ] effacer l'eMMC du 1100 avant de s'en séparer.
+
 ## Autres suivis pfSense
+
+- [ ] **Freebox en mode routeur** ([procédure](runbooks/freebox-router-mode.md)), `CODED` le 17/11, `NOT_RUN`. Le WAN de pfSense passe en DHCP, la Freebox en routeur par son API, puis le WAN est épinglé avec la DMZ. Gains : fin de l'IP publique distribuée pendant les démarrages à froid du 1100, et secours Wi-Fi possible. Préparation faite le 17/11 (voir la procédure) : app enregistrée, inventaire, DynDNS prêt, alias et redirections sans impact. Reste le jour J : permission `settings`, MAC du WAN, adresse du WAN. Réception : `check` des deux outils à 0 changement, entrées 443 et 7000 vues de l'extérieur, DynDNS à jour.
+- [ ] **IPv6 sur le LAN** : la Freebox route déjà 2 préfixes `/64` vers le WAN de pfSense, mais le LAN est en `track6` (il attend du DHCPv6-PD) et n'a aucun préfixe. Passer le LAN en IPv6 statique sur l'une des délégations, avec RA, par script versionné. Indépendant de la bascule.
+- [ ] **Clé USB du 1100** : relue le 17/11. C'est la clé d'installation de pfSense (SanDisk Cruzer 16 Go en USB 2.0, 21,6 Mo/s en lecture contre 27,4 Mo/s pour l'eMMC). On la garde comme clé de réinstallation, pas comme stockage : voir « Gels userland » de H07b.
 
 - pfSense / CrowdSec : conserver la preuve que PF charge les règles, puis démontrer le rattachement WAN exact sans bloquer une IP d'administration ; ne pas prendre une ancre chargée pour une preuve de filtrage effectif.
 - **Sonde Cloud** : le WAN `*.int` renvoie 503 depuis Cloud, à diagnostiquer par script versionné (relevé de la réception du catalogue, PR #326).

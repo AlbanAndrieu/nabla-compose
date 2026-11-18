@@ -12,7 +12,7 @@ class SignApprovalContract(unittest.TestCase):
         self.assertIn("sk-ssh-ed25519@openssh.com", text)
         self.assertIn("AGENT_EXECUTION_MODE", text)
         self.assertNotIn("eval ", text)
-        self.assertNotIn("gh workflow run entra-id-lab.yml -R", text.split("printf 'To submit")[0])
+        self.assertNotIn("gh workflow run entra.yml -R", text.split("printf 'To submit")[0])
         self.assertIn("run_id", text)
 
 

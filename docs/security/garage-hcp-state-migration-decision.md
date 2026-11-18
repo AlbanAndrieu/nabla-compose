@@ -26,7 +26,7 @@ Do not migrate existing Garage states as part of H16.
 
 | Module family | Initial decision | Reason |
 | --- | --- | --- |
-| `terraform/entra-id-lab` | HCP Free PILOT | Disposable objects, tiny state, isolated org |
+| `terraform/entra` | HCP Free PILOT | Disposable objects, tiny state, isolated org |
 | GitHub governance | DEFER | Security-critical GitHub write authority; RBAC too broad on HCP Free |
 | Cloudflare tunnels / Access | DEFER | External exposure, sensitive policy and routing metadata |
 | TrueNAS / Garage / Talos | KEEP Garage for now | Private topology, state locality, dependent services |

@@ -23,7 +23,7 @@
 
 **P1 / Backend PostgreSQL local (étude, sans migration)** : [POC OpenTofu `pg` à advisory locks](security/opentofu-postgresql-private-locking-poc.md), sur socket ou loopback de workstation, et tunnel SSH privé vers TrueNAS seulement après vérification. **Aucun PostgreSQL public**, aucune ouverture pfSense/Cloudflare, aucun backend changé. Attention : `pg` stockerait également le `tfstate`, ce n'est pas un verrou externe pour Garage ; [décision Garage/HCP](security/garage-hcp-state-migration-decision.md).
 
-**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état **HCP Terraform Free** dans une organisation isolée](../terraform/entra-id-lab/README.md), [CI OIDC + Harden-Runner audit + approbation matérielle YubiKey du plan](../.github/workflows/entra-id-lab.yml) et [runbook tenant/Graph/identités](security/entra-id-homelab-lab.md). Pas de migration des états Garage : groupes CI désactivés pour éviter les permissions Graph étendues ; le risque des tokens propriétaires HCP Free reste documenté. Code uniquement, `tofu plan/apply` et CI runtime **NOT_RUN**, aucune ressource cloud créée. Priorités H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangées.
+**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état **HCP Terraform Free** dans une organisation isolée](../terraform/entra/README.md), [CI OIDC + Harden-Runner audit + approbation matérielle YubiKey du plan](../.github/workflows/entra.yml) et [runbook tenant/Graph/identités](security/entra-id-homelab-lab.md). Pas de migration des états Garage : groupes CI désactivés pour éviter les permissions Graph étendues ; le risque des tokens propriétaires HCP Free reste documenté. Code uniquement, `tofu plan/apply` et CI runtime **NOT_RUN**, aucune ressource cloud créée. Priorités H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangées.
 
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
@@ -125,7 +125,7 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 
 ### H07 / H07b — pfSense
 
-Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité).
+Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité). Le même jour : [étude de décommissionnement de pfSense](pfsense/decommission-study.md), à trancher avant de commander le 4200. Sa phase 0 touche aussi des services TrueNAS (Traefik, Pi-hole, ddns-updater, Tailscale).
 
 ## P1 — Performance, stockage et restauration TrueNAS
 

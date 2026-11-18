@@ -17,7 +17,7 @@
 | Secrets Vaultwarden | [Clôture active — 6 novembre](vaultwarden-migration-closure-20261106.md) | Item, rendu 0600, comparaison et réception runtime |
 | Secrets TrueNAS | [Gates avant `--finalize`](../secrets-runtime-initialization.md#gates-before---finalize-app) | Provenance et alignement runtime |
 | Talos Kubernetes | [Préflight CSI](../kubernetes-csi-preflight.md) | `democratic-csi` et multi-nœuds |
-| Lab Entra ID Free (H16) | [Tenant et utilisateur de test](entra-id-lab-tenant-and-test-user.md) | Préflight, plan relu (6 ajouts), apply local, première connexion |
+| Lab Entra ID Free (H16) | [Tenant et utilisateur de test](entra-tenant-and-test-user.md) | Préflight, plan relu (6 ajouts), apply local, première connexion |
 | Sécurité et test de non-régression | [Registre des refactorings](homelab-refactoring-risk-register.md) | Tests négatifs et qualité L3 |
 | Scripts de l'agent | [Skill local-first](../../.agents/skills/local-first-quality/SKILL.md) | Travail sur branche dédiée, pas de CI payante implicite |
 

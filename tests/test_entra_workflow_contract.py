@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/entra-id-lab.yml"
+WORKFLOW = ROOT / ".github/workflows/entra.yml"
 
 
 class EntraWorkflowContract(unittest.TestCase):
