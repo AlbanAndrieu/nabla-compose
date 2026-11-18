@@ -1,3 +1,10 @@
+# [0.101.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.100.0...0.101.0) (2026-11-18)
+
+
+### Features
+
+* **pfsense:** prepare the Freebox router-mode switch and study decommissioning ([b980db4](https://github.com/AlbanAndrieu/nabla-compose/commit/b980db4a7043c29b3b0ce80e42641f56816811d1))
+
 # [0.100.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.99.0...0.100.0) (2026-11-17)
 
 
