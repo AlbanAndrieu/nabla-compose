@@ -1,3 +1,17 @@
+# [0.102.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.101.0...0.102.0) (2026-11-18)
+
+
+### Bug Fixes
+
+* **security:** scope manual external scan dispatch to one workload [skip ci] ([14cdc4b](https://github.com/AlbanAndrieu/nabla-compose/commit/14cdc4b5b19a1105c03b7a5c22c3c479c1dfc23e))
+
+
+### Features
+
+* **security:** add non-reading exposed-path probes and tests [skip ci] ([1f8ae1f](https://github.com/AlbanAndrieu/nabla-compose/commit/1f8ae1f636f15f81791425dd0dc00bbd80d07a50))
+* **security:** bounded HEAD-only public disclosure and admin-path checks [skip ci] ([85a00bc](https://github.com/AlbanAndrieu/nabla-compose/commit/85a00bc873bb1c18eeba349783509f6c6a6b99a3))
+* **security:** public mail DNS, safe Nuclei artifacts and manual TCP/TLS evidence [skip ci] ([114f737](https://github.com/AlbanAndrieu/nabla-compose/commit/114f73769c8e7195c7d6936d07955d9317299254))
+
 # [0.101.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.100.0...0.101.0) (2026-11-18)
 
 
