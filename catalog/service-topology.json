@@ -431,7 +431,11 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "crowdsec"
+        "containerService": "crowdsec",
+        "networks": [
+          "default",
+          "traefik_network"
+        ]
       },
       "icon": "🛡️"
     },
@@ -761,6 +765,7 @@
         "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
+          "docker-proxy",
           "traefik_network"
         ]
       },
@@ -3805,6 +3810,28 @@
       ]
     },
     {
+      "source": "crowdsec",
+      "target": "traefik",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "CrowdSec parses the Traefik JSON access log with the crowdsecurity/traefik collection.",
+      "evidence": [
+        "apps/crowdsec/acquis.d/traefik.yaml",
+        "apps/traefik/compose.yml:--accesslog.filepath"
+      ]
+    },
+    {
+      "source": "crowdsec",
+      "target": "traefik",
+      "type": "providesApi",
+      "strength": "optional",
+      "description": "The LAPI serves the opt-in Traefik bouncer middleware crowdsec@file over traefik_network.",
+      "evidence": [
+        "apps/traefik/dynamic/crowdsec.yml:crowdsecLapiHost",
+        "apps/crowdsec/compose.yml:traefik_network"
+      ]
+    },
+    {
       "source": "cyberbro",
       "target": "docker",
       "type": "hostedBy",
@@ -4074,6 +4101,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/dozzle/compose.yml:dozzle.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "dozzle",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Dozzle reads containers, events and logs through the read-only Docker API proxy.",
+      "evidence": [
+        "apps/dozzle/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
       ]
     },
     {

@@ -22,7 +22,10 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         service = compose["services"]["crowdsec"]
         self.assertEqual("crowdsecurity/crowdsec:v1.8.1", service["image"])
         self.assertEqual("firewallservices/pf-scan-multi_ports", service["environment"]["DISABLE_SCENARIOS"])
-        self.assertEqual("crowdsecurity/pfsense crowdsecurity/suricata", service["environment"]["COLLECTIONS"])
+        self.assertEqual(
+            "crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik",
+            service["environment"]["COLLECTIONS"],
+        )
         self.assertIn("healthcheck", service)
         self.assertIn("cscli lapi status", " ".join(service["healthcheck"]["test"]))
 

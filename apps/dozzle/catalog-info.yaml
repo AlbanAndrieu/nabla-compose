@@ -37,4 +37,4 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   dependsOn:
-    - resource:default/docker
+    - component:default/docker-socket-proxy

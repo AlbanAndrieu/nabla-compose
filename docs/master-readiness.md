@@ -34,7 +34,7 @@ Apps : 91 ; actives : 62 ; planifiées : 26.
 | `clamav` | active | custom-apps.yml | `cpool/clamav` (❌)<br>`cpool/logs` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | `SNAPSHOT_UNCLASSIFIED`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | manifest | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
-| `crowdsec` | active | custom-apps.yml | — | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
+| `crowdsec` | active | custom-apps.yml | `cpool/traefik` (app-state) | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
 | `cyberbro` | active | custom-apps.yml | `cpool/cyberbro` (app-state) | manifest | ✅ | — | — | diagnose-cyberbro.sh | bootstrap-cyberbro-env.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ddns-updater` | active | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -95,7 +95,7 @@ Apps : 91 ; actives : 62 ; planifiées : 26.
 | `qbittorrent-exporter` | planned | deploy-media-stack.sh | — | manifest | — | qbittorrent-exporter | — | générique | — | ✅ |
 | `radarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/radarr` (app-state) | manifest | ✅ | radarr-exporter | — | générique | terraform/media | ✅ |
 | `recyclarr` | planned | deploy-media-stack.sh | `cpool/recyclarr` (app-state) | manifest | — | — | — | générique | apps/recyclarr/config/ | ✅ |
-| `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | diagnose-redis.py | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | manifest | ❌ | redis_exporter | — | diagnose-redis.py | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sample` | active | custom-apps.yml | `cpool/secrets` (critical) | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
 | `scanopy` | active | custom-apps.yml | `cpool/scanopy` (app-state) | manifest | ✅ | — | ✅ scanopy | générique | bootstrap-scanopy-postgres.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `scorecard` | planned | ❌ | — | manifest | — | — | — | générique | — | `NO_DEPLOY_PATH` |

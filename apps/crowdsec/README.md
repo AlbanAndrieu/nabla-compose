@@ -3,6 +3,162 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Bouncer Traefik et journaux d'accès (opt-in, 18/11/2026)
+
+**État : `CODED`, non déployé (`NOT_RUN`).**
+
+Ce qui est versionné :
+
+- Traefik écrit son journal d'accès en JSON dans
+  `/mnt/cpool/traefik/logs/access.log`. Les en-têtes sont supprimés, sauf
+  `User-Agent`. Ce journal ne passe donc plus par `docker logs traefik`
+  ni par Dozzle.
+- CrowdSec lit ce fichier en lecture seule (`acquis.d/traefik.yaml`, type
+  `traefik`) avec la collection `crowdsecurity/traefik`.
+- Le middleware `crowdsec@file` (`apps/traefik/dynamic/crowdsec.yml`,
+  plugin `crowdsec-bouncer-traefik-plugin` épinglé en `v1.8.1`) n'est
+  attaché à **aucun** routeur. Il interroge la LAPI sur `crowdsec:8080` via
+  `traefik_network`. La clé vient de la variable `CROWDSEC_BOUNCER_LAPI_KEY`
+  du dotenv runtime canonique de Traefik, rendue par le gabarit Go du file
+  provider (`{{ env ... }}`), jamais d'un label.
+  Tant qu'aucun routeur ne l'utilise, le plugin n'appelle pas la LAPI.
+
+**Mode de défaillance : ouvert.** Le middleware tourne en mode `stream`
+avec `updateMaxFailure: -1` et `streamStartupBlock: false`. Si la LAPI
+tombe, le trafic passe avec les dernières décisions gardées en mémoire. Au
+démarrage, Traefik n'attend pas la LAPI. Raison : Traefik porte tout
+l'ingress (criticité critique, RTO 1 h), CrowdSec est en « best effort »
+(RTO 3 jours) ; une panne CrowdSec ne doit pas devenir une panne d'ingress.
+Le mode `live` bloquerait chaque requête sur erreur LAPI et ajouterait un
+appel LAPI par IP. Si le plugin ne se télécharge pas au démarrage
+(`plugins.traefik.io` injoignable), Traefik désactive les plugins et
+continue : seuls les routeurs qui portent le middleware échouent.
+
+**Exposition de la clé.** L'API Traefik `api.insecure` (port 8080, LAN, sans
+authentification) affiche la configuration rendue du plugin, donc la clé.
+Une clé de bouncer ne peut que lire les décisions ; la révoquer avec
+`cscli bouncers delete TRAEFIK` si elle fuit. Ne jamais activer
+`providers.file.debugLogGeneratedTemplate`, qui écrirait la clé dans les logs.
+
+**Limite connue : l'IP client.** Traefik ne fait confiance à aucun
+`X-Forwarded-For` (pas de `forwardedHeaders.trustedIPs`). Le journal et le
+bouncer ne voient donc la vraie IP que pour les clients qui atteignent
+Traefik directement (LAN par split DNS, conteneurs) ; derrière un proxy, ils
+voient l'adresse du proxy. La liste blanche par défaut de CrowdSec
+(`crowdsecurity/whitelists`) ignore les IP privées. Avant de faire confiance
+à un proxy amont, il faut qu'il remplace le `X-Forwarded-For` envoyé par le
+client. Sinon, le client choisit l'IP journalisée et peut faire bannir une
+IP tierce, ce qui fausse aussi les IP vues par les applications. Le HAProxy
+de pfSense a disparu avec l'appliance le 18/11 : la décision se prend avec
+le nouveau chemin d'entrée (voir
+[l'étude de décommissionnement](../../docs/pfsense/decommission-study.md)).
+
+### Procédure opérateur, sur TrueNAS, dans cet ordre
+
+1. **Créer la clé du bouncer.** Elle est générée dans le dotenv runtime
+   canonique avant l'inscription, puis lue par l'entrée standard, jamais
+   affichée ni passée en argument sur l'hôte, comme dans
+   `provision-crowdsec-pfsense-bouncer.sh`. Le premier `sh` refuse d'écraser
+   une clé existante (code 3).
+
+   ```bash
+   sudo docker exec crowdsec cscli bouncers list   # TRAEFIK absent
+   f=/mnt/cpool/secrets/runtime/traefik/.env.secrets
+   sudo install -d -m 0700 -o root -g root /mnt/cpool/secrets/runtime/traefik
+   sudo sh -c 'umask 077; ! grep -q "^CROWDSEC_BOUNCER_LAPI_KEY=" "$1" 2>/dev/null || exit 3
+     printf "CROWDSEC_BOUNCER_LAPI_KEY=%s\n" "$(openssl rand -hex 32)" >> "$1"' _ "$f"
+   sudo sed -n 's/^CROWDSEC_BOUNCER_LAPI_KEY=//p' "$f" | sudo docker exec -i crowdsec sh -c \
+     'IFS= read -r key || exit 2; cscli bouncers add TRAEFIK --key "$key" >/dev/null 2>&1'
+   sudo docker exec crowdsec cscli bouncers list   # TRAEFIK présent
+   ```
+
+   Si `TRAEFIK` existe déjà (ancienne variable `BOUNCER_KEY_TRAEFIK`),
+   retrouver sa clé ou le supprimer sur décision explicite ; ne pas
+   l'écraser.
+
+   Copier ensuite la clé dans Vaultwarden (élément `nabla/prod/traefik`,
+   champ `CROWDSEC_BOUNCER_LAPI_KEY`, déclaré dans
+   `config/secrets/manifest.json`) par le canal approuvé, sans l'afficher.
+   Sans ce champ, une future matérialisation du dotenv Traefik depuis
+   Vaultwarden perdrait la clé.
+
+2. **Redéployer Traefik** (coupure brève de l'ingress) : `app.query`, puis
+   `midclt call -j app.redeploy traefik`. Vérifier :
+
+   ```bash
+   sudo tail -n 1 /mnt/cpool/traefik/logs/access.log |
+     jq -c '{ClientHost, RequestHost, DownstreamStatus}'
+   sudo docker logs traefik 2>&1 | grep -i -E 'plugin|crowdsec' | tail -n 5
+   sudo docker inspect traefik --format '{{range .Config.Env}}{{println .}}{{end}}' |
+     awk -F= '$1 == "CROWDSEC_BOUNCER_LAPI_KEY" {print $1 "=PRESENT"}'
+   ```
+
+   Le tableau de bord (`http://172.17.0.24:8080`) doit lister le middleware
+   `crowdsec@file`.
+
+3. **Redéployer CrowdSec** : `deploy-crowdsec.sh --check`, puis `--apply`,
+   puis `diagnose-crowdsec-cutover.sh --runtime`. Vérifier l'acquisition :
+
+   ```bash
+   sudo docker exec crowdsec cscli collections list | grep traefik
+   sudo docker exec crowdsec cscli metrics show acquisition   # file:/logs/traefik/access.log
+   line="$(sudo tail -n 1 /mnt/cpool/traefik/logs/access.log)"
+   sudo docker exec crowdsec cscli explain --log "$line" --type traefik
+   ```
+
+   Une IP privée apparaît `whitelisted` : c'est attendu.
+
+4. **Attacher le middleware à un seul routeur**, d'abord `hello` (nginx
+   statique, `apps/nginx/compose.yml`), par un commit sur la branche de
+   travail, puis redéployer seulement cette App :
+
+   ```yaml
+   - "traefik.http.routers.hello.middlewares=crowdsec@file"
+   ```
+
+   Sous 60 s, `cscli bouncers list` doit montrer un `last_pull` pour
+   `TRAEFIK`. Pour chaîner, placer CrowdSec en premier
+   (`crowdsec@file,<limite>,<en-têtes>,<auth>`). Ne pas le mettre sur les
+   points de santé lus par la supervision.
+
+5. **Prouver qu'une décision bloque**, depuis un conteneur jetable sur
+   `traefik_network` : bannir son IP Docker jetable ne touche aucune machine
+   réelle du LAN.
+
+   ```bash
+   sudo docker run -d --rm --name cs-probe --network traefik_network \
+     curlimages/curl:8.11.1 sleep 600
+   ip="$(sudo docker inspect -f '{{(index .NetworkSettings.Networks "traefik_network").IPAddress}}' cs-probe)"
+   probe() { sudo docker exec cs-probe curl -sk -o /dev/null -w '%{http_code}\n' \
+     --connect-to ::traefik:443 https://hello.int.albandrieu.com/; }
+   probe                                            # 200
+   sudo docker exec crowdsec cscli decisions add --ip "$ip" --duration 5m \
+     --reason nabla-traefik-bouncer-test
+   sleep 70; probe                                  # 403 (synchro stream <= 60 s)
+   sudo docker exec crowdsec cscli decisions delete --ip "$ip"
+   sleep 70; probe                                  # 200
+   sudo docker rm -f cs-probe
+   ```
+
+   Facultatif, pour prouver le mode ouvert : arrêter CrowdSec deux minutes
+   et vérifier que `probe` renvoie toujours 200.
+
+**Retour arrière** : retirer le label du routeur. Un middleware inutilisé
+n'appelle pas la LAPI. `cscli bouncers delete TRAEFIK` révoque la clé ; retirer alors aussi la
+ligne du dotenv runtime et le champ Vaultwarden.
+
+**Rotation du journal.** Traefik ne fait pas de rotation, mais rouvre son
+fichier sur `SIGUSR1`, et CrowdSec suit le renommage. Les sondes de
+supervision font l'essentiel du volume. Pas de filtre `statuscodes` : les
+scénarios HTTP (mauvais User-Agent, crawl, CVE) lisent aussi les réponses
+2xx. Rotation manuelle, à garder sur une génération jusqu'à ce qu'un script
+versionné la planifie :
+
+```bash
+f=/mnt/cpool/traefik/logs/access.log
+sudo mv "$f" "$f.1" && sudo docker kill -s USR1 traefik
+```
+
 ## Réception des règles PF chargées — 30 octobre 2026
 
 **Gate ciblé sur la workstation : 100/100 PASS**,
@@ -1106,7 +1262,9 @@ The central engine currently acquires:
 
 - pfSense RFC5424 events from the **existing Loki stream**
   `{job="pfsense", device="pfsense"}`, produced by Alloy on TrueNAS;
-- Suricata `eve.json` from `${SURICATA_LOG_DIR}`.
+- Suricata `eve.json` from `${SURICATA_LOG_DIR}`;
+- the Traefik JSON access log `/mnt/cpool/traefik/logs/access.log`
+  (see « Bouncer Traefik et journaux d'accès »).
 
 This intentionally avoids a second syslog receiver and avoids inventing a
 `/mnt/cpool/logs/pfsense/*.log` persistence path that the observability stack

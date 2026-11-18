@@ -32,6 +32,13 @@ services:
         provider: truenas-app
         appId: dozzle
         containerService: dozzle
+      relations:
+        - target: docker-socket-proxy
+          type: consumesApi
+          strength: required
+          description: Dozzle reads containers, events and logs through the read-only Docker API proxy.
+          evidence:
+            - apps/dozzle/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
       monitoring:
         type: port
         host: 172.17.0.24
@@ -53,7 +60,6 @@ services:
     # - source: users.yml
     #   target: /mnt/cpool/dozzle/users.yml
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/cpool/dozzle/data:/data
     env_file:
       - /mnt/cpool/dozzle/.env
@@ -61,14 +67,17 @@ services:
     environment:
       - DOZZLE_NO_ANALYTICS=true
       - DOZZLE_AUTH_PROVIDER=simple
-      - DOZZLE_ENABLE_ACTIONS=true
-      - DOZZLE_ENABLE_SHELL=true
+      # Read-only Docker API (POST=0): no direct socket. Actions and shell need
+      # write/exec endpoints; re-enable only as a reviewed break-glass change.
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      - DOZZLE_ENABLE_ACTIONS=false
+      - DOZZLE_ENABLE_SHELL=false
       - DOZZLE_ENABLE_MCP=true # https://dozzle.dev/guide/mcp
       - DOZZLE_REMOTE_AGENT=172.17.0.57:7007
       - DOZZLE_HOSTNAME=dozzle.int.albandrieu.com
     security_opt:
       - no-new-privileges:true
-    networks: ["traefik_network"]
+    networks: ["traefik_network", "docker-proxy"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/dozzle"
       - "traefik.enable=true"
@@ -83,3 +92,7 @@ services:
 networks:
   traefik_network:
     external: true
+  # Dedicated Docker API network shared only with docker-socket-proxy.
+  docker-proxy:
+    external: true
+    name: docker-proxy

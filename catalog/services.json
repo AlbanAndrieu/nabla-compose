@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:3155b35381435d846b48e072139e734edaa9dc00b804c54e7ae613af01d374d6",
+  "catalogRevision": "sha256:e5ff23086a8d7b76fb51a6aa386834635f82475ff3965750aeb65cea3ad56a93",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -417,7 +417,11 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "crowdsec"
+        "containerService": "crowdsec",
+        "networks": [
+          "default",
+          "traefik_network"
+        ]
       },
       "icon": "🛡️"
     },
@@ -756,6 +760,7 @@
         "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
+          "docker-proxy",
           "traefik_network"
         ]
       }

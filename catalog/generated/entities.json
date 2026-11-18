@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:8fc7d2cadbef5067a9cf77abec08041eb857c428b437af9deffa2ec9a9d21d14",
+  "catalogRevision": "sha256:70313b0968fd2278cc4b0bede2fc188e01f12c8a09af87dbd46550c2fe9271c6",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -2017,7 +2017,7 @@
       "sourcePath": "apps/dozzle/catalog-info.yaml",
       "spec": {
         "dependsOn": [
-          "resource:default/docker"
+          "component:default/docker-socket-proxy"
         ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
@@ -4199,11 +4199,8 @@
               "port": 4000
             },
             "gatewayRef": "resource:default/workstation",
-            "hostnames": [
-              "litellm-albandrieu.albandrieu.com"
-            ],
             "name": "lan",
-            "protocol": "HTTPS",
+            "protocol": "HTTP",
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
@@ -7189,11 +7186,8 @@
               "port": 3008
             },
             "gatewayRef": "resource:default/workstation",
-            "hostnames": [
-              "reactive-albandrieu.albandrieu.com"
-            ],
             "name": "lan",
-            "protocol": "HTTPS",
+            "protocol": "HTTP",
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
