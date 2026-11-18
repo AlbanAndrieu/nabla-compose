@@ -24,6 +24,7 @@ services:
       com.albandrieu.nabla.entity-ref: component:default/langfuse-worker
     image: ghcr.io/langfuse/langfuse-worker:4.30.0
     restart: always
+    mem_limit: 960m
     depends_on:
       langfuse-web:
         condition: service_healthy

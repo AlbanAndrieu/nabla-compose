@@ -52,6 +52,7 @@ services:
     container_name: garage
     image: dxflrs/garage:v2.3.0
     restart: unless-stopped
+    mem_limit: 128m
     x-nabla:
       id: garage
       name: Garage S3 API
@@ -145,6 +146,7 @@ services:
     container_name: garage-webui
     image: khairul169/garage-webui:1.1.0
     restart: unless-stopped
+    mem_limit: 128m
     x-nabla:
       id: garage-webui
       name: Garage Web UI

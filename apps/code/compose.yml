@@ -40,6 +40,7 @@ services:
       retries: 5
       start_period: 180s
     restart: unless-stopped
+    mem_limit: 448m
     env_file:
       - /mnt/cpool/secrets/runtime/code/.env
       - /mnt/cpool/secrets/runtime/code/.env.secrets

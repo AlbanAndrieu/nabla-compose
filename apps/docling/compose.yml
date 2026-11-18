@@ -23,6 +23,7 @@ services:
     image: quay.io/docling-project/docling-serve-cpu:${DOCLING_VERSION:-v1.32.0}
     container_name: docling
     restart: unless-stopped
+    mem_limit: 2g
     x-nabla:
       id: docling
       name: Docling Serve

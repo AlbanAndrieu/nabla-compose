@@ -32,6 +32,7 @@ services:
           access:
             required: true
     restart: unless-stopped
+    mem_limit: 448m
     # Reap orphaned mc children; the app PID 1 left zombies (diagnostic 2026-11-04).
     init: true
     # user: "568:568" # TrueNAS apps user

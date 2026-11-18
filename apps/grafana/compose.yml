@@ -19,6 +19,7 @@ services:
     image: grafana/grafana:13.1.3
     container_name: grafana-stack
     restart: unless-stopped
+    mem_limit: 512m
     user: "${GRAFANA_UID:-568}:${GRAFANA_GID:-568}"
     x-nabla:
       id: grafana
@@ -102,6 +103,7 @@ services:
     image: grafana/loki:3.7.6
     container_name: loki
     restart: unless-stopped
+    mem_limit: 768m
     x-nabla:
       id: loki
       name: Loki
@@ -139,6 +141,7 @@ services:
     image: grafana/mimir:3.2.0
     container_name: mimir
     restart: unless-stopped
+    mem_limit: 960m
     x-nabla:
       id: mimir
       name: Mimir
@@ -167,6 +170,7 @@ services:
     image: grafana/tempo:2.10.7
     container_name: tempo
     restart: unless-stopped
+    mem_limit: 128m
     x-nabla:
       id: tempo
       name: Tempo
@@ -195,6 +199,7 @@ services:
     image: grafana/alloy:v1.18.0
     container_name: alloy
     restart: unless-stopped
+    mem_limit: 320m
     x-nabla:
       id: alloy
       name: Grafana Alloy

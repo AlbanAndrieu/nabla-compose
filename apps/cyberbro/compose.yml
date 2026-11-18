@@ -13,6 +13,7 @@ services:
     image: ghcr.io/stanfrbd/cyberbro:v0.14.2
     container_name: cyberbro
     restart: unless-stopped
+    mem_limit: 320m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/cyberbro
     x-nabla:
@@ -79,6 +80,7 @@ services:
     image: ghcr.io/stanfrbd/mcp-cyberbro:v0.0.5
     container_name: mcp-cyberbro
     restart: unless-stopped
+    mem_limit: 128m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/mcp-cyberbro
     x-nabla:

@@ -40,6 +40,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: web
     restart: unless-stopped
+    mem_limit: 256m
     user: "568:568" # TrueNAS apps user
     ports:
       - name: web

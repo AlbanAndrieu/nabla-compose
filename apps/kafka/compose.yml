@@ -83,6 +83,7 @@ services:
     logging: *nabla-logging
     image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
     restart: unless-stopped
+    mem_limit: 128m
     # Last container of the 10/11 zombie sweep still running without a reaper.
     init: true
     labels:
