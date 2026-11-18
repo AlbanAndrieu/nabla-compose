@@ -18,10 +18,10 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/truenas.sh"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
+# shellcheck source=../lib/app-deploy.sh
+source "${SCRIPT_DIR}/../lib/app-deploy.sh"
 
-truenas_repo_provenance "$(git rev-parse --show-toplevel)"
-
-MODE="${1:---check}"
+MODE="$(app_deploy_mode "${1:-}" "$0")" || exit 2
 REPLACE="${2:-}"
 APP_ID="${BITCOIND_APP_ID:-bitcoind}"
 CANONICAL_ROOT="${BITCOIND_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
@@ -29,27 +29,15 @@ DATASET="${BITCOIND_DATASET:-cpool/bitcoind}"
 DATA_DIR="${BITCOIND_DATA_DIR:-/mnt/cpool/bitcoind/node}"
 APPS_UID=568
 
-case "${MODE}" in
-  --check | --apply) ;;
-  *) fail "usage: sudo bash scripts/truenas/deploy-bitcoind.sh [--check|--apply] [--replace-catalog-app]" ;;
-esac
 case "${REPLACE}" in
   "" | --replace-catalog-app) ;;
   *) fail "unsupported option: ${REPLACE}" ;;
 esac
 
-[[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
-for command in docker git jq midclt zfs; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
-ROOT="$(git rev-parse --show-toplevel)"
-[[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
-  fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
-cd "${CANONICAL_ROOT}"
+app_deploy_canonical_checkout "${CANONICAL_ROOT}" zfs
 
 compose_path="${CANONICAL_ROOT}/apps/bitcoind/compose.yml"
-[[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
-docker compose -f "${compose_path}" config --quiet --no-interpolate --no-env-resolution
+app_deploy_compose_validate "${compose_path}"
 
 section "Current state"
 app_json="$(truenas_app_query_by_id "${APP_ID}")"

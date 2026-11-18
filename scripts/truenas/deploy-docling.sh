@@ -6,7 +6,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/truenas.sh"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
-truenas_repo_provenance "$(git rev-parse --show-toplevel)"
+# shellcheck source=../lib/app-deploy.sh
+source "${SCRIPT_DIR}/../lib/app-deploy.sh"
 
 # Do not deploy by accident; check mode never renders secrets or mutates Apps.
 case "${1:-}" in
@@ -20,27 +21,12 @@ APP_ID="docling"
   fail "only the docling Custom App may be created or changed by this script"
 CANONICAL_ROOT="${DOCLING_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 
-[[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
-for command in docker git jq midclt; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
-
-ROOT="$(git rev-parse --show-toplevel)"
-[[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
-  fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
-cd "${CANONICAL_ROOT}"
+app_deploy_canonical_checkout "${CANONICAL_ROOT}"
 
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 compose_path="${CANONICAL_ROOT}/apps/docling/compose.yml"
-[[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
-
-docker compose \
-  -f "${compose_path}" \
-  config \
-  --quiet \
-  --no-interpolate \
-  --no-env-resolution
+app_deploy_compose_validate "${compose_path}"
 
 # External networks and image must already be present: avoid unexpected
 # network creation, large image pulls or repeated TrueNAS App jobs.
@@ -82,29 +68,10 @@ fi
 bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
-if [[ "${app_count}" == "1" ]]; then
-  printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
-  truenas_job_compact app.update "${APP_ID}" "$(
-    jq -cn --arg include "${compose_path}" '{
-      custom_compose_config: {
-        include: [$include]
-      }
-    }'
-  )"
-else
-  printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
-  wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-  truenas_job_compact app.create "$(
-    jq -cn \
-      --arg app_name "${APP_ID}" \
-      --arg compose "${wrapper}" \
-      '{
-        app_name: $app_name,
-        custom_app: true,
-        custom_compose_config_string: $compose
-      }'
-  )"
-fi
+# app.update or app.create with the shared include payload. No wait for
+# RUNNING here: models keep initializing after the job (see DEPLOYING above).
+printf 'Reconciling TrueNAS Custom App %s...\n' "${APP_ID}"
+truenas_reconcile_custom_app "${APP_ID}" "${compose_path}"
 
 app_json="$(truenas_app_query_by_id "${APP_ID}")"
 printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null ||

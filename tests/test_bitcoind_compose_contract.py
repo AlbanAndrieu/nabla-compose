@@ -70,4 +70,5 @@ def test_deploy_script_guards_catalog_app_replacement() -> None:
     assert "--replace-catalog-app" in script
     assert "truenas_reconcile_custom_app" in script
     assert "zfs destroy" not in script
-    assert "docker compose -f" in script and "up" not in script.split("docker compose -f", 1)[1].split("\n", 1)[0]
+    # Static validation lives in lib/app-deploy.sh (config --quiet, never up).
+    assert "app_deploy_compose_validate" in script and "docker compose" not in script
