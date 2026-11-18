@@ -6,7 +6,7 @@ Outils, tous en lecture par défaut :
 
 - [`freebox-edge.py`](../../../scripts/pfsense/freebox-edge.py) : API Freebox OS, en HTTPS épinglé sur les racines Freebox publiées ([`freebox-root-ca.pem`](../../../scripts/pfsense/freebox-root-ca.pem)) :
   - `check` lit le mode, le DHCP, les baux statiques, la DMZ et l'IPv6 ;
-  - `set-mode` et `pin-wan` n'écrivent qu'avec `--yes` et la permission `settings`.
+  - `set-mode`, `set-lan-ip` et `pin-wan` n'écrivent qu'avec `--yes` et la permission `settings`.
 - [`wan-addressing.php`](../../../scripts/pfsense/wan-addressing.php) : WAN pfSense, avec les modes `check`, `dhcp`, `static <ip>/<préfixe>` et `renew`. `dhcp` désactive `WANGW` sans le supprimer, ce qui garde le retour possible, et repointe sur `WAN_DHCP` les règles épinglées sur `WANGW`.
 
 ## Ce que ça change
@@ -94,6 +94,43 @@ L'ordre compte : en bridge, la Freebox distribue aussi l'IP publique en DHCP. Le
    - entrées vues de l'extérieur : sonde FastAPI Cloud `/sickz` et HAProxy ;
    - enregistrement DynDNS toujours sur l'IP publique ;
    - Gatus et Prometheus au vert.
+
+## Sans pfSense : adresse LAN de la Freebox (18/11/2026)
+
+Le 1100 a été retiré le 18/11 et la Freebox réinitialisée en routeur (`192.168.1.254`, DHCP `.2-.200`). L'idée était qu'elle reprenne `172.17.0.1/24`, l'adresse de pfSense, pour que TrueNAS (`172.17.0.24`) et les autres IP fixes retrouvent leur passerelle sans changement. **Freebox OS le refuse** : `PUT /lan/config/` répond `invalid_gateway_ip`, « L'IP doit être de type 192.168.x.x » (API 16.1). `set-lan-ip` refuse donc toute adresse hors de `192.168.0.0/16` avant la première écriture.
+
+`set-lan-ip <adresse>` reste utile pour changer d'adresse dans `192.168.0.0/16` :
+
+1. Sans `--yes`, la commande affiche le plan : d'abord réduire le pool DHCP à `.100-.199` dans le sous-réseau actuel, puis changer l'adresse de la Freebox. Le pool réduit d'abord évite que la Freebox distribue une adresse fixe si elle reporte les numéros d'hôte dans le nouveau sous-réseau. `--dhcp-first` et `--dhcp-last` changent le pool.
+2. Avec `--yes` et la permission `settings`, elle applique et annonce chaque écriture réussie (`OK: ...`). Si l'API ne répond plus après le changement d'adresse, le script l'annonce en `WARN`, comme attendu.
+3. Ensuite, renouveler les baux du LAN, puis relancer `check` et la même commande : la seconde passe corrige le pool si la Freebox ne l'a pas reporté.
+
+Fait le 18/11 : app « Nabla edge » réenregistrée après la réinitialisation usine (jeton dans un fichier 0600 hors du dépôt, à ranger dans Vaultwarden `FREEBOX_APP_TOKEN`) ; pool DHCP réduit à `192.168.1.100-192.168.1.199` (appliqué) ; changement d'adresse vers `172.17.0.1` refusé par la Freebox, rien d'autre n'a changé. TrueNAS reste en `172.17.0.24` sans passerelle joignable : voir la roadmap pfSense pour la suite.
+
+## Le Netgear R7000 devient le routeur `172.17.0.1` (18/11/2026)
+
+La Freebox ne pouvant pas prendre `172.17.0.1`, le Netgear Nighthawk R7000 (point d'accès Wi-Fi en `172.17.0.12` jusque-là, firmware V1.0.12.216) a repris ce rôle, derrière la Freebox. TrueNAS, Pi-hole et les autres IP fixes du homelab retrouvent leur passerelle sans changement.
+
+| Élément | Réglage |
+| --- | --- |
+| Câblage | Port Internet du R7000 → port 2,5 Gbit/s de la Freebox ; switch du homelab sur un port LAN du R7000 |
+| Mini switch IoT et domotique | Port 1 Gbit/s de la Freebox, donc en `192.168.1.x` devant le R7000 : isolé du homelab, sans découverte mDNS ni SSDP vers Home Assistant |
+| Mode | Point d'accès désactivé : en mode routeur, le R7000 prend d'abord `10.0.0.1`, car la Freebox occupe déjà `192.168.1.0/24` |
+| LAN | `172.17.0.1/24`, DHCP de `172.17.0.100` à `172.17.0.199`. La réservation de la workstation (`.57`) a suivi le changement d'adresse |
+| Côté Internet | Adresse en `192.168.1.x` donnée par le DHCP de la Freebox. Double NAT, sans DMZ : rien n'est ouvert depuis Internet vers le homelab |
+| Sauvegarde | `NETGEAR_R7000.cfg`, dans les Documents de l'opérateur, hors dépôt : elle contient les mots de passe |
+
+**Administration** : la racine `https://172.17.0.1/` (ou `10.0.0.1` avant le changement de LAN) ne fonctionne pas. Elle redirige vers `www.routerlogin.com`, qu'un poste résolvant avec Pi-hole ou Quad9 n'envoie pas vers le routeur. Ouvrir directement **`https://172.17.0.1/start.htm`**. LAN Setup se trouve dans l'onglet ADVANCED, menu Setup.
+
+Vérifié le 18/11 depuis la workstation : bail `172.17.0.57` avec la passerelle `172.17.0.1`, Internet joignable ; Pi-hole sur TrueNAS résout de nouveau `example.org`, donc TrueNAS sort par le R7000.
+
+Reste à vérifier (`NOT_VERIFIED`) :
+
+- DNS que le R7000 distribue par DHCP et qu'il utilise lui-même (cible : Pi-hole `172.17.0.24`, puis Quad9 en secours) ;
+- Remote Management, UPnP et WPS désactivés ;
+- statut de support du R7000, modèle ancien : il reste derrière le NAT de la Freebox ;
+- adresse Internet du R7000 fixée sur la Freebox (`freebox-edge.py pin-wan --wan-mac <MAC> --wan-ip <ip>`, sans `--dmz`) ;
+- IPv6 absent du LAN.
 
 ## Retour routeur → bridge
 
