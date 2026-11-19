@@ -52,6 +52,19 @@ class ExternalPostureTest(unittest.TestCase):
         self.assertEqual(report["subdomain_dmarc"], "NON_STRICT")
         self.assertEqual(report["dkim"], "UNVERIFIED_NO_SELECTORS")
 
+    def test_declared_no_mail_requires_null_mx_and_deny_all_spf(self):
+        def fake_lookup(name, rrtype="TXT"):
+            if rrtype == "MX":
+                return "NOERROR", ["0 ."]
+            if name == "bababou.com":
+                return "NOERROR", ["v=spf1 -all"]
+            return "NXDOMAIN", []
+        with patch.object(mail, "lookup", side_effect=fake_lookup):
+            result = mail.audit({"name": "bababou.com", "mail_use": "no-mail",
+                                 "dkim_selectors": []})["checks"]
+        self.assertEqual(result["null_mx"], "NULL_MX_DECLARED")
+        self.assertEqual(result["no_mail_spf"], "DENY_ALL_ONLY")
+
     def test_dns_failure_never_claimed_missing(self):
         with patch.object(mail, "lookup", return_value=("UNVERIFIED", [])):
             report = mail.audit({"name": "bababou.com", "mail_use": "unverified",

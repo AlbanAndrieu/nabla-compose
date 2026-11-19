@@ -14,7 +14,13 @@ on:
           - mail
           - nuclei
           - network
+          - tls
           - all
+      confirm_wan:
+        description: "Confirm that the declared WAN IP is still owned and authorized for direct scanning"
+        required: true
+        type: boolean
+        default: false
   schedule:
     - cron: "41 4 * * 1"
 
@@ -27,6 +33,7 @@ concurrency:
 
 env:
   WAN_ADDRESS: 82.66.4.247
+  WAN_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_wan == true }}
 
 jobs:
   nuclei:
@@ -66,6 +73,11 @@ jobs:
             if [[ ! "${url}" =~ ^https://(82\.66\.4\.247|[a-z0-9-]+(\.[a-z0-9-]+)*\.albandrieu\.com)(:[0-9]{1,5})?$ ]]; then
               echo "::error::target outside the homelab scope"
               exit 2
+            fi
+            # After router replacement an old address must not be probed by default.
+            if [[ "${WAN_CONFIRMED}" != "true" && ( "${pin}" == "@wan" || "${url}" == "https://${WAN_ADDRESS}" ) ]]; then
+              echo "Skipping direct WAN target: ownership not reconfirmed"
+              continue
             fi
             if [[ "${pin}" == "@wan" ]]; then
               host="${url#https://}"
@@ -177,9 +189,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install --no-install-recommends -y nmap
       - name: Scan reviewed WAN IP only; no raw banner or UDP scanning
+        if: inputs.confirm_wan == true
         run: |
           nmap -sT -Pn -n --max-retries 1 --max-rate 10 --host-timeout 180s \
-            -p 21,22,23,25,53,80,110,143,443,445,465,587,993,995,2375,2376,3000,31085,3306,3389,4000,5432,5601,6379,6443,7000,8080,8082,8091,8443,9090,9200,9922,10443,18789,31090 \
+            -p 21,22,23,25,53,80,110,143,443,445,465,587,993,995,2375,2376,3000,31085,3306,3389,4000,5432,5601,6379,6443,7000,8080,8082,8091,8443,9090,9200,9922,10443,11434,18789,30059,30068,31086,31087,31090 \
             -oX ports.xml 82.66.4.247
       - name: Confirm public certificates and produce minimal JSON
         shell: bash
@@ -190,10 +203,15 @@ jobs:
           import socket
           import ssl
           import xml.etree.ElementTree as ET
-          xml = ET.parse("ports.xml")
-          ports = sorted(int(p.attrib["portid"]) for p in xml.findall(".//port")
-                         if p.find("state") is not None and
-                         p.find("state").attrib.get("state") == "open")
+          from pathlib import Path
+          ports = None
+          if Path("ports.xml").is_file():
+              xml = ET.parse("ports.xml")
+              finished = xml.find("./runstats/finished")
+              if finished is not None and finished.attrib.get("exit") == "success":
+                  ports = sorted(int(p.attrib["portid"]) for p in xml.findall(".//port")
+                                 if p.find("state") is not None and
+                                 p.find("state").attrib.get("state") == "open")
           hosts = [("manager.albandrieu.com", 443),
                    ("truenas.albandrieu.com", 7000),
                    ("famp-albandrieu.albandrieu.com", 443),
@@ -216,8 +234,9 @@ jobs:
               tls.append(row)
           with open("public-tcp-tls.json", "w", encoding="utf8") as file:
               json.dump({"vantage": "github-hosted-outside-in",
-                         "port_scope": "36_selected_TCP_ports_not_full_65535",
-                         "wan_ip": "82.66.4.247", "open_tcp": ports, "tls": tls}, file, indent=2)
+                         "port_scope": "selected_TCP_ports_not_full_65535",
+                         "port_scan_status": "OBSERVED" if ports is not None else "NOT_RUN_OR_INCOMPLETE",
+                         "open_tcp": ports, "tls": tls}, file, indent=2)
           print("Open TCP ports:", ports)
           print("TLS cert verified:", sum(x["status"] == "TLS_CERT_VERIFIED" for x in tls), "/", len(tls))
           PY
@@ -234,5 +253,35 @@ jobs:
           path: |
             public-tcp-tls.json
             public-path-head.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  tls-deep:
+    name: Manual public TLS protocol and certificate audit
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scan_profile == 'tls' || inputs.scan_profile == 'all') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout owned scope
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Checkout reviewed testssl.sh stable-branch revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: testssl/testssl.sh
+          ref: adf4dd45ed5a1a0e29097b747cbfc43d7b193821
+          path: .ctem/testssl
+          persist-credentials: false
+      - name: Audit public TLS frontends; minimize results before upload
+        run: |
+          python3 scripts/security/run-public-tls-audit.py \
+            --scanner .ctem/testssl/testssl.sh --output public-tls-audit.json
+      - name: Upload sanitized TLS evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-tls-audit-${{ github.run_id }}
+          path: public-tls-audit.json
           retention-days: 7
           if-no-files-found: warn

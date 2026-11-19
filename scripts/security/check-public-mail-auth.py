@@ -33,11 +33,11 @@ def read_scope(file: Path) -> list[dict]:
     return data["domains"]
 
 
-def lookup(name: str) -> tuple[str, list[str]]:
+def lookup(name: str, rrtype: str = "TXT") -> tuple[str, list[str]]:
     try:
         proc = subprocess.run(
             ["dig", "+time=3", "+tries=1", "+noall", "+comments", "+answer",
-             "TXT", name], capture_output=True, text=True, timeout=9, check=False
+             rrtype, name], capture_output=True, text=True, timeout=9, check=False
         )
     except (OSError, subprocess.TimeoutExpired):
         return "UNVERIFIED", []
@@ -46,10 +46,11 @@ def lookup(name: str) -> tuple[str, list[str]]:
         return "UNVERIFIED", []
     values = []
     for line in proc.stdout.splitlines():
-        found = re.search(r"\sIN\s+TXT\s+(.+)$", line)
+        found = re.search(r"\sIN\s+" + re.escape(rrtype) + r"\s+(.+)$", line)
         if found:
             try:
-                values.append("".join(shlex.split(found.group(1))))
+                values.append("".join(shlex.split(found.group(1))) if rrtype == "TXT"
+                              else " ".join(shlex.split(found.group(1))))
             except ValueError:
                 return "UNVERIFIED", []
     return status.group(1), values
@@ -116,6 +117,20 @@ def audit(row: dict) -> dict:
                 v.lower().startswith(tag) for v in values
             ) else "MISSING"
         )
+    # No-mail is a separate intent: a Null MX and exact denying SPF are needed.
+    if row["mail_use"] == "no-mail":
+        mx_state, mx_records = lookup(domain, "MX")
+        checks["null_mx"] = (
+            "UNVERIFIED" if mx_state == "UNVERIFIED" else
+            "NULL_MX_DECLARED" if mx_records == ["0 ."]
+            else "NULL_MX_MISSING_OR_INVALID"
+        )
+        spf_state, spf_records = lookup(domain)
+        checks["no_mail_spf"] = (
+            "UNVERIFIED" if spf_state == "UNVERIFIED" else
+            "DENY_ALL_ONLY" if [x for x in spf_records if x.lower().startswith("v=spf1")]
+            == ["v=spf1 -all"] else "REVIEW_NO_MAIL_SPF"
+        )
     return {"domain": domain, "mail_use": row["mail_use"], "checks": checks}
 
 
@@ -127,7 +142,7 @@ def main() -> int:
     args = cli.parse_args()
     results = [audit(row) for row in read_scope(args.config)]
     incomplete = any(
-        status == "UNVERIFIED"
+        status.startswith("UNVERIFIED")
         for row in results for status in row["checks"].values()
     )
     report = {"scope": "reviewed_domain_apex_only", "vantage": "github_hosted",

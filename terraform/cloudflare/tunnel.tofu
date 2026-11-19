@@ -39,11 +39,6 @@ locals {
       service        = "http://172.17.0.24:30081"
     },
     {
-      hostname       = "ollama.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:30068"
-    },
-    {
       hostname       = "n8n.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:30109"
@@ -167,11 +162,6 @@ locals {
       hostname       = "ddns-updater.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:8000"
-    },
-    {
-      hostname       = "ollama-gpu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:11434"
     },
     {
       hostname       = "minio.albandrieu.com"

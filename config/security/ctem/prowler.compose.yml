@@ -1,0 +1,26 @@
+---
+# Manual provider-scoped CLI, not the legacy Prowler Local Server.
+# No inbound ports, database, Docker socket or attached admin credentials.
+name: ctem-prowler
+services:
+  prowler:
+    image: prowlercloud/prowler:5.50.0
+    profiles:
+      - manual
+    init: true
+    restart: "no"
+    command: ["--help"]
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - /mnt/cpool/secrets/runtime/prowler/.env.secrets
+    volumes:
+      - /mnt/cpool/prowler/reports:/output
+    mem_limit: 1024m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

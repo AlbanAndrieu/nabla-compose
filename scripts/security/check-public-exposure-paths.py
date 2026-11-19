@@ -20,6 +20,13 @@ HOSTS = (
     ("www.albanandrieu.com", 443),
     ("www.bababou.com", 443),
 )
+# Owner decision: these public names must never serve the model APIs.
+LAN_ONLY_NAMES = (
+    "litellm.albandrieu.com",
+    "ollama.albandrieu.com",
+    "ollama-gpu.albandrieu.com",
+    "ollama-gpu-albandrieu.albandrieu.com",
+)
 PATHS = (
     "/.env", "/.git/config", "/.git/HEAD", "/terraform.tfstate",
     "/terraform.tfstate.backup", "/metrics", "/api", "/openapi.json",
@@ -77,7 +84,17 @@ def audit() -> dict:
         results.append({"hostname": host, "port": port,
                         "negative_control_http_status": baseline,
                         "checks": checks})
-    return {"vantage": "github-hosted-outside-in",
+    lan_only = []
+    for host in LAN_ONLY_NAMES:
+        status = head(host, 443, "/")
+        # HTTP status and DNS absence alone cannot attest origin isolation.
+        status_label = ("UNVERIFIED" if status is None else
+                        "DENIED_OBSERVED" if status in (401, 403, 404, 410) else
+                        "REVIEW_PUBLIC_ROUTE")
+        lan_only.append({"hostname": host, "http_status": status,
+                         "status": status_label})
+    return {"lan_only_route_checks": lan_only,
+            "vantage": "github-hosted-outside-in",
             "method": "HEAD_ONLY_NO_REDIRECT_NO_RESPONSE_BODY",
             "finding_semantics": "REVIEW_NOT_CONFIRMED_EXPOSURE",
             "results": results}

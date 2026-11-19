@@ -37,6 +37,10 @@ class ExternalAttackSurfaceContract(unittest.TestCase):
         self.assertIn(" -ni ", text)
         self.assertIn(" -or ", text)
         self.assertIn("persist-credentials: false", text)
+        self.assertIn("confirm_wan", text)
+        self.assertIn("NOT_RUN_OR_INCOMPLETE", text)
+        self.assertIn("run-public-tls-audit.py", text)
+        self.assertIn("adf4dd45ed5a1a0e29097b747cbfc43d7b193821", text)
 
 
 if __name__ == "__main__":

@@ -40,15 +40,11 @@ services:
           evidence:
             - apps/ollama/compose.yml:prometheus.scrape
       exposure:
-        - name: public
-          hostnames:
-            - ollama.albandrieu.com
-          protocol: HTTPS
-          visibility: public
-          gatewayRef: resource:default/cloudflare-tunnel
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
           backendPort: web
-          access:
-            required: true
     env_file:
       - /mnt/cpool/secrets/runtime/ollama/.env
     #  - /mnt/cpool/secrets/runtime/ollama/.env.secrets
@@ -85,6 +81,7 @@ services:
       - name: web
         target: 30068
         published: "30068"
+        host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http
     #  --- Internal Traefik labels
