@@ -1,5 +1,17 @@
 provider "github" {
   owner = var.github_owner
+
+  # Optional GitHub App identity instead of a personal GITHUB_TOKEN. The PEM
+  # content comes from TF_VAR_github_app_pem, never from Git or the state.
+  dynamic "app_auth" {
+    for_each = var.github_app_installation_id == null ? [] : [var.github_app_installation_id]
+
+    content {
+      id              = var.github_app_id
+      installation_id = app_auth.value
+      pem_file        = var.github_app_pem
+    }
+  }
 }
 
 data "github_repositories" "owned" {
@@ -132,6 +144,23 @@ resource "github_repository_ruleset" "default_branch" {
       }
     }
   }
+}
+
+# Non-secret client ID read by create-github-app-token in release workflows.
+# The private key stays a manually set Actions secret: never in the state.
+import {
+  for_each = var.github_governance_enabled ? var.release_app_client_id_repositories : toset([])
+
+  to = github_actions_variable.release_app_client_id[each.key]
+  id = "${each.key}:RELEASE_APP_CLIENT_ID"
+}
+
+resource "github_actions_variable" "release_app_client_id" {
+  for_each = var.github_governance_enabled && var.release_app_client_id != null ? var.release_app_client_id_repositories : toset([])
+
+  repository    = each.key
+  variable_name = "RELEASE_APP_CLIENT_ID"
+  value         = var.release_app_client_id
 }
 
 resource "github_actions_repository_permissions" "policy" {

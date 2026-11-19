@@ -70,6 +70,46 @@ variable "ruleset_import_ids" {
   default     = {}
 }
 
+variable "github_app_id" {
+  description = "GitHub App ID used for provider authentication when github_app_installation_id is set."
+  type        = number
+  default     = null
+  nullable    = true
+}
+
+variable "github_app_installation_id" {
+  description = "Installation ID of github_app_id; null keeps the GITHUB_TOKEN authentication."
+  type        = number
+  default     = null
+  nullable    = true
+}
+
+variable "github_app_pem" {
+  description = "PEM content of github_app_id, from TF_VAR_github_app_pem only (provider configuration is not stored in the state)."
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+}
+
+variable "release_app_client_id" {
+  description = "Client ID of the release GitHub App, published as the RELEASE_APP_CLIENT_ID Actions variable."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.release_app_client_id == null || can(regex("^Iv[0-9A-Za-z]{18}$", var.release_app_client_id))
+    error_message = "release_app_client_id must be a full GitHub App client ID (Iv + 18 characters)."
+  }
+}
+
+variable "release_app_client_id_repositories" {
+  description = "Repositories whose release workflow mints a release App token."
+  type        = set(string)
+  default     = []
+}
+
 variable "repositories" {
   description = "Explicit repository policy allow-list. Repositories are never auto-enrolled from inventory."
   type = map(object({

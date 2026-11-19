@@ -75,11 +75,28 @@ automatically made required. Required checks are an explicit per-repository
 allow-list so a missing/path-filtered workflow cannot leave a PR permanently
 waiting for a check that will never report.
 
+## Release App
+
+`fastapi-sample-release` (App `4676280`, installation `155552350` on all
+repositories) is the release identity and the only ruleset bypass.
+`RELEASE_APP_CLIENT_ID` is managed here for every repository in
+`release_app_client_id_repositories`, with a full-length validation: on
+19/11/2026 a truncated copy was set by hand on two repositories. Its private
+key stays a manually set Actions secret (`RELEASE_APP_PRIVATE_KEY`), never an
+OpenTofu resource, since it would land in the state.
+
 ## Authentication
 
 The GitHub provider uses the standard provider authentication chain. For the
 initial workstation pilot, export a short-lived `GITHUB_TOKEN` with only the
 permissions required to read/plan the selected repositories.
+
+Optional App authentication: set `github_app_installation_id` (input) and
+export the PEM content as `TF_VAR_github_app_pem` for the run only. It stays
+off: the module needs *Administration: write* and *Variables: write*, which the
+release App does not hold, and granting them would let anyone with its
+release-workflow key mint admin tokens. Prefer a separate governance App whose
+key lives only in Vaultwarden and on the Workstation.
 
 Do not commit tokens, private keys, or GitHub App credentials. The target state
 is a dedicated governance GitHub App / short-lived credential path; record only
