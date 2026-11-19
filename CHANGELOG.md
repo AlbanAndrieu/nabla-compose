@@ -1,3 +1,10 @@
+# [0.105.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.104.0...0.105.0) (2026-11-19)
+
+
+### Features
+
+* **github:** manage the converged "Protect master" rulesets with OpenTofu ([#420](https://github.com/AlbanAndrieu/nabla-compose/issues/420)) ([71f1476](https://github.com/AlbanAndrieu/nabla-compose/commit/71f147607b688ceb928f835f71d355d3e0de1522))
+
 # [0.104.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.103.0...0.104.0) (2026-11-19)
 
 
