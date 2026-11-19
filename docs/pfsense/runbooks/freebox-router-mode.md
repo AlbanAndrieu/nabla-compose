@@ -1,6 +1,6 @@
 # Freebox : passer du mode bridge au mode routeur, et revenir
 
-**État au 17/11/2026 :** `CODED`, `NOT_RUN`. La Freebox Ultra (API 16.1) est en bridge, et le WAN de pfSense porte l'IP publique en statique (`WANGW`). Aucune bascule n'a été faite.
+**État au 17/11/2026 :** `CODED`, `NOT_RUN`. La Freebox Pop (API 16.1) est en bridge, et le WAN de pfSense porte l'IP publique en statique (`WANGW`). Aucune bascule n'a été faite.
 
 Outils, tous en lecture par défaut :
 
@@ -131,6 +131,33 @@ Reste à vérifier (`NOT_VERIFIED`) :
 - statut de support du R7000, modèle ancien : il reste derrière le NAT de la Freebox ;
 - adresse Internet du R7000 fixée sur la Freebox (`freebox-edge.py pin-wan --wan-mac <MAC> --wan-ip <ip>`, sans `--dmz`) ;
 - IPv6 absent du LAN.
+
+## Durcissement de la Freebox Pop (19-20/11/2026)
+
+Appliqué par l'API avec l'app « Nabla edge », chaque réglage relu après écriture :
+
+- coupés : WPS, UPnP IGD, UPnP AV, AirMedia, réveil réseau et ping depuis Internet, demande de jeton d'app depuis le LAN (`allow_token_request`, à rouvrir le temps d'enregistrer une app), ports entrants BitTorrent, partage Samba (fichiers et imprimante), serveur WireGuard et son port entrant ;
+- bail fixe du R7000 corrigé : MAC du WAN réel (`…:8F`) vers `192.168.1.117`, l'ancien bail visait une MAC inactive (`…:90`, commentaire « pfSense WAN ») ;
+- gardé : accès distant à Freebox OS et à l'API (Freebox Connect) ;
+- reste à la main (Gestion des accès > Applications) : réduire les droits de « Nabla edge », qui a tout reçu à son réenregistrement, et décocher « Modification des réglages » hors intervention.
+
+## IPv6 sur le homelab, sans exposition (20/11/2026)
+
+Cible : la workstation et TrueNAS en IPv6 global derrière le R7000, sans aucune entrée depuis Internet. Trois barrières : le pare-feu IPv6 de la Freebox (global et par préfixe délégué), le filtrage IPv6 « Secured » du R7000, et ufw sur la workstation.
+
+1. **Freebox, fait le 20/11** : `ipv6_firewall` et `ipv6_prefix_firewall` à `true` ; délégation `2a01:e0a:a17:3c01::/64` routée vers `fe80::120c:6bff:fe62:128f`. Ce link-local est déduit de la MAC du WAN du R7000 (EUI-64) : à confirmer quand le R7000 aura l'IPv6 (Freebox OS, périphériques, R7000).
+2. **R7000, à faire dans `https://172.17.0.1/start.htm`** (ADVANCED > Advanced Setup > IPv6) :
+   - type de connexion `Fixed` ;
+   - WAN : `2a01:e0a:a17:3c00::2/64`, passerelle `fe80::8e97:eaff:fe39:b37b` (link-local de la Freebox) ;
+   - LAN : `2a01:e0a:a17:3c01::1/64`, attribution `Auto Config` (SLAAC) ;
+   - IPv6 Filtering : `Secured`.
+
+   Si le R7000 refuse une passerelle link-local, essayer `Auto Config` côté WAN.
+3. **Workstation** : rien à changer (NetworkManager en `auto`, `IPV6=yes` dans ufw, politique d'entrée `deny`). Contrôle : `ip -6 addr show eno1 scope global` montre une adresse en `…:3c01:`, puis `curl -6 -sI https://ipv6.google.com`.
+4. **TrueNAS**, après accord de l'opérateur (écriture réseau, avec le délai de retour automatique de `interface.checkin`) : `ipv6_auto` sur `br0` (`midclt call interface.update br0 '{"ipv6_auto": true}'`, puis `interface.commit` et `interface.checkin`). TrueNAS n'a pas de pare-feu hôte : il ne compte que sur la Freebox et le R7000.
+5. **Réception de la non-exposition** : depuis un téléphone en 4G (hors LAN), tenter `22`, `443`, `9922` et `3100` sur les adresses `…:3c01:` de la workstation et de TrueNAS. Attendu : aucune réponse. Tant que ce test n'est pas fait, l'état reste `NOT_VERIFIED`.
+
+Retour arrière : vider le `next_hop` de la délégation et repasser le R7000 en IPv6 désactivé.
 
 ## Retour routeur → bridge
 

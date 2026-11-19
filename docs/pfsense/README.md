@@ -20,7 +20,7 @@ Le Netgate 1100 ne démarre plus depuis le 18/11 ; le Netgear R7000 tient mainte
 ## Contenu
 
 - [Roadmap pfSense](roadmap.md) : sécurité, écarts H07, stabilisation H07b et remplacement du 1100, historique P0 du 15/11.
-- [Étude de décommissionnement](decommission-study.md) : ce que la Freebox Ultra peut reprendre, scénarios et phases (17/11).
+- [Étude de décommissionnement](decommission-study.md) : ce que la Freebox Pop peut reprendre, scénarios et phases (17/11).
 - Documentation :
   - [Diagnostic et reprise](pfsense-diagnose-recover.md)
   - [Upgrade 26.03.1 → 26.07](pfsense-upgrade-26-07.md)
