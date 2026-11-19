@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:70313b0968fd2278cc4b0bede2fc188e01f12c8a09af87dbd46550c2fe9271c6",
+  "catalogRevision": "sha256:942d4dd20aff2ac0321ec7d4638ef0289e2c7be93d38b666610c2972d9520b7a",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -2299,7 +2299,8 @@
         "protect",
         "respond"
       ],
-      "sourcePath": "apps/crowdsec/compose.yml"
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -3547,7 +3548,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:e5ff23086a8d7b76fb51a6aa386834635f82475ff3965750aeb65cea3ad56a93",
+  "operatorRevision": "sha256:fc73f4a7e88fabda2fe3976a9d5b0d3ebf6772eb98a17603a7cf0260ec7ec197",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
