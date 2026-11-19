@@ -612,7 +612,7 @@
     {
       "category": "network",
       "criticality": "medium",
-      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "description": "Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.",
       "id": "ddns-updater",
       "kind": "dns-automation",
       "monitoring": {
@@ -627,7 +627,8 @@
         "containerService": "ddns-updater",
         "provider": "truenas-app"
       },
-      "sourcePath": "apps/ddns-updater/compose.yml"
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "security",
@@ -3548,7 +3549,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:fc73f4a7e88fabda2fe3976a9d5b0d3ebf6772eb98a17603a7cf0260ec7ec197",
+  "operatorRevision": "sha256:5c4bd0a8670a7b72dd4a4ad49ea0bbc8f7542678e1f488ca537b8e25cbbc6aec",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -7520,7 +7521,7 @@
       "category": "network",
       "composeService": "ddns-updater",
       "criticality": "medium",
-      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "description": "Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.",
       "id": "ddns-updater",
       "kind": "dns-automation",
       "monitoring": {
@@ -7535,7 +7536,8 @@
         "containerService": "ddns-updater",
         "provider": "truenas-app"
       },
-      "sourcePath": "apps/ddns-updater/compose.yml"
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "security",

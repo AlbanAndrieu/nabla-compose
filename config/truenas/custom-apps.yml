@@ -56,7 +56,7 @@ apps:
     include:
       - apps/ddns-updater/compose.yml
     state: stopped
-    note: catalog App until migrated (see apps/ddns-updater/README.md); stopped by the operator on 2026-11-11
+    note: retired on 2026-11-20 (fixed Free public IP); stopped since 2026-11-11, data kept in /mnt/cpool/ddns-updater
   - name: defectdojo
     include:
       - apps/defectdojo/compose.yml
