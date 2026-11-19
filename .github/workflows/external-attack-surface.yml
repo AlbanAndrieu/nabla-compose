@@ -50,17 +50,7 @@ jobs:
       - name: Install pinned Nuclei with checksum verification
         shell: bash
         run: |
-          set -euo pipefail
-          archive="${RUNNER_TEMP}/nuclei.zip"
-          curl --fail --location --silent --show-error --max-time 90 \
-            "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.1/nuclei_3.11.1_linux_amd64.zip" \
-            --output "${archive}"
-          printf '%s  %s\n' \
-            'ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6' "${archive}" \
-            | sha256sum --check --status
-          unzip -p "${archive}" nuclei > "${RUNNER_TEMP}/nuclei"
-          chmod 700 "${RUNNER_TEMP}/nuclei"
-          "${RUNNER_TEMP}/nuclei" -version
+          bash scripts/security/install-pinned-nuclei.sh "${RUNNER_TEMP}/nuclei"
           "${RUNNER_TEMP}/nuclei" -ut
 
       - name: Read the declared targets and pin the HAProxy-only aliases
@@ -111,24 +101,8 @@ jobs:
             -duc -or -jsonl -o nuclei-results/nuclei.raw.jsonl
           test -f nuclei-results/nuclei.raw.jsonl || : > nuclei-results/nuclei.raw.jsonl
 
-      - name: Summarize findings per host and severity
-        if: always()
-        shell: bash
-        env:
-          SCAN_OUTCOME: ${{ steps.nuclei.outcome }}
-        run: |
-          {
-            echo "## External attack surface"
-            if [[ "${SCAN_OUTCOME}" != "success" ]]; then
-              echo "Scan INCOMPLETE / NOT_RUN: empty results are not zero findings."
-            else
-              echo "| Host | Severity | Template |"
-              echo "| --- | --- | --- |"
-              jq -r '"| \(.host) | \(.info.severity) | \(."template-id") |"' nuclei-results/nuclei.raw.jsonl | sort -u
-            fi
-          } >> "${GITHUB_STEP_SUMMARY}"
-
       - name: Sanitize findings (no curl, extraction, URL path or response)
+        id: nuclei_sanitize
         if: steps.nuclei.outcome == 'success'
         shell: bash
         run: |
@@ -137,8 +111,27 @@ jobs:
             nuclei-results/nuclei.raw.jsonl nuclei-results/nuclei.jsonl
           rm -f nuclei-results/nuclei.raw.jsonl
 
+      - name: Summarize only sanitized findings
+        if: always()
+        shell: bash
+        env:
+          SCAN_OUTCOME: ${{ steps.nuclei.outcome }}
+          SANITIZE_OUTCOME: ${{ steps.nuclei_sanitize.outcome }}
+        run: |
+          {
+            echo "## External attack surface"
+            echo "Direct WAN scope explicitly confirmed: ${WAN_CONFIRMED}"
+            if [[ "${SCAN_OUTCOME}" != "success" || "${SANITIZE_OUTCOME}" != "success" ]]; then
+              echo "INCOMPLETE: no reliable findings count."
+            else
+              echo "| Host | Severity | Template |"
+              echo "| --- | --- | --- |"
+              jq -r '"| \(.host) | \(.severity) | \(.template_id) |"' nuclei-results/nuclei.jsonl | sort -u
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Upload findings (raw HTTP omitted, short retention)
-        if: steps.nuclei.outcome == 'success'
+        if: steps.nuclei.outcome == 'success' && steps.nuclei_sanitize.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: external-attack-surface-${{ github.run_id }}
@@ -283,5 +276,49 @@ jobs:
         with:
           name: public-tls-audit-${{ github.run_id }}
           path: public-tls-audit.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  mail-deep:
+    name: Independent DNS mail policy evidence (checkdmarc and Nuclei)
+    if: ${{ github.event_name == 'schedule' || inputs.scan_profile == 'mail' || inputs.scan_profile == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout approved scope
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Checkout only reviewed DNS templates
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: projectdiscovery/nuclei-templates
+          ref: 745c8d83f2daa49b5525793229a358044a8bb3e7
+          path: .ctem/dns-templates
+          sparse-checkout: |
+            dns/dmarc-detect.yaml
+            dns/spf-record-detect.yaml
+            dns/spf-limit-lookup.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Install reviewed mail validators
+        shell: bash
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/ctem-mail"
+          "${RUNNER_TEMP}/ctem-mail/bin/pip" install --disable-pip-version-check --quiet 'checkdmarc==6.0.3'
+          bash scripts/security/install-pinned-nuclei.sh "${RUNNER_TEMP}/nuclei"
+      - name: Audit reviewed public domains without guessed DKIM selectors
+        run: |
+          python3 scripts/security/run-public-mail-deep.py \
+            --checkdmarc "${RUNNER_TEMP}/ctem-mail/bin/checkdmarc" \
+            --nuclei "${RUNNER_TEMP}/nuclei" \
+            --templates .ctem/dns-templates/dns \
+            --output public-mail-deep.json
+      - name: Upload minimal DNS policy evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-mail-deep-${{ github.run_id }}
+          path: public-mail-deep.json
           retention-days: 7
           if-no-files-found: warn

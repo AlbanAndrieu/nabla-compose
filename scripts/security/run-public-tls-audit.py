@@ -56,7 +56,8 @@ def audit(scanner: Path) -> dict:
                 )
                 if process.returncode == 0:
                     result["findings"] = project_report(raw)
-                    result["status"] = "OBSERVED_NOT_CERTIFIED"
+                    if not any(row["severity"] == "FATAL" for row in result["findings"]):
+                        result["status"] = "OBSERVED_NOT_CERTIFIED"
             except (OSError, subprocess.TimeoutExpired, ValueError):
                 pass
             results.append(result)

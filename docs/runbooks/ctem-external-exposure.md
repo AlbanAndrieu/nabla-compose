@@ -10,8 +10,7 @@ dans cette contribution API-only.
 
 Dans [External attack surface](https://github.com/AlbanAndrieu/nabla-compose/actions/workflows/external-attack-surface.yml),
 après fusion et validation du workflow :
-- `mail` : audit DNS des domaines révisés; compléter la liste depuis
-  les zones Cloudflare réellement possédées et confirmer les fournisseurs.
+- `mail` : audit DNS natif et job indépendant checkdmarc 6.0.3 / Nuclei DNS (templates épinglés SPF et DMARC, DKIM uniquement sur sélecteurs renseignés) ; compléter la liste depuis les zones Cloudflare réellement possédées et confirmer les fournisseurs. Pas de découverte par dictionnaire de sélecteurs ni de données TXT publiées.
 - `nuclei` : HTTP borné, résultats minimisés; les alias épinglés et IP
   directes nécessitent `confirm_wan=true` après vérification de la propriété.
 - `network` : TCP sur ports sélectionnés uniquement; confirmer le WAN,
@@ -46,13 +45,13 @@ umask 077
 python3 -m venv /tmp/ctem-mail
 /tmp/ctem-mail/bin/pip install 'checkdmarc==6.0.3'
 /tmp/ctem-mail/bin/checkdmarc albandrieu.com albanandrieu.com bababou.com \
-  -f json -o /tmp/ctem-mail-private.json
+  --skip-tls -f json -o /tmp/ctem-mail-private.json
 ```
 
 Le rapport checkdmarc (SPF lookup limit, DMARC, MX/STARTTLS, MTA-STS,
 TLS-RPT, DNSSEC selon version) peut comporter TXT et adresses : ne pas
-publier son JSON brut. Nuclei DNS `spf-limit-lookup` est un signal
-complémentaire, pas un substitut au validateur ni à DKIM. Collecter
+publier son JSON brut. Nuclei DNS `spf-limit-lookup` et les détections SPF/DMARC sont des signaux
+complémentaires, pas un substitut au validateur ni à DKIM. Collecter
 `rua` avec parsedmarc dans un premier temps, puis définir p/sp=reject
 après contrôle d'alignement. Aucun changement DNS mail automatique.
 

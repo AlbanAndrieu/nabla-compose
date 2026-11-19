@@ -32,7 +32,12 @@ class ExternalAttackSurfaceContract(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         triggers = yaml.safe_load(text)[True]
         self.assertEqual(set(triggers), {"workflow_dispatch", "schedule"})
-        self.assertIn("sha256sum --check", text)
+        installer = ROOT / "scripts/security/install-pinned-nuclei.sh"
+        self.assertIn("sha256sum --check", installer.read_text(encoding="utf-8"))
+        self.assertIn("install-pinned-nuclei.sh", text)
+        self.assertIn("checkdmarc==6.0.3", text)
+        self.assertIn("745c8d83f2daa49b5525793229a358044a8bb3e7", text)
+        self.assertIn("run-public-mail-deep.py", text)
         self.assertIn("-etags dos,fuzz,bruteforce,intrusive,default-login", text)
         self.assertIn(" -ni ", text)
         self.assertIn(" -or ", text)
