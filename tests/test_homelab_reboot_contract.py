@@ -150,7 +150,7 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_wazuh_failure_does_not_block_later_resume_waves(self) -> None:
         topology = json.loads(
-            (ROOT / "catalog/service-topology.json").read_text(encoding="utf-8")
+            (ROOT / "catalog/generated/operator-inventory.json").read_text(encoding="utf-8")
         )
         app_ids = set()
         for node in topology["nodes"]:
@@ -181,7 +181,7 @@ class HomelabRebootContractTests(unittest.TestCase):
 
     def test_resume_waves_follow_the_operator_order(self) -> None:
         topology = json.loads(
-            (ROOT / "catalog/service-topology.json").read_text(encoding="utf-8")
+            (ROOT / "catalog/generated/operator-inventory.json").read_text(encoding="utf-8")
         )
         app_ids = set()
         for node in topology["nodes"]:

@@ -17,27 +17,39 @@ POLICY_ID = "11111111-1111-1111-1111-111111111111"
 
 
 def test_targets_follow_catalog_access_contract() -> None:
-    services = [
-        {"name": "A", "external": True, "tunnelSecure": True, "tunnelUrl": "https://a.albandrieu.com"},
-        {"name": "Internal", "external": False, "tunnelSecure": True, "tunnelUrl": "https://i.albandrieu.com"},
-        {"name": "Direct", "external": True, "tunnelSecure": False, "tunnelUrl": "https://hello.int.albandrieu.com"},
-        {"name": "NoAccess", "external": True, "tunnelSecure": True, "tunnelUrl": "https://n.albandrieu.com"},
-        {"name": "Foreign", "external": True, "tunnelSecure": True, "tunnelUrl": "https://x.example.com"},
-    ]
-    overrides = [{"name": "NoAccess", "cloudflareAccessRequired": False}]
+    def route(host: str, **updates: object) -> dict:
+        return {
+            "visibility": "public",
+            "protocol": "HTTPS",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "access": {"required": True},
+            "hostnames": [host],
+            **updates,
+        }
 
-    assert MODULE.target_hosts(services, overrides) == ["a.albandrieu.com"]
+    catalog = {
+        "schemaVersion": 2,
+        "model": "backstage",
+        "entities": [
+            {"x-nabla": {"exposure": [
+                route("a.albandrieu.com"),
+                route("i.albandrieu.com", visibility="lan"),
+                route("direct.albandrieu.com", gatewayRef="resource:default/pfsense-haproxy"),
+                route("n.albandrieu.com", access={"required": False}),
+                route("foreign.example.com"),
+                route("hello.int.albandrieu.com"),
+            ]}},
+        ],
+    }
+    assert MODULE.target_hosts(catalog) == ["a.albandrieu.com"]
 
 
 def test_repository_catalog_targets_exclude_unexposed_services() -> None:
-    catalog = json.loads((ROOT / "catalog" / "homelab-services.json").read_text())["services"]
-    overrides = json.loads((ROOT / "catalog" / "homelab-exposure-overrides.json").read_text())["services"]
+    catalog = json.loads((ROOT / "catalog/generated/entities.json").read_text())
+    hosts = set(MODULE.target_hosts(catalog))
 
-    hosts = set(MODULE.target_hosts(catalog, overrides))
-
-    # Exact hostname set membership (not URL substring matching).
     assert hosts.isdisjoint({"litellm.albandrieu.com"})
-    assert {"keycloak.albandrieu.com"} <= hosts
+    assert {"keycloak.albandrieu.com", "immich.albandrieu.com"} <= hosts
     assert not any(host.endswith(".int.albandrieu.com") for host in hosts)
 
 

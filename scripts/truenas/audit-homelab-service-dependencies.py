@@ -164,7 +164,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apps", type=Path, required=True)
     parser.add_argument("--plan", type=Path, required=True)
-    parser.add_argument("--topology", type=Path, default=ROOT / "catalog/service-topology.json")
+    parser.add_argument("--topology", type=Path, default=ROOT / "catalog/generated/operator-inventory.json")
     parser.add_argument("--deep", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--timeout", type=float, default=2.5)

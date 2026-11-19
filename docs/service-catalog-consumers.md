@@ -22,8 +22,12 @@ config/monitoring/gatus-endpoints.yml (Gatus native endpoints)
 Backstage --> catalog/generated/entities.json + homelab.cdx.json (CycloneDX)
 ```
 
-The v1 `services.json` and `service-topology.json` remain only for old
-readers awaiting migration. The consumer generator no longer reads either.
+`catalog/generated/operator-inventory.json` is the native operational graph
+projection, associated with the verified Backstage revision and explicit Compose
+identity crosswalk. TrueNAS recovery and lifecycle readers use this single export.
+The v1 `services.json` and `service-topology.json` are temporary parity/rollback
+exports only; remove after FastAPI deployment and before/after plan acceptance.
+The consumer generator does not read either old JSON.
 All 85 existing Gatus checks are preserved as native probes; the 80 currently
 materialized Homarr entries are limited by the still-incomplete Backstage/Compose
 identity coverage (143 entries existed under the old generator).

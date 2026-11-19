@@ -8,15 +8,16 @@ printed. Only reusable policies are handled: an app that still uses inline
 (application-specific) policies is reported and left untouched, because
 Cloudflare does not allow mixing both kinds.
 
-Targets are derived from ``catalog/homelab-services.json``: every service
-declared ``external`` behind a Cloudflare Tunnel whose Access requirement is
-not explicitly disabled.
+Targets are derived from Backstage v2 ``catalog/generated/entities.json``:
+explicit public HTTPS Cloudflare Tunnel route intent with Access required.
+The check lists all candidates; apply requires explicit reviewed hostnames.
+This is the observer policy, never the dedicated ZAP identity.
 
 Usage (workstation):
     export CLOUDFLARE_ACCOUNT_ID=...   # not a secret
     export CLOUDFLARE_API_TOKEN=...    # from Vaultwarden, never echoed
     python3 scripts/cloudflare/attach-observer-service-auth.py --policy-id <uuid>
-    python3 scripts/cloudflare/attach-observer-service-auth.py --policy-id <uuid> --apply
+    python3 scripts/cloudflare/attach-observer-service-auth.py --policy-id <uuid> --host grafana.albandrieu.com --apply
 """
 
 from __future__ import annotations
@@ -28,39 +29,39 @@ from pathlib import Path
 import sys
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 API_BASE = "https://api.cloudflare.com/client/v4"
 TIMEOUT_SECONDS = 10.0
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG = ROOT / "catalog" / "homelab-services.json"
-OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
+CATALOG = ROOT / "catalog" / "generated" / "entities.json"
 # Fields returned by GET that the update endpoint must not receive back.
 READ_ONLY_APP_FIELDS = frozenset({"id", "uid", "aud", "created_at", "updated_at", "policies"})
 
 
-def _host(url: str | None) -> str | None:
-    if not url:
-        return None
-    target = url if "://" in url else f"https://{url}"
-    return (urlsplit(target).hostname or "").lower().rstrip(".") or None
-
-
-def target_hosts(services: list[dict[str, Any]], overrides: list[dict[str, Any]]) -> list[str]:
-    """Return hostnames that must accept the observer Service Token."""
-    by_name = {item.get("name"): item for item in overrides}
+def target_hosts(catalog: dict[str, Any]) -> list[str]:
+    """Explicit public HTTPS Tunnel routes whose Access policy is required."""
+    if catalog.get("schemaVersion") != 2 or catalog.get("model") != "backstage":
+        raise ValueError("expected Backstage v2 catalog")
     hosts: set[str] = set()
-    for service in services:
-        merged = {**service, **by_name.get(service.get("name"), {})}
-        if merged.get("external") is not True or merged.get("tunnelSecure") is not True:
-            continue
-        if merged.get("cloudflareAccessRequired") is False or merged.get("endpointEnabled") is False:
-            continue
-        host = _host(merged.get("tunnelUrl"))
-        # *.int names are private split-DNS hostnames: never fronted by Access.
-        if host and host.endswith(".albandrieu.com") and not host.endswith(".int.albandrieu.com"):
-            hosts.add(host)
+    for entity in catalog["entities"]:
+        for route in (entity.get("x-nabla") or {}).get("exposure") or []:
+            if (
+                route.get("visibility") != "public"
+                or route.get("protocol") != "HTTPS"
+                or route.get("gatewayRef") != "resource:default/cloudflare-tunnel"
+                or (route.get("access") or {}).get("required") is not True
+            ):
+                continue
+            for host in route.get("hostnames") or []:
+                if (
+                    isinstance(host, str)
+                    and host.endswith(".albandrieu.com")
+                    and not host.endswith(".int.albandrieu.com")
+                    and "/" not in host
+                    and "*" not in host
+                ):
+                    hosts.add(host)
     return sorted(hosts)
 
 
@@ -157,6 +158,7 @@ def _list(path: str, token: str) -> list[dict[str, Any]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--policy-id", required=True, help="reusable Service Auth policy UUID")
+    parser.add_argument("--host", action="append", default=[], help="explicit reviewed hostname (repeatable)")
     parser.add_argument("--apply", action="store_true", help="update Cloudflare (default: check only)")
     args = parser.parse_args()
 
@@ -166,9 +168,14 @@ def main() -> int:
         print("❌ CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set (values are never printed)")
         return 2
 
-    services = json.loads(CATALOG.read_text(encoding="utf-8"))["services"]
-    overrides = json.loads(OVERRIDES.read_text(encoding="utf-8"))["services"]
-    hosts = target_hosts(services, overrides)
+    hosts = target_hosts(json.loads(CATALOG.read_text(encoding="utf-8")))
+    if args.apply and not args.host:
+        parser.error("--apply requires at least one explicit --host from the reviewed check output")
+    if args.host:
+        unknown = sorted(set(args.host) - set(hosts))
+        if unknown:
+            parser.error(f"not a declared Access-protected v2 hostname: {unknown}")
+        hosts = sorted(set(args.host))
 
     policies = _list(f"/accounts/{account_id}/access/policies", token)
     policy = next((p for p in policies if p.get("id") == args.policy_id), None)

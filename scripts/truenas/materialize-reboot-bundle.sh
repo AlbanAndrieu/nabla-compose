@@ -64,8 +64,7 @@ chmod 755 "${STAGE}"
 trap 'rm -rf "${STAGE}"' EXIT
 
 FILES=(
-  catalog/services.json
-  catalog/service-topology.json
+  catalog/generated/operator-inventory.json
   scripts/lib/common.sh
   scripts/lib/diagnostic-ui.sh
   scripts/lib/diagnostic.sh

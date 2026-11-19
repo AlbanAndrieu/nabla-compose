@@ -240,8 +240,8 @@ def main() -> int:
     if not changed:
         print("  no apps/ change outside Markdown; nothing to redeploy")
         return 0
-    rows = declared_apps(load_catalog(ROOT / "catalog/services.json"), root=ROOT)
-    deps = app_dependencies(load_catalog(ROOT / "catalog/service-topology.json"), rows)
+    rows = declared_apps(load_catalog(ROOT / "catalog/generated/operator-inventory.json"), root=ROOT)
+    deps = app_dependencies(load_catalog(ROOT / "catalog/generated/operator-inventory.json"), rows)
     checkout = Path.cwd()
     try:
         states = app_states()

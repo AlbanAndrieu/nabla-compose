@@ -50,8 +50,8 @@ trap 'rm -f "${runtime_tmp}"/apps.json "${runtime_tmp}"/plan.json "${runtime_tmp
 printf '%s\n' "${apps_json}" >"${runtime_tmp}/apps.json"
 if python3 "${ROOT}/scripts/truenas/plan-app-lifecycle-order.py" \
   --apps "${runtime_tmp}/apps.json" --states RUNNING,DEPLOYING,CRASHED,ERROR \
-  --services "${ROOT}/catalog/services.json" \
-  --topology "${ROOT}/catalog/service-topology.json" \
+  --services "${ROOT}/catalog/generated/operator-inventory.json" \
+  --topology "${ROOT}/catalog/generated/operator-inventory.json" \
   >"${runtime_tmp}/plan.json"; then
   extra=()
   [[ "${DEEP}" == true ]] && extra+=(--deep)

@@ -95,8 +95,8 @@ done
 for path in "${PLANNER}" "${GHOST_RECOVERY}" "${ORPHAN_SHIMS}" "${IPAM_CHECK}" "${RESUME_RECONCILER}" "${HEALTH_GATE}"; do
   [[ -f "${path}" ]] || fail "required recovery helper not found: ${path}"
 done
-[[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing under ${REPO_ROOT}"
-[[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog missing under ${REPO_ROOT}"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "services catalog missing under ${REPO_ROOT}"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "topology catalog missing under ${REPO_ROOT}"
 
 operator_home="$(getent passwd "${OPERATOR_USER}" | cut -d: -f6)"
 [[ -n "${operator_home}" && -d "${operator_home}" ]] ||
@@ -348,9 +348,9 @@ create_snapshot() {
   ' "${STATE_DIR}/apps-before-cleanup.json" |
     sort -u >"${STATE_DIR}/resume-review.txt"
 
-  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING     --keep-inactive     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/shutdown-plan.json"
+  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING     --keep-inactive     --services "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --pretty >"${STATE_DIR}/shutdown-plan.json"
 
-  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/resume-safe-plan.json"
+  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING     --services "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --pretty >"${STATE_DIR}/resume-safe-plan.json"
 
   [[ "${MODE}" != "--stop-apps" ]] || touch "${STATE_DIR}/apps-only"
   write_phase SNAPSHOT
@@ -599,7 +599,7 @@ resume_reviewed() {
   done
   approved="${approved_apps[*]}"
 
-  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states __NONE__     --include-apps "${approved}"     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/resume-approved-plan.json"
+  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states __NONE__     --include-apps "${approved}"     --services "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json"     --pretty >"${STATE_DIR}/resume-approved-plan.json"
 
   run_resume_plan "${STATE_DIR}/resume-approved-plan.json" reviewed
   write_phase RESUMED_REVIEWED

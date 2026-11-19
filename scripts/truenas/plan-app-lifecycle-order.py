@@ -11,8 +11,8 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SERVICES = ROOT / "catalog/services.json"
-DEFAULT_TOPOLOGY = ROOT / "catalog/service-topology.json"
+DEFAULT_SERVICES = ROOT / "catalog/generated/operator-inventory.json"
+DEFAULT_TOPOLOGY = ROOT / "catalog/generated/operator-inventory.json"
 
 TARGET_BEFORE_SOURCE = {
     "dependsOn",

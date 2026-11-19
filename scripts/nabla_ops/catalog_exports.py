@@ -444,3 +444,50 @@ def identity_mapping_projection(
         "mappings": mappings,
         "unresolved": unresolved,
     }
+
+
+def operator_inventory_projection(
+    catalog: dict[str, Any],
+    crosswalk: dict[str, Any],
+    topology: dict[str, Any],
+    declarations: dict[str, Any],
+) -> dict[str, Any]:
+    """Operational read model with explicit native identities and v2 provenance.
+
+    Preserve the native graph, including networks, lifecycle ordering, Gatus
+    metadata and operational-only nodes. Never infer a Backstage ref from a
+    display name. The topology wire version is independent of the v2 catalog.
+    """
+    revision = catalog["catalogRevision"]
+    if catalog.get("schemaVersion") != 2 or crosswalk["catalogRevision"] != revision:
+        raise ValueError("operator inventory requires a revision-matched v2 crosswalk")
+    refs = {entity["entityRef"] for entity in catalog["entities"]}
+    by_source = {
+        item["sourceId"]: item["entityRef"]
+        for item in crosswalk["mappings"]
+        if item["sourceType"] == "compose"
+    }
+    rows = declarations["services"]
+    bindings = {}
+    for row in rows:
+        source = f"{row['sourcePath']}#services/{row['composeService']}"
+        ref = by_source.get(source)
+        if ref is None or ref not in refs:
+            raise ValueError(f"no explicit Backstage Compose binding for {row['id']}")
+        bindings[row["id"]] = ref
+    return {
+        "schemaVersion": 2,
+        "model": "backstage-operator-inventory",
+        "catalogRevision": revision,
+        "operatorRevision": declarations["catalogRevision"],
+        "version": topology["version"],
+        "topologyVersion": topology["version"],
+        "name": topology["name"],
+        "services": rows,
+        "nodes": topology["nodes"],
+        "relations": topology["relations"],
+        "identityBindings": bindings,
+        "operationalOnlyNodeIds": sorted(
+            node["id"] for node in topology["nodes"] if node["id"] not in bindings
+        ),
+    }

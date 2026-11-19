@@ -66,8 +66,8 @@ esac
 require_root "run as root on TrueNAS"
 require_commands midclt jq docker python3 timeout getent awk tr sha256sum cmp stat date
 [[ -f "${PLANNER}" ]] || fail "lifecycle planner not found: ${PLANNER}"
-[[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog not found under ${REPO_ROOT}"
-[[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog not found under ${REPO_ROOT}"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "services catalog not found under ${REPO_ROOT}"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "topology catalog not found under ${REPO_ROOT}"
 
 operator_home="$(getent passwd "${OPERATOR_USER}" | cut -d: -f6)"
 [[ -n "${operator_home}" && -d "${operator_home}" ]] ||
@@ -319,15 +319,15 @@ make_plans() {
     --apps "${apps}" \
     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING \
     --keep-inactive \
-    --services "${REPO_ROOT}/catalog/services.json" \
-    --topology "${REPO_ROOT}/catalog/service-topology.json" \
+    --services "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
+    --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
     --pretty >"${dir}/shutdown-plan.json"
   python3 "${PLANNER}" \
     --apps "${apps}" \
     --states RUNNING,DEPLOYING \
     --include-apps "${EXTRA_RESUME_APPS}" \
-    --services "${REPO_ROOT}/catalog/services.json" \
-    --topology "${REPO_ROOT}/catalog/service-topology.json" \
+    --services "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
+    --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
     --pretty >"${dir}/resume-plan.json"
 }
 
@@ -628,8 +628,8 @@ build_effective_resume_plan() {
     --apps "${dir}/apps-before.json" \
     --states RUNNING,DEPLOYING \
     --include-apps "${explicit}" \
-    --services "${REPO_ROOT}/catalog/services.json" \
-    --topology "${REPO_ROOT}/catalog/service-topology.json" \
+    --services "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
+    --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json" \
     --pretty >"${effective}"
 
   old_members="$(jq -cS '.selected_apps' "${dir}/resume-plan.json")"

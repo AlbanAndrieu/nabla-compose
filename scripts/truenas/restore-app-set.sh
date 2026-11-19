@@ -87,8 +87,8 @@ require_commands midclt jq docker python3 timeout sed awk sort grep date install
 [[ -f "${OPENSEARCH_PERMISSIONS}" ]] || fail "OpenSearch permissions helper not found: ${OPENSEARCH_PERMISSIONS}"
 [[ -f "${DOCKER_PROXY_NETWORK}" ]] || fail "Docker proxy network helper not found: ${DOCKER_PROXY_NETWORK}"
 [[ -f "${PIHOLE_SYNC_GATE}" ]] || fail "Pi-hole sync gate not found: ${PIHOLE_SYNC_GATE}"
-[[ -f "${REPO_ROOT}/catalog/services.json" ]] || fail "services catalog missing"
-[[ -f "${REPO_ROOT}/catalog/service-topology.json" ]] || fail "topology catalog missing"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "services catalog missing"
+[[ -f "${REPO_ROOT}/catalog/generated/operator-inventory.json" ]] || fail "topology catalog missing"
 
 for value in APP_JOB_TIMEOUT APP_WAIT POLL_SECONDS LOG_TAIL; do
   current="${!value}"
@@ -152,7 +152,7 @@ for app in "${APPS[@]}"; do
 done
 
 include_apps="${APPS[*]}"
-python3 "${PLANNER}"   --apps "${APPS_JSON}"   --states __NONE__   --include-apps "${include_apps}"   --services "${REPO_ROOT}/catalog/services.json"   --topology "${REPO_ROOT}/catalog/service-topology.json"   --pretty >"${PLAN_JSON}"
+python3 "${PLANNER}"   --apps "${APPS_JSON}"   --states __NONE__   --include-apps "${include_apps}"   --services "${REPO_ROOT}/catalog/generated/operator-inventory.json"   --topology "${REPO_ROOT}/catalog/generated/operator-inventory.json"   --pretty >"${PLAN_JSON}"
 
 printf 'Restore plan: %s\n' "${PLAN_JSON}"
 jq '{selected_apps,unmapped_apps,start_waves,lifecycle_phase_by_app}' "${PLAN_JSON}"
