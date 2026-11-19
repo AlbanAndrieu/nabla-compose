@@ -124,11 +124,11 @@ if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
 else
     warn 'nabla-compose checkout missing: Git revision not collected'
 fi
-if [[ -f /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json ]]; then
+if [[ -f /mnt/cpool/compose/nabla-compose/catalog/generated/entities.json ]]; then
     printf 'Canonical catalog candidates: '
     candidate_count="$(jq -er '
-      [.services[]? | select(.id == "languagetool" or .name == "Language Tool")] | length
-    ' /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json 2>/dev/null || true)"
+      [.entities[]? | select(.entityRef == "component:default/languagetool")] | length
+    ' /mnt/cpool/compose/nabla-compose/catalog/generated/entities.json 2>/dev/null || true)"
     if [[ "${candidate_count}" =~ ^[0-9]+$ ]]; then
         printf 'LanguageTool entries=%s\n' "${candidate_count}"
         if [[ "${candidate_count}" == 1 ]]; then
@@ -140,14 +140,14 @@ if [[ -f /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json ]]; then
         unknown 'Catalogue local illisible ; identité LanguageTool non vérifiée'
     fi
     printf 'Garage catalog entries: '
-    jq -cr '[.services[]? | select((.id // "") | startswith("garage")) |
-       {id, external, probePriority, deploymentUnitId}]' \
-        /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json || true
-    garage_ranked="$(jq -r '[.services[]? | select((.id // "") | startswith("garage")) |
-      select(.probePriority != null)] | length' \
-      /mnt/cpool/compose/nabla-compose/catalog/homelab-services.json 2>/dev/null || true)"
+    jq -cr '[.entities[]? | select(.metadata.name | startswith("garage")) |
+       {entityRef, exposure: [."x-nabla".exposure[]? | .visibility], probePolicy: ."x-nabla".probePolicy}]' \
+        /mnt/cpool/compose/nabla-compose/catalog/generated/entities.json || true
+    garage_ranked="$(jq -r '[.entities[]? | select(.metadata.name | startswith("garage")) |
+      select(."x-nabla".probePolicy != null)] | length' \
+      /mnt/cpool/compose/nabla-compose/catalog/generated/entities.json 2>/dev/null || true)"
     if [[ "${garage_ranked}" == 0 ]]; then
-        warn 'Garage : aucun probePriority publié dans le catalogue local'
+        warn 'Garage : aucun probePolicy publié dans le catalogue local'
     else
         ok "Garage : ${garage_ranked:-unknown} rang(s) publiés dans le catalogue local"
     fi

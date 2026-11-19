@@ -32,7 +32,7 @@ shift || true
 
 APP_QUERY_TIMEOUT="${NABLA_STUCK_APP_QUERY_TIMEOUT_SECONDS:-90}"
 LOG_TAIL="${NABLA_STUCK_APP_LOG_TAIL:-40}"
-TOPOLOGY="${NABLA_TOPOLOGY_FILE:-/mnt/cpool/compose/nabla-compose/catalog/service-topology.json}"
+TOPOLOGY="${NABLA_TOPOLOGY_FILE:-/mnt/cpool/compose/nabla-compose/catalog/generated/operator-inventory.json}"
 REBOOT_STATE_ROOT="${NABLA_REBOOT_STATE_ROOT:-/mnt/cpool/var/nabla/reboot}"
 REBOOT_STATE_DIR="${NABLA_REBOOT_STATE_DIR:-}"
 APP_FILTERS=()

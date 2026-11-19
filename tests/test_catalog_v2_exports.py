@@ -15,6 +15,7 @@ from nabla_ops.catalog_exports import (  # noqa: E402
     cyclonedx_projection,
     load_backstage_entities,
     identity_mapping_projection,
+    operator_inventory_projection,
 )
 
 
@@ -280,3 +281,34 @@ services:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OperatorInventoryTests(unittest.TestCase):
+    def test_native_graph_and_bindings_are_preserved_exactly(self) -> None:
+        def read(path: str) -> dict:
+            return json.loads((ROOT / path).read_text(encoding="utf-8"))
+
+        catalog = read("catalog/generated/entities.json")
+        crosswalk = read("catalog/generated/identity-map.json")
+        topology = read("catalog/service-topology.json")
+        declarations = read("catalog/services.json")
+        expected = operator_inventory_projection(catalog, crosswalk, topology, declarations)
+        generated = read("catalog/generated/operator-inventory.json")
+        self.assertEqual(generated, expected)
+        self.assertEqual(generated["catalogRevision"], catalog["catalogRevision"])
+        self.assertEqual(generated["nodes"], topology["nodes"])
+        self.assertEqual(generated["relations"], topology["relations"])
+        self.assertEqual(generated["services"], declarations["services"])
+        self.assertEqual(
+            set(generated["identityBindings"]),
+            {row["id"] for row in declarations["services"]},
+        )
+
+    def test_revision_mismatch_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "revision-matched"):
+            operator_inventory_projection(
+                {"schemaVersion": 2, "catalogRevision": "current"},
+                {"catalogRevision": "old"},
+                {},
+                {},
+            )

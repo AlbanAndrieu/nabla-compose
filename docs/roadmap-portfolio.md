@@ -85,3 +85,7 @@ côté FastAPI. **Ce sont des volumes, pas des diagnostics de défaut.**
 - Déplacer les récits d'incidents vers `docs/incidents/`, les procédures durables vers `docs/runbooks/`, les choix d'architecture vers `docs/adr/` ou `docs/security/`.
 - Lorsqu'un item est reçu et n'a plus de suite, le retirer du backlog arbitrable et le résumer en jalon ci-dessus ; Git garde la chronologie, sans copier des runbooks dans plusieurs dépôts.
 - Vérifier cet index sans réseau ni secrets : `python3 scripts/quality/check-roadmap-portfolio.py --check` (ou `--json` pour automatiser l'affichage).
+
+### H17 — 19 novembre 2026 : projection opérateur
+
+La projection générée `catalog/generated/operator-inventory.json` relie la révision Backstage v2 au graphe natif (révision `operatorRevision` indépendante), conserve les réseaux, dépendances, phases de démarrage et les 139 correspondances Compose explicites. Les lecteurs de démarrage, arrêt, restauration, redéploiement et audit TrueNAS utilisent cette projection ; la recette des plans avant/après et la réception runtime restent NOT_RUN. Les anciens exports sont conservés temporairement exclusivement pour parité, anciennes versions FastAPI et rollback. Owner : H17 Compose ; supprimer les exports après preuve de parité, déploiement FastAPI et recherche de lecteurs résiduels. Aucun changement TrueNAS ni Cloudflare appliqué.

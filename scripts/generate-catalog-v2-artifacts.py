@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import runpy
 from pathlib import Path
 import sys
 
@@ -14,6 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nabla_ops.catalog_exports import (  # noqa: E402
     build_standard_artifacts,
     identity_mapping_projection,
+    operator_inventory_projection,
 )
 from nabla_ops.compose_paths import app_catalog_descriptors, tracked_compose_paths  # noqa: E402
 
@@ -47,6 +49,17 @@ def main() -> int:
         ROOT / "config/monitoring/gatus-endpoints.yml",
         ROOT,
     )
+    # Read native Compose/topology sources directly, not the old exported JSON.
+    native_topology, native_services = runpy.run_path(
+        str(ROOT / "scripts/generate-service-topology.py")
+    )["generate_catalog"]()
+    artifacts["operator-inventory.json"] = operator_inventory_projection(
+        artifacts["entities.json"],
+        artifacts["identity-map.json"],
+        native_topology,
+        native_services,
+    )
+
     stale: list[str] = []
 
     for name, payload in artifacts.items():

@@ -33,8 +33,8 @@ def test_only_non_markdown_app_files_mark_an_app_changed() -> None:
 
 
 def test_app_dependencies_come_from_catalog_depends_on() -> None:
-    catalog = json.loads((ROOT / "catalog/services.json").read_text(encoding="utf-8"))
-    topology = json.loads((ROOT / "catalog/service-topology.json").read_text(encoding="utf-8"))
+    catalog = json.loads((ROOT / "catalog/generated/operator-inventory.json").read_text(encoding="utf-8"))
+    topology = json.loads((ROOT / "catalog/generated/operator-inventory.json").read_text(encoding="utf-8"))
     rows = planner.declared_apps(catalog, root=ROOT)
     deps = planner.app_dependencies(topology, rows)
     assert {"kafka", "clickhouse"} <= deps["akvorado"]
