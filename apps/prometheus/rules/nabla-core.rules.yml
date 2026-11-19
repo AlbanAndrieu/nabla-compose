@@ -3,9 +3,6 @@ groups:
   - name: NablaCoreSignals
     interval: 30s
     rules:
-      - record: nabla:telemetry:pfsense_metrics_up
-        expr: max(up{job="pfsense_exporter"})
-
       - record: nabla:telemetry:postgres_exporter_up
         expr: max(up{job="postgres_exporter"})
 
@@ -26,9 +23,6 @@ groups:
 
       - record: nabla:telemetry:alertmanager_up
         expr: max(up{job="alertmanager"})
-
-      - record: nabla:core:pfsense_memory_available_ratio
-        expr: 1 - max(pfsense_system_memory_usage_ratio{job="pfsense_exporter"})
 
       - record: nabla:telemetry:truenas_node_up
         expr: max(up{job="truenas_node"})
@@ -58,7 +52,7 @@ groups:
       - record: nabla:telemetry:service_exporter_up
         expr: |
           max by (job) (
-            up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|pfsense_exporter|crowdsec|cloudflare_exporter|truenas_node|kafka_exporter|clickhouse|opensearch|opensearch-security|grafana|alloy|loki|mimir|tempo|alertmanager|pyroscope|keycloak|pihole_exporter|haproxy|n8n|docling|akvorado_inlet|akvorado_outlet|dependency_track|netbox"}
+            up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|crowdsec|cloudflare_exporter|truenas_node|kafka_exporter|clickhouse|opensearch|opensearch-security|grafana|alloy|loki|mimir|tempo|alertmanager|pyroscope|keycloak|pihole_exporter|haproxy|n8n|docling|akvorado_inlet|akvorado_outlet|dependency_track|netbox"}
           )
 
       # Compatibility metrics are recorded once in NablaCoreSignals above.
@@ -86,7 +80,7 @@ groups:
 
       - alert: NablaExporterTargetDown
         expr: >-
-          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node|exportarr_prowlarr|exportarr_radarr|exportarr_sonarr|exportarr_lidarr|exportarr_bazarr|qbittorrent|jellyfin|keycloak|netbox|dependency_track",operational_state!="planned"} == 0
+          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node|exportarr_prowlarr|exportarr_radarr|exportarr_sonarr|exportarr_lidarr|exportarr_bazarr|qbittorrent|jellyfin|keycloak|netbox|dependency_track",operational_state!="planned"} == 0
         for: 2m
         labels:
           severity: warning

@@ -1080,7 +1080,7 @@
       "composeService": null,
       "dockerManaged": false,
       "href": "https://172.17.0.1:10443",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Homelab firewall, router and network-edge appliance."
     },
     {

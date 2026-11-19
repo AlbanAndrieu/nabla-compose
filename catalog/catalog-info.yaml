@@ -118,7 +118,7 @@ metadata:
     - url: https://172.17.0.1:10443
       title: Administration
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: disabled
     albandrieu.com/operational-criticality: critical
     albandrieu.com/business-criticality: critical
     albandrieu.com/bia-scope: direct

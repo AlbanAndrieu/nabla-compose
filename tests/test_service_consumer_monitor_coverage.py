@@ -36,5 +36,6 @@ def test_http_probe_conditions_survive_projection() -> None:
     assert after["autoxpose"]["url"] == before["autoxpose"]["url"]
     assert after["autoxpose"]["conditions"] == before["autoxpose"]["conditions"]
     assert after["autoxpose"]["url"].startswith("http://")
-    assert after["pfsense"]["extra-labels"]["nabla_service_id"] == "pfsense"
+    # pfSense is disabled since 19/11/2026: declared in the native source, not rendered.
+    assert "pfsense" in before and "pfsense" not in after
     assert after["truenas"]["extra-labels"]["nabla_service_id"] == "truenas"

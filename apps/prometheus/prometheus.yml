@@ -191,27 +191,8 @@ scrape_configs:
           role: database
           database: influxdb
 
-  - job_name: pfsense_exporter
-    metrics_path: /metrics
-    # Netgate 1100 has a tight CPU/RAM budget. Each exporter scrape fans out
-    # into multiple pfREST calls, so keep this intentionally much slower than
-    # local exporters.
-    scrape_interval: 300s
-    scrape_timeout: 30s
-    static_configs:
-      - targets:
-          - 172.17.0.1
-    relabel_configs:
-      - source_labels:
-          - __address__
-        target_label: __param_target
-      - source_labels:
-          - __param_target
-        target_label: __address__
-        replacement: 172.17.0.24:9945
-      - source_labels:
-          - __param_target
-        target_label: instance
+  # pfsense_exporter job: removed while pfSense is disabled in the catalog
+  # (19/11/2026); 172.17.0.1 is now the R7000. Re-enable: docs/pfsense/README.md.
 
   - job_name: akvorado_inlet
     metrics_path: /api/v0/metrics

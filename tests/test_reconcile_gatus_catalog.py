@@ -92,9 +92,12 @@ def test_critical_monitor_ids_reconcile_with_backstage_resources():
         for entry in config["endpoints"]
         if "nabla_monitor_id" in entry.get("extra-labels", {})
     }
-    for service_id in ("pfsense", "postgresql", "truenas"):
+    for service_id in ("postgresql", "truenas"):
         assert service_id in resources
         assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id
+    # pfSense is disabled since 19/11/2026 (Netgate 1100 lost): kept in the catalog, not probed.
+    assert "pfsense" in resources
+    assert "pfsense" not in monitors
     rules = (root / "apps/prometheus/rules/nabla-service.rules.yml").read_text()
     assert 'nabla_service_id!=""' in rules
 

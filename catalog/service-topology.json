@@ -2147,6 +2147,7 @@
       "description": "External pfSense firewall running the lightweight CrowdSec remediation component.",
       "presentationRole": "core",
       "criticality": "critical",
+      "status": "disabled",
       "securityFunctions": [
         "protect",
         "respond"

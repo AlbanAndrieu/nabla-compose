@@ -6,6 +6,7 @@ x-nabla:
       kind: firewall
       category: network
       presentationRole: core
+      status: disabled
       securityFunctions:
         - protect
         - respond
