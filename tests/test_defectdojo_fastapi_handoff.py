@@ -8,6 +8,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -94,6 +95,53 @@ class FastapiSharedCollectorContract(unittest.TestCase):
         with mock.patch.object(poll, "metadata", side_effect=metadata):
             with self.assertRaises(SystemExit):
                 poll.stage_fastapi_handoff("fixture-only", 104)
+
+    def test_non_publishing_push_does_not_hide_scheduled_artifact(self):
+        good = {"id": 111, "head_sha": "a"*40, "head_branch": "master",
+                "name": "Docker CI", "status": "completed",
+                "conclusion": "success", "event": "schedule"}
+        push = dict(good, id=112, event="push")
+        with mock.patch.object(poll, "metadata",
+                               return_value={"workflow_runs": [good, push]}):
+            self.assertEqual(poll.latest_runs("fixture", source="fastapi-sample"), {"trivy": 111})
+
+    def test_staged_report_can_be_imported_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            inbox = Path(directory)
+            report = inbox / "fastapi-104-trivy.json"
+            report.write_bytes(native_report())
+            report.chmod(0o600)
+            env = {
+                "DEFECTDOJO_IMPORT_APPROVED": "YES",
+                "DEFECTDOJO_FASTAPI_IMPORT_APPROVED": "YES",
+                "DEFECTDOJO_FASTAPI_SAMPLE_ENGAGEMENT_ID": "42",
+            }
+            with (mock.patch.object(poll, "FASTAPI_INBOX", inbox),
+                  mock.patch.dict(poll.os.environ, env, clear=True),
+                  mock.patch.object(poll, "import_report") as submit):
+                self.assertEqual(poll.import_fastapi_staged(104), "ACKNOWLEDGED")
+                self.assertEqual(poll.import_fastapi_staged(104), "ALREADY_ACKNOWLEDGED")
+                submit.assert_called_once_with("trivy", 104, source="fastapi-sample")
+
+    def test_ambiguous_attempt_requires_manual_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            inbox = Path(directory)
+            report = inbox / "fastapi-104-trivy.json"
+            report.write_bytes(native_report())
+            report.chmod(0o600)
+            env = {
+                "DEFECTDOJO_IMPORT_APPROVED": "YES",
+                "DEFECTDOJO_FASTAPI_IMPORT_APPROVED": "YES",
+                "DEFECTDOJO_FASTAPI_SAMPLE_ENGAGEMENT_ID": "42",
+            }
+            with (mock.patch.object(poll, "FASTAPI_INBOX", inbox),
+                  mock.patch.dict(poll.os.environ, env, clear=True),
+                  mock.patch.object(poll, "import_report", side_effect=SystemExit("ambiguous")) as submit):
+                with self.assertRaises(SystemExit):
+                    poll.import_fastapi_staged(104)
+                with self.assertRaises(SystemExit):
+                    poll.import_fastapi_staged(104)
+                submit.assert_called_once()
 
     def test_new_failure_blocks_previous_success(self):
         good = {"id": 111, "head_sha": "a"*40, "head_branch": "master",

@@ -17,6 +17,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import stat
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -203,6 +204,62 @@ def stage_compose_handoff(token: str, run_id: int) -> str:
     return "STAGED"
 
 
+def private_fastapi_bytes(path: Path, limit: int = 8_000_000) -> bytes:
+    """Read only bounded, owner-private regular files; never follow symlinks."""
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(fd, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or info.st_mode & 0o077 or not 0 < info.st_size <= limit):
+            fail("unsafe private FastAPI evidence")
+        data = stream.read(limit + 1)
+    if len(data) != info.st_size:
+        fail("private FastAPI evidence changed")
+    return data
+
+
+def import_fastapi_staged(run_id: int) -> str:
+    """Claim one reviewed run before submitting; ambiguous attempts require review.
+
+    Called only after stage() validates exact upstream provenance and compares
+    any existing bytes; an acknowledgement is not proof of Celery processing.
+    """
+    if (os.environ.get("DEFECTDOJO_IMPORT_APPROVED") != "YES"
+            or os.environ.get("DEFECTDOJO_FASTAPI_IMPORT_APPROVED") != "YES"):
+        fail("FastAPI import needs both approval gates")
+    engagement = os.environ.get("DEFECTDOJO_FASTAPI_SAMPLE_ENGAGEMENT_ID", "")
+    if not engagement.isascii() or not engagement.isdecimal() or not int(engagement):
+        fail("FastAPI engagement ID missing")
+    report = FASTAPI_INBOX / f"fastapi-{run_id}-trivy.json"
+    digest = sha256(private_fastapi_bytes(report)).hexdigest()
+    marker = FASTAPI_INBOX / f"fastapi-{run_id}-trivy.import.json"
+    record = {"run_id": run_id, "sha256": digest, "engagement": engagement,
+              "state": "pending_review"}
+    try:
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY
+                     | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        try:
+            previous = json.loads(private_fastapi_bytes(marker, 4096))
+        except (ValueError, OSError):
+            fail("FastAPI import marker malformed; reconcile manually")
+        if previous == {**record, "state": "acknowledged"}:
+            return "ALREADY_ACKNOWLEDGED"
+        fail("FastAPI import attempt or engagement differs; reconcile manually")
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(record, stream, sort_keys=True)
+        stream.flush()
+        os.fsync(stream.fileno())
+        # Failure leaves a pending marker: a timeout may occur after API acceptance.
+        import_report("trivy", run_id, source="fastapi-sample")
+        stream.seek(0)
+        stream.truncate()
+        json.dump({**record, "state": "acknowledged"}, stream, sort_keys=True)
+        stream.flush()
+        os.fsync(stream.fileno())
+    return "ACKNOWLEDGED"
+
+
 def stage_fastapi_handoff(token: str, run_id: int) -> str:
     """Stage native Trivy JSON from the already-scheduled Docker CI scan."""
     repo = SOURCES["fastapi-sample"]["repository"]
@@ -253,8 +310,8 @@ def stage_fastapi_handoff(token: str, run_id: int) -> str:
         fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL
                      | getattr(os, "O_NOFOLLOW", 0), 0o600)
     except FileExistsError:
-        if out.is_symlink() or not out.is_file() or out.stat().st_mode & 0o077:
-            fail("existing FastAPI artifact unsafe")
+        if private_fastapi_bytes(out) != report:
+            fail("existing FastAPI artifact differs from approved GitHub artifact")
         return "ALREADY_STAGED"
     with os.fdopen(fd, "wb") as stream:
         stream.write(report)
@@ -295,7 +352,10 @@ def latest_runs(token: str, source: str = "alban") -> dict[str, int]:
             if isinstance(entry, dict)
             and entry.get("name") == workflow
             and entry.get("head_branch") == "master"
-            and entry.get("event") in {"schedule", "workflow_dispatch", "push"}
+            and entry.get("event") in (
+                {"schedule", "workflow_dispatch"} if source == "fastapi-sample"
+                else {"schedule", "workflow_dispatch", "push"}
+            )
             and isinstance(entry.get("id"), int)
             and entry["id"] > 0
             and isinstance(entry.get("head_sha"), str)
@@ -363,7 +423,7 @@ def import_report(kind: str, run_id: int, source: str = "alban") -> None:
         **os.environ,
         "DEFECTDOJO_SERVICE_ID": (
             "nabla-compose" if source == "compose"
-            else "fastapi-sample" if source == "fastapi-sample"
+            else "fastapi-sample-image" if source == "fastapi-sample"
             else f"nabla-site-{source}"
         ),
         "DEFECTDOJO_SCAN_TYPE": SOURCES[source]["workflows"][kind][1],
@@ -424,7 +484,10 @@ def main() -> int:
                 continue
             result = stage(kind, run_id, source=source, token=token)
             print(f"{source}/{kind}: {result}; run_id={run_id}; import=not_attempted")
-            if result == "STAGED" and args.pull_and_import:
+            if args.pull_and_import and source == "fastapi-sample" and result in {"STAGED", "ALREADY_STAGED"}:
+                status = import_fastapi_staged(run_id)
+                print(f"{source}/{kind}: {status}; async parser acceptance required")
+            elif result == "STAGED" and args.pull_and_import:
                 import_report(kind, run_id, source=source)
                 print(f"{source}/{kind}: import_acknowledged; async parser acceptance required")
     return 0

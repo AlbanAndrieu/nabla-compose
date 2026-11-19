@@ -28,6 +28,25 @@ class DefectDojoImportPolicyTests(unittest.TestCase):
              "PkgName": "fixture", "InstalledVersion": "1.0"}]}]}
         module.validate("fastapi-sample", "Trivy Scan", json.dumps(report).encode())
 
+    def test_native_fastapi_image_isolated_from_lockfile_policy(self):
+        report = {
+            "SchemaVersion": 2, "ArtifactType": "container_image",
+            "ArtifactName": "ghcr.io/albanandrieu/fastapi-sample:latest",
+            "Results": [{"Target": "image (debian)", "Vulnerabilities": [
+                {"VulnerabilityID": "CVE-fixture", "PkgName": "fixture",
+                 "Severity": "MEDIUM", "Description": "native description"}]}],
+        }
+        module.validate("fastapi-sample-image", "Trivy Scan", json.dumps(report).encode())
+        with self.assertRaises(ValueError):
+            module.validate("fastapi-sample", "Trivy Scan", json.dumps(report).encode())
+        for changed in (dict(report, ArtifactType="filesystem"),
+                        dict(report, ArtifactName="other:latest")):
+            with self.assertRaises(ValueError):
+                module.validate("fastapi-sample-image", "Trivy Scan", json.dumps(changed).encode())
+        report["Results"][0]["Secrets"] = [{"Match": "private"}]
+        with self.assertRaises(ValueError):
+            module.validate("fastapi-sample-image", "Trivy Scan", json.dumps(report).encode())
+
     def test_unlisted_service_rejected(self):
         with self.assertRaises(ValueError):
             module.validate("unapproved-repo", "Trivy Scan", b'{"Results": []}')

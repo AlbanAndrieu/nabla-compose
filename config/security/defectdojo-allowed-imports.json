@@ -15,6 +15,10 @@
       "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
       "hosts": []
     },
+    "fastapi-sample-image": {
+      "allow": ["Trivy Scan"],
+      "hosts": []
+    },
     "nabla-site-bababou": {
       "allow": ["ZAP Scan"],
       "hosts": ["www.bababou.com", "bababou.com"]

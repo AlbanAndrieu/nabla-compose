@@ -264,3 +264,6 @@ Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrat
 **H16** : pilote Vault PKI/OAuth SQL/OIDC Keycloak, révocation et break-glass. L'objectif FIPS 140-3 est un **alignement technique**, non une certification.
 
 [Runbook détaillé FIPS, TLS 1.3, Vault et OAuth](security/postgresql-fips-tls13-vault-oauth-20261110.md). La matrice datée initiale est [archivée](archive/2026-11-13-roadmap-before-compaction.md).
+
+
+- **H13/F10 (19/11)**: native FastAPI image import profile, staged-report resume with acknowledgement marker, and TLS pinned LAN import CODED; runtime/quality NOT_RUN. Preserve stage-only Cron; owner Compose + FastAPI must prove exact artifact, parser/engagement, Celery status, dedupe, RBAC and WAN isolation before scheduling imports. Prowler GitHub and full repository/ZAP imports remain separate private evidence paths; [runbook](defectdojo-private-scan-ingestion.md).

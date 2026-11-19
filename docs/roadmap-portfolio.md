@@ -89,3 +89,6 @@ côté FastAPI. **Ce sont des volumes, pas des diagnostics de défaut.**
 ### H17 — 19 novembre 2026 : projection opérateur
 
 La projection générée `catalog/generated/operator-inventory.json` relie la révision Backstage v2 au graphe natif (révision `operatorRevision` indépendante), conserve les réseaux, dépendances, phases de démarrage et les 139 correspondances Compose explicites. Les lecteurs de démarrage, arrêt, restauration, redéploiement et audit TrueNAS utilisent cette projection ; la recette des plans avant/après et la réception runtime restent NOT_RUN. Les anciens exports sont conservés temporairement exclusivement pour parité, anciennes versions FastAPI et rollback. Owner : H17 Compose ; supprimer les exports après preuve de parité, déploiement FastAPI et recherche de lecteurs résiduels. Aucun changement TrueNAS ni Cloudflare appliqué.
+
+
+- H13/F10 addendum (19/11): native FastAPI image import profile, staged-report resume with acknowledgement marker, and TLS pinned LAN import CODED; runtime/quality NOT_RUN. Preserve stage-only Cron; owner Compose + FastAPI must prove exact artifact, parser/engagement, Celery status, dedupe, RBAC and WAN isolation before scheduling imports. Prowler GitHub and full repository/ZAP imports remain separate private evidence paths; [runbook](defectdojo-private-scan-ingestion.md).

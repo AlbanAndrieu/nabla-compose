@@ -126,7 +126,7 @@ class AllRepositoriesContracts(unittest.TestCase):
             "fastapi-sample": (
                 "DEFECTDOJO_FASTAPI_SAMPLE_ENGAGEMENT_ID",
                 "/mnt/cpool/defectdojo/imports/fastapi-sample/fastapi-13-trivy.json",
-                "fastapi-sample",
+                "fastapi-sample-image",
             ),
             "bababou": (
                 "DEFECTDOJO_SITE_BABABOU_ENGAGEMENT_ID",
