@@ -245,6 +245,27 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
 
 **H18 · PLANNED** — [Même étude](roadmap-homeassistant-integrations.md) ; protocole des moteurs et modèle d'alarme à identifier.
 
+## Recommandations de la passe du 2026-11-20
+
+1. **Redéployer par lots dans une fenêtre de nuit.** Le plus gros écart de la
+   roadmap est `CODED` → `DEPLOYED` : Redis, Dozzle, Traefik puis CrowdSec,
+   les `mem_limit` (passes du 18 et du 20/11), dsomm, scrutiny et Sentry en LAN
+   attendent un redéploiement. Partir de
+   `just truenas-impacted-apps-plan <sha> master`, un lot à la fois, avec
+   `docker inspect` sur `HostConfig.Memory` après chaque lot.
+2. **Rendre le contrôle du catalogue bloquant avant fusion.** #416 et #418
+   passaient chacune leurs tests, mais leur combinaison a cassé `master`
+   (artefacts du catalogue V2 périmés), et aucun test ne tourne sur un push de
+   `master`. Le ruleset « Protect master » (géré par OpenTofu depuis #420)
+   n'exige que GitGuardian, sans branche à jour : y ajouter le job pre-commit
+   ou catalogue, avec `strict_required_status_checks_policy`, aurait refusé
+   la fusion de #418.
+3. **Rendre l'accès Talos au poste avant tout travail H01.** H01 est le
+   premier chantier de l'ordre validé, mais le `talosconfig` du poste est vide
+   et aucun kubeconfig Talos n'y est présent : ni reclaim ZFS, ni
+   NetworkPolicy, ni recette CSI ne peuvent se vérifier, alors que les VMs
+   tournent depuis le 19/11.
+
 ## Historique minimal : problèmes à ne pas reproduire
 
 Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrations-retour-experience.md) ; le tableau original est dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md). Aucune ancienne procédure n'autorise une mutation actuelle.
