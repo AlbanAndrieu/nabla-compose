@@ -92,3 +92,5 @@ La projection générée `catalog/generated/operator-inventory.json` relie la r�
 
 
 - H13/F10 addendum (19/11): native FastAPI image import profile, staged-report resume with acknowledgement marker, and TLS pinned LAN import CODED; runtime/quality NOT_RUN. Preserve stage-only Cron; owner Compose + FastAPI must prove exact artifact, parser/engagement, Celery status, dedupe, RBAC and WAN isolation before scheduling imports. Prowler GitHub and full repository/ZAP imports remain separate private evidence paths; [runbook](defectdojo-private-scan-ingestion.md).
+
+- H13/F10 : diagnostic privé de la collecte par phase et bootstrap App manifest documentés ; App créée/installée, premier téléchargement et import non vérifiés.

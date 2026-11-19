@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+from urllib.error import HTTPError
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/security"))
@@ -105,6 +106,21 @@ class GithubAppAuthContract(unittest.TestCase):
         self.assertEqual(json.loads(captured[0].data), {
             "repositories": ["nabla-site-alban"], "permissions": {"actions": "read"},
         })
+
+    def test_token_http_status_is_safe_without_response_body(self):
+        from github_actions_artifact_api import safe_reason
+        with (
+            mock.patch.object(app, "configuration", return_value=(5, 42)),
+            mock.patch.object(app, "make_jwt", return_value="fixture.jwt.signed"),
+            mock.patch.object(app.request, "build_opener") as factory,
+        ):
+            factory.return_value.open.side_effect = HTTPError(
+                "https://api.github.com/private", 404, "PRIVATE_BODY", {}, None
+            )
+            with self.assertRaises(app.GitHubArtifactError) as raised:
+                app.installation_token()
+            self.assertEqual(safe_reason(raised.exception), "APP_TOKEN_HTTP_404")
+        self.assertEqual(safe_reason(app.GitHubArtifactError("private fixture")), "UNCLASSIFIED")
 
     def test_reject_broad_permissions_or_repository(self):
         for response in (

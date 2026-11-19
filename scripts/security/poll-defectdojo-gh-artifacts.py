@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SECURITY = ROOT / "scripts/security"
 sys.path.insert(0, str(SECURITY))
 
-from github_actions_artifact_api import GitHubArtifactError, api, metadata  # noqa: E402
+from github_actions_artifact_api import GitHubArtifactError, api, metadata, safe_reason  # noqa: E402
 from github_app_auth import installation_token  # noqa: E402
 
 PULL = SECURITY / "pull-site-alban-security-report.py"
@@ -442,6 +442,7 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true")
     group.add_argument("--pull", action="store_true")
+    group.add_argument("--probe-auth", action="store_true", help="verify installation and workflow metadata only")
     group.add_argument("--pull-and-import", action="store_true")
     parser.add_argument("--source", choices=[*SOURCES, "all"], default="all")
     parser.add_argument("--kind", choices=["all", *WORKFLOWS], default="all")
@@ -475,14 +476,28 @@ def main() -> int:
         )
         if not kinds:
             continue
-        token = installation_token(config["repository"])
-        runs = latest_runs(token, source=source)
+        try:
+            token = installation_token(config["repository"])
+        except GitHubArtifactError as exc:
+            fail(f"{source}: phase=installation-token reason={safe_reason(exc)}")
+        print(f"{source}: phase=installation-token status=OK")
+        try:
+            runs = latest_runs(token, source=source)
+        except GitHubArtifactError as exc:
+            fail(f"{source}: phase=workflow-metadata reason={safe_reason(exc)}")
+        print(f"{source}: phase=workflow-metadata status=OK")
         for kind in kinds:
             run_id = runs.get(kind)
             if run_id is None:
                 print(f"NOT_OBSERVED: {source}/{kind} has no approved latest successful master run")
                 continue
-            result = stage(kind, run_id, source=source, token=token)
+            if args.probe_auth:
+                print(f"{source}/{kind}: eligible_run={run_id}; artifact=not_downloaded; import=not_attempted")
+                continue
+            try:
+                result = stage(kind, run_id, source=source, token=token)
+            except GitHubArtifactError as exc:
+                fail(f"{source}/{kind}: phase=artifact reason={safe_reason(exc)}")
             print(f"{source}/{kind}: {result}; run_id={run_id}; import=not_attempted")
             if args.pull_and_import and source == "fastapi-sample" and result in {"STAGED", "ALREADY_STAGED"}:
                 status = import_fastapi_staged(run_id)
@@ -495,5 +510,7 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (GitHubArtifactError, OSError, subprocess.TimeoutExpired):
-        raise SystemExit("REJECTED: artifact collector failure; no credentials disclosed") from None
+    except GitHubArtifactError as exc:
+        raise SystemExit(f"REJECTED: phase=collector reason={safe_reason(exc)}") from None
+    except (OSError, subprocess.TimeoutExpired):
+        raise SystemExit("REJECTED: phase=collector reason=LOCAL_IO_OR_TIMEOUT") from None
