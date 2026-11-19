@@ -1,3 +1,10 @@
+# [0.104.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.103.0...0.104.0) (2026-11-19)
+
+
+### Features
+
+* **security:** CTEM architecture, external TLS, mail and LAN-only model gateways ([#418](https://github.com/AlbanAndrieu/nabla-compose/issues/418)) ([63d4350](https://github.com/AlbanAndrieu/nabla-compose/commit/63d43509a3b23e0b84b15733fcc15c512b823e51))
+
 # [0.103.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.102.0...0.103.0) (2026-11-18)
 
 
