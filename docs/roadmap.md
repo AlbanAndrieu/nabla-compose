@@ -125,16 +125,16 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 - TrueNAS : prouver la disponibilité réelle (et non le seul état du conteneur), les ACL NFS, les secrets et les dépendances Postgres/ClickHouse.
 - **FastAPI Sample** : base `fastapisample` en `verify-full` (TLS 1.3), `healthy` le 13/11 ; ses erreurs arrivent dans Sentry (événement de test `083754a9`, issue 3), lisibles par le MCP Sentry de nabla-compose. Démarrage de 3 min 40 (trois pauses d'environ 1 min avant Unleash, Logfire et Sentry) à corriger dans fastapi-sample. [Diagnostic TrueNAS](runbooks/fastapi-sample-truenas-diagnostics.md). FastAPI Cloud `degraded` : voir le point 4 OVH ci-dessus.
 - FastAPI Sample : vérifier la parité API/UI et le mode OWNER, les cibles Prometheus, le routeur LiteLLM et la sélection du corpus OpenRAG privé ; test navigateur Chromium uniquement si disponible. [Diagnostic consolidé](runbooks/fastapi-consolidated-diagnostics-20261030.md).
-- Talos / Kubernetes : valider le retained smoke `democratic-csi` NFS, les trois nœuds Ready et les politiques NetworkPolicy avant nouveaux workloads. 10/11 : trois nœuds `Ready`, mais `truenas-csi-controller` en `Error` depuis 18 jours, aucun PVC ni NetworkPolicy ([passe du 10/11](runbooks/2026-11-10-roadmap-pass-blockers.md), Q7). [Préflight](kubernetes-csi-preflight.md).
+- Talos / Kubernetes : valider le retained smoke `democratic-csi` NFS, les trois nœuds Ready et les politiques NetworkPolicy avant nouveaux workloads. CSI réparé le 16/11 : suivi unique en H01 (point 1 de l'ordre d'exécution). [Préflight](kubernetes-csi-preflight.md).
 - Authentification et monitoring : réparer les exporters sans confondre un `401` Prometheus avec un `401` OpenClaw ; Gatus/Prometheus sont des preuves indépendantes.
 
-- pfSense / CrowdSec : preuve de chargement PF et rattachement WAN, suivis dans la [roadmap pfSense](pfsense/roadmap.md).
+- pfSense / CrowdSec : sans objet depuis le retrait du Netgate 1100 le 18/11 ; la [roadmap pfSense](pfsense/roadmap.md) garde l'historique.
 
 **Clôture** : `ACCEPTED (runtime)` sur le SHA déployé, avec date, source et un test négatif pour chaque frontière sensible ; sinon `NOT_VERIFIED`.
 
 ### H07 / H07b — pfSense
 
-Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité). Le même jour : [étude de décommissionnement de pfSense](pfsense/decommission-study.md), à trancher avant de commander le 4200. Sa phase 0 touche aussi des services TrueNAS (Traefik, Pi-hole, ddns-updater, Tailscale).
+Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité). Le même jour : [étude de décommissionnement de pfSense](pfsense/decommission-study.md), à trancher avant de commander le 4200. Sa phase 0 touche aussi des services TrueNAS (Traefik, Pi-hole, ddns-updater, Tailscale). 18/11 : le Netgate 1100 est retiré et aucun remplaçant n'est commandé ; la Freebox fait routeur, H07 est suspendu.
 
 ## P1 — Performance, stockage et restauration TrueNAS
 
@@ -192,8 +192,7 @@ Migration de dépôt **historiquement réceptionnée**. Les futurs travaux Gatew
 ## P1 — Assistants IA, IaC et observabilité (11 novembre 2026)
 
 - **H12** : OpenRAG/LiteLLM/Docling, embeddings workstation, clés virtuelles non maîtresses, corpus privé. [Runbook](runbooks/openrag-babou-ingestion-diagnostics.md).
-- **H05** : vérifier les exports `postgres-exporter`/`pg_up`, jobs Gatus/Prometheus et la fraîcheur ; aucun succès supposé à partir des chiffres du 11/11. [Remédiation](runbooks/2026-11-04-probe-remediation.md).
-  - 16/11 : `pg_up` = 1 (`postgres_exporter`, 172.17.0.24:9187). Les 13 cibles à `up=0` sont toutes `operational_state=planned`. Gatus : 66 moniteurs sur 67 en succès ; l'échec est Uptime Kuma (non déployée).
+- **H05** : suivi unique dans « P0 — Réception du catalogue et des sondes » ; `pg_up` = 1 le 16/11 (`postgres_exporter`, 172.17.0.24:9187).
 - États de livraison des assistants, clés LiteLLM, Slack et exporters : [archive datée](archive/2026-11-13-roadmap-before-compaction.md).
 
 ## H11 — scission des scripts opérateur et diagnostics (étude D0–D4)
