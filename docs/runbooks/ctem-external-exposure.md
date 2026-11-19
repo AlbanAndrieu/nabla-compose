@@ -31,6 +31,55 @@ pas configuré sans identification de l'outil exact. La note A/A+ n'est
 pas une preuve de conformité FIPS. Ne pas scanner l'origine d'un CDN
 en déduisant une IP mutualisée d'une réponse DNS.
 
+### Amass — inventaire passif, pas un scanner de vulnérabilités
+
+Le profil manuel `discovery` utilise Amass v5.1.3 (archive Linux amd64
+vérifiée par SHA-256 publié dans la release). Le moteur v5 utilise
+127.0.0.1:4000 : ne pas le lancer sur la workstation LiteLLM, ni partager
+le réseau hôte TrueNAS. Le runner GitHub éphémère ou une VM dédiée suffit.
+Aucun port entrant, aucun secret fournisseur, aucune connexion à Neo4j
+Security. La découverte passive est limitée aux apices du fichier
+`config/security/public-mail-domains.json` (inventaire encore partiel);
+`-rigid` interdit d'élargir le scope, sans brute force ni mode actif.
+Le job est borné; une interruption ou un export vide reste INCOMPLETE.
+
+Pour récupérer les noms, exécuter sur une **VM de confiance dédiée** :
+
+```bash
+umask 077
+mkdir -p "$HOME/ctem-private"
+bash scripts/security/install-pinned-amass.sh "$HOME/ctem-private/amass"
+python3 scripts/security/run-amass-inventory.py \
+  --amass "$HOME/ctem-private/amass" \
+  --output "$HOME/ctem-private/amass-summary.json" \
+  --private-output "$HOME/ctem-private/amass-candidates.json"
+```
+
+Utiliser des noms de rapports datés pour les runs suivants (écriture
+exclusive). GitHub ne reçoit que compteurs, version, scope et statut;
+les candidats détaillés restent dans le coffre de la VM. Comparer chaque
+nom aux zones DNS Cloudflare réellement contrôlées puis à Backstage.
+Ni port scan de l'IP résolue d'un CDN, ni extension automatique de la
+liste de cibles, ni mutation de catalogue. Accepter le premier run manuel
+avant d'ajouter une cadence hebdomadaire et un transfert privé.
+
+**DefectDojo :** ne pas importer les noms Amass comme vulnérabilités.
+Une exposition inattendue doit être vérifiée et triée, puis un finding
+qualifié issu de Nuclei ou d'un contrôle d'exposition validé peut rejoindre
+un Test stable du produit CTEM via le collecteur privé
+`scripts/security/import-scan-defectdojo.sh`.
+Le parseur, le mapping de produit/engagement et la déduplication doivent
+être confirmés avant d'élargir l'allowlist. La policy de Compose n'autorise
+pas encore Nuclei pour ce producteur; aucune exception globale ni import
+automatique n'est ajouté. Préserver `close_old_findings=false` tant que
+la couverture est partielle. L'inventaire et les écarts non confirmés
+restent des observations Backstage/CTEM, pas des findings DefectDojo.
+
+La présence de `/wp-login.php` et `/wp-admin/` dans les contrôles HEAD
+est une détection de résidu : WordPress a été retiré du dépôt le 5/11
+([historique](2026-11-04-probe-remediation.md)). Aucun WordPress actif
+n'est présumé et aucune réinstallation n'est prévue.
+
 ### Messagerie
 
 `config/security/public-mail-domains.json` contient albandrieu.com,

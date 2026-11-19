@@ -12,6 +12,7 @@ on:
         default: mail
         options:
           - mail
+          - discovery
           - nuclei
           - network
           - tls
@@ -320,5 +321,31 @@ jobs:
         with:
           name: public-mail-deep-${{ github.run_id }}
           path: public-mail-deep.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  amass-discovery:
+    name: Passive Amass asset inventory (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scan_profile == 'discovery' || inputs.scan_profile == 'all') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout reviewed scope
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install reviewed Amass release and verify archive
+        run: |
+          bash scripts/security/install-pinned-amass.sh "${RUNNER_TEMP}/amass"
+      - name: Discover owned-domain candidates only
+        run: |
+          python3 scripts/security/run-amass-inventory.py \
+            --amass "${RUNNER_TEMP}/amass" --output public-amass-summary.json
+      - name: Upload counts only, never discovered names or raw graph
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-amass-summary-${{ github.run_id }}
+          path: public-amass-summary.json
           retention-days: 7
           if-no-files-found: warn
