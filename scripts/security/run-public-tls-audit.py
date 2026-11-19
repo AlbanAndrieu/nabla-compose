@@ -46,7 +46,7 @@ def audit(scanner: Path) -> dict:
     with tempfile.TemporaryDirectory(prefix="ctem-tls-") as folder:
         for index, target in enumerate(TARGETS):
             raw = Path(folder) / f"report-{index}.json"
-            result = {"target": target, "status": "INCOMPLETE", "findings": []}
+            result = {"target": target, "status": "INCOMPLETE", "findings": [], "error": None}
             try:
                 process = subprocess.run(
                     ["bash", str(scanner), "--warnings", "batch", "--color", "0",
@@ -58,8 +58,8 @@ def audit(scanner: Path) -> dict:
                     result["findings"] = project_report(raw)
                     if not any(row["severity"] == "FATAL" for row in result["findings"]):
                         result["status"] = "OBSERVED_NOT_CERTIFIED"
-            except (OSError, subprocess.TimeoutExpired, ValueError):
-                pass
+            except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
+                result["error"] = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
             results.append(result)
     incomplete = any(row["status"] == "INCOMPLETE" for row in results)
     return {"vantage": "external-runner-required",
