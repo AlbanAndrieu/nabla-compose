@@ -66,11 +66,19 @@ resource "github_repository" "managed" {
   }
 }
 
+# Adopt rulesets created through the API before this module managed them.
+import {
+  for_each = var.github_governance_enabled && var.manage_rulesets ? var.ruleset_import_ids : {}
+
+  to = github_repository_ruleset.default_branch[each.key]
+  id = "${each.key}:${each.value}"
+}
+
 resource "github_repository_ruleset" "default_branch" {
   for_each = var.github_governance_enabled && var.manage_rulesets ? var.repositories : {}
 
   repository  = each.key
-  name        = "nabla-default-branch"
+  name        = "Protect master"
   target      = "branch"
   enforcement = var.ruleset_enforcement
 
@@ -92,8 +100,9 @@ resource "github_repository_ruleset" "default_branch" {
   }
 
   rules {
-    deletion         = true
-    non_fast_forward = true
+    deletion                = true
+    non_fast_forward        = true
+    required_linear_history = true
 
     pull_request {
       allowed_merge_methods             = sort(tolist(each.value.allowed_merge_methods))
@@ -110,12 +119,14 @@ resource "github_repository_ruleset" "default_branch" {
       content {
         # Intentionally mirrors "Require branches to be up to date before merging" = OFF.
         strict_required_status_checks_policy = false
+        do_not_enforce_on_create             = true
 
         dynamic "required_check" {
           for_each = required_status_checks.value
 
           content {
-            context = required_check.value
+            context        = required_check.key
+            integration_id = required_check.value
           }
         }
       }
