@@ -9,6 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 GRAFANA = ROOT / "apps" / "grafana"
 PFSENSE_DASHBOARDS = GRAFANA / "config" / "dashboards" / "pfsense"
+# pfSense is disabled in the catalog since 19/11/2026: its rules stay versioned but unloaded.
+PFSENSE_DISABLED_RULES = ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.disabled.yml"
 
 
 class ObservabilityContractTests(unittest.TestCase):
@@ -163,13 +165,9 @@ class ObservabilityContractTests(unittest.TestCase):
             ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
         ).read_text(encoding="utf-8")
 
-        job = prometheus.split("- job_name: pfsense_exporter", 1)[1].split(
-            "\n  - job_name:",
-            1,
-        )[0]
-        self.assertIn("scrape_interval: 300s", job)
-        self.assertIn("scrape_timeout: 30s", job)
-        self.assertNotIn("scrape_interval: 15s", job)
+        # Disabled: no scrape, so the exporter never calls 172.17.0.1 (now the R7000).
+        # Re-enabling restores the 300s interval and 30s timeout of the 1100 budget.
+        self.assertNotIn("- job_name: pfsense_exporter", prometheus)
 
         exporter = compose.split("\n  pfsense-exporter:\n", 1)[1].split(
             "\nnetworks:",
@@ -214,7 +212,6 @@ class ObservabilityContractTests(unittest.TestCase):
             "postgres_exporter": "172.17.0.24:9187",
             "redis_exporter": "redis_exporter:9121",
             "influxdb": "influxdb:8086",
-            "pfsense_exporter": "172.17.0.24:9945",
             "haproxy": "172.17.0.24:9101",
             "opensearch": "172.17.0.24:9114",
             "opensearch-security": "172.17.0.24:9115",
@@ -225,6 +222,7 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn(target, prometheus)
 
         self.assertNotIn("- job_name: sybase", prometheus)
+        self.assertNotIn("- job_name: pfsense_exporter", prometheus)
         self.assertNotIn("172.17.0.24:9113", prometheus)
         self.assertIn("- job_name: clickhouse", prometheus)
         self.assertIn("172.17.0.24:9363", prometheus)
@@ -289,9 +287,7 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("TrueNASCAdvisorDown", disabled_rules)
 
     def test_pfsense_alerts_use_scrape_and_real_metric_health(self) -> None:
-        rules = (
-            ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
-        ).read_text(encoding="utf-8")
+        rules = PFSENSE_DISABLED_RULES.read_text(encoding="utf-8")
 
         self.assertIn('up{job="pfsense_exporter"} == 0', rules)
         self.assertIn(
@@ -301,9 +297,7 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertNotIn("pfsense_info", rules)
 
     def test_pfsense_memory_headroom_alerts_match_capacity_contract(self) -> None:
-        rules = (
-            ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules.yml"
-        ).read_text(encoding="utf-8")
+        rules = PFSENSE_DISABLED_RULES.read_text(encoding="utf-8")
         core = (
             ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
         ).read_text(encoding="utf-8")
@@ -318,11 +312,12 @@ class ObservabilityContractTests(unittest.TestCase):
             'pfsense_system_memory_usage_ratio{job="pfsense_exporter"} > 0.94',
             rules,
         )
-        self.assertIn("nabla:core:pfsense_memory_available_ratio", core)
+        self.assertIn("nabla:core:pfsense_memory_available_ratio", rules)
         self.assertIn(
             '1 - max(pfsense_system_memory_usage_ratio{job="pfsense_exporter"})',
-            core,
+            rules,
         )
+        self.assertNotIn("pfsense", core)
 
     def test_akvorado_netflow_pipeline_is_scraped_alerted_and_provisioned(self) -> None:
         compose = (
@@ -384,8 +379,6 @@ class ObservabilityContractTests(unittest.TestCase):
         for alert in (
             "AkvoradoInletMetricsDown",
             "AkvoradoOutletMetricsDown",
-            "AkvoradoPfSenseExporterMissing",
-            "AkvoradoPfSenseFlowSilent",
             "AkvoradoInletUDPErrors",
             "AkvoradoInletUDPDrops",
             "AkvoradoInletKafkaErrors",
@@ -394,6 +387,10 @@ class ObservabilityContractTests(unittest.TestCase):
             "AkvoradoFlowPipelineStalled",
         ):
             self.assertIn(alert, rules)
+        disabled = PFSENSE_DISABLED_RULES.read_text(encoding="utf-8")
+        for alert in ("AkvoradoPfSenseExporterMissing", "AkvoradoPfSenseFlowSilent"):
+            self.assertNotIn(alert, rules)
+            self.assertIn(alert, disabled)
 
         self.assertEqual(dashboard["uid"], "nabla_pfsense_netflow_akvorado")
         self.assertEqual(dashboard["title"], "pfSense NetFlow/IPFIX → Akvorado")
@@ -444,12 +441,12 @@ class ObservabilityContractTests(unittest.TestCase):
         for metric in (
             "nabla:core:truenas_memory_available_ratio",
             "nabla:core:truenas_cpu_busy_ratio",
-            "nabla:telemetry:pfsense_metrics_up",
             "nabla:telemetry:truenas_node_up",
             "nabla:observability:prometheus_up",
         ):
             self.assertIn(metric, rules)
         self.assertNotIn("nabla:telemetry:truenas_cadvisor_up", rules)
+        self.assertNotIn("nabla:telemetry:pfsense_metrics_up", rules)
 
     def test_gatus_metrics_separate_monitor_and_service_identity(self) -> None:
         prometheus = (
@@ -518,7 +515,7 @@ class ObservabilityContractTests(unittest.TestCase):
     def test_exporter_loss_is_a_telemetry_warning_not_platform_failure(self) -> None:
         rules_dir = ROOT / "apps" / "prometheus" / "rules"
         for relative in (
-            "pfsense.rules.yml",
+            PFSENSE_DISABLED_RULES.name,
             "node-exporter.rules.yml",
         ):
             rules = (rules_dir / relative).read_text(encoding="utf-8")

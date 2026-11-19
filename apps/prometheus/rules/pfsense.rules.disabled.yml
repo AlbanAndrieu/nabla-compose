@@ -1,7 +1,15 @@
 ---
+# Not loaded: Prometheus only reads rules/*.rules.yml. pfSense is disabled in the
+# catalog since 19/11/2026 (Netgate 1100 removed). Re-enable: docs/pfsense/README.md.
 groups:
   - name: pfSense
     rules:
+      - record: nabla:telemetry:pfsense_metrics_up
+        expr: max(up{job="pfsense_exporter"})
+
+      - record: nabla:core:pfsense_memory_available_ratio
+        expr: 1 - max(pfsense_system_memory_usage_ratio{job="pfsense_exporter"})
+
       - alert: pfSenseExporterDown
         expr: up{job="pfsense_exporter"} == 0
         for: 2m
@@ -52,3 +60,33 @@ groups:
             pfSense memory usage has remained above 94% for two minutes,
             approximately the 64 MiB critical free-memory guardrail on the
             current Netgate 1100. OOM/reclaim failures are likely if pressure grows.
+
+  - name: AkvoradoPfSenseFlow
+    rules:
+      - alert: AkvoradoPfSenseExporterMissing
+        expr: >-
+          absent(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"})
+        for: 5m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: pfSense exporter is missing from Akvorado
+          description: >-
+            Akvorado has exposed no UDP packet counter for exporter 172.17.0.1
+            for five minutes. Verify pflow and the 172.17.0.24:2055/udp path.
+
+      - alert: AkvoradoPfSenseFlowSilent
+        expr: >-
+          sum(increase(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          scope: network-flow
+          impact: degraded
+        annotations:
+          summary: pfSense IPFIX flow stream is silent
+          description: >-
+            The expected pfSense exporter is known to Akvorado but its UDP
+            packet counter has not increased for ten minutes.

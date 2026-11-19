@@ -2,6 +2,21 @@
 
 Tout ce qui concerne le pare-feu pfSense (Netgate 1100, bientôt Netgate 4200 MAX) est regroupé ici depuis le 17/11/2026. Objectif : pouvoir extraire pfSense vers un dépôt GitHub `nabla-pfsense` sans tout retrier. L'étude D3 de H11 est dans la [roadmap Compose](../roadmap.md#h11--scission-des-scripts-opérateur-et-diagnostics-étude-d0d4), et la règle de propriété dans l'[ADR-0003](../adr/0003-repository-ownership-and-diagnostics.md).
 
+## État au 19/11/2026 : pfSense désactivé
+
+Le Netgate 1100 ne démarre plus depuis le 18/11 ; le Netgear R7000 tient maintenant `172.17.0.1` derrière la Freebox. pfSense est donc déclaré `disabled`, sans rien supprimer (`CODED`, `TESTED` hors ligne, `NOT_DEPLOYED` : la synchronisation TrueNAS et le rechargement de Prometheus restent à faire) :
+
+- **Catalogue** : `resource:default/pfsense` porte `albandrieu.com/operational-state: disabled`, et son nœud `x-nabla` `status: disabled`. Les générateurs retirent sa sonde Gatus et AutoKuma (`172.17.0.1:10443`), et Homarr le garde hors synchronisation. Le conteneur `pfsense-exporter` reste `active` : il tourne dans l'App Prometheus, sa sonde TCP reste verte, et une App TrueNAS n'admet qu'un état (le sortir de l'App, comme cAdvisor dans `apps/cadvisor/disabled.yml`, est une étape à part).
+- **Prometheus** : le job `pfsense_exporter` est retiré, car il faisait appeler `172.17.0.1` (désormais le R7000) avec la clé d'API pfSense. Les alertes et règles d'enregistrement pfSense, y compris `AkvoradoPfSenseExporterMissing` et `AkvoradoPfSenseFlowSilent`, sont dans [`pfsense.rules.disabled.yml`](../../apps/prometheus/rules/pfsense.rules.disabled.yml), que le glob `*.rules.yml` ne charge pas.
+- **Inchangé** : l'exporter HAProxy reste `planned` (sans alerte), les tableaux de bord Grafana, la réception syslog d'Alloy, Akvorado et les scripts `scripts/pfsense/` restent en place.
+- **À faire sur TrueNAS** : mettre en pause les éventuels moniteurs pfSense d'Uptime Kuma : AutoKuma est encore `planned`, donc le fichier généré ne pilote pas Uptime Kuma (non vérifié le 19/11, Uptime Kuma injoignable par MCP).
+
+### Réactiver pour un nouveau pfSense
+
+1. Revenir le commit `fix(pfsense): disable pfSense monitoring after the Netgate 1100 loss` (`git revert`). Il remet d'un coup les états `active`, le job (300 s d'intervalle, 30 s de délai) et les règles, ainsi que les contrats de test qui les vérifient.
+2. Régénérer : `just topology-artifacts-refresh`, puis `just topology-generators-check`.
+3. Réception : `bash scripts/pfsense/reconcile-split-dns.sh --check`, puis `check-drift.sh`.
+
 ## Contenu
 
 - [Roadmap pfSense](roadmap.md) : sécurité, écarts H07, stabilisation H07b et remplacement du 1100, historique P0 du 15/11.

@@ -438,16 +438,6 @@ endpoints:
   url: tcp://172.17.0.24:31028
   conditions:
   - '[CONNECTED] == true'
-- name: pfSense
-  group: network
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: pfsense
-    nabla_service_id: pfsense
-    nabla_entity_ref: resource:default/pfsense
-  url: tcp://172.17.0.1:10443
-  conditions:
-  - '[CONNECTED] == true'
 - name: pfSense Exporter
   group: observability
   interval: 60s

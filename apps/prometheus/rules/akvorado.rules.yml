@@ -58,34 +58,6 @@ groups:
           description: >-
             Prometheus cannot scrape the Akvorado outlet for two minutes.
 
-      - alert: AkvoradoPfSenseExporterMissing
-        expr: >-
-          absent(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"})
-        for: 5m
-        labels:
-          severity: warning
-          scope: network-flow
-          impact: degraded
-        annotations:
-          summary: pfSense exporter is missing from Akvorado
-          description: >-
-            Akvorado has exposed no UDP packet counter for exporter 172.17.0.1
-            for five minutes. Verify pflow and the 172.17.0.24:2055/udp path.
-
-      - alert: AkvoradoPfSenseFlowSilent
-        expr: >-
-          sum(increase(akvorado_inlet_flow_input_udp_packets_total{job="akvorado_inlet",exporter="172.17.0.1"}[10m])) == 0
-        for: 10m
-        labels:
-          severity: warning
-          scope: network-flow
-          impact: degraded
-        annotations:
-          summary: pfSense IPFIX flow stream is silent
-          description: >-
-            The expected pfSense exporter is known to Akvorado but its UDP
-            packet counter has not increased for ten minutes.
-
       - alert: AkvoradoInletUDPErrors
         expr: >-
           sum(increase(akvorado_inlet_flow_input_udp_errors_total{job="akvorado_inlet"}[5m])) > 0

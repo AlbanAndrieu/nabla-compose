@@ -71,7 +71,6 @@ def test_fastapi_observability_recording_rules_match_consumer_contract() -> None
         "nabla:telemetry:alertmanager_up",
         "nabla:service:postgres_up",
         "nabla:service:redis_up",
-        "nabla:core:pfsense_memory_available_ratio",
     }
     assert expected <= set(records)
     assert 'pg_up{job="postgres_exporter"}' in records["nabla:service:postgres_up"]
