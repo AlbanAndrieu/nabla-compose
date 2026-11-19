@@ -40,6 +40,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: redis
     restart: unless-stopped
+    mem_limit: 128m
     # REDIS_AUTH comes from the container env, not Compose interpolation of a
     # project .env (Q18). Re-entering the entrypoint keeps the drop to the redis
     # user. Fail closed: an empty REDIS_AUTH must not start Redis without a password.
@@ -83,6 +84,7 @@ services:
     image: oliver006/redis_exporter:latest
     container_name: redis_exporter
     restart: unless-stopped
+    mem_limit: 128m
     # REDIS_PASSWORD is rendered from the same Vaultwarden field as REDIS_AUTH.
     env_file:
       - /mnt/cpool/secrets/runtime/redis/.env.secrets

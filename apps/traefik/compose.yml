@@ -28,6 +28,7 @@ services:
     image: docker.io/traefik:v3.7.0
     container_name: traefik
     restart: unless-stopped
+    mem_limit: 256m
     x-nabla:
       id: traefik
       name: Traefik
@@ -194,6 +195,7 @@ services:
     # Optional. This bypasses network isolation and makes IPv6 easier.
     # See "Use IPv6 without sharing the host network".
     restart: always
+    mem_limit: 128m
     # Restart the updater after reboot
     # user: "1000:1000"
     # Run the updater with specific user and group IDs (in that order).
@@ -235,6 +237,7 @@ services:
     image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:7.4.0
     container_name: dnsupdater
     restart: unless-stopped
+    mem_limit: 192m
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file:
