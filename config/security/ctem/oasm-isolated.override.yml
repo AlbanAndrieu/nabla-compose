@@ -1,0 +1,12 @@
+---
+# Apply ONLY in a separately administered, disposable OASM VM.
+# Upstream oasm-docker 56dc2c657743200363b65cf2168ae4f91d0a953c.
+# Docker Compose >= 2.24.4 for !override. Worker controls that VM's Docker engine;
+# never run this override against the TrueNAS, workstation or Talos engine.
+services:
+  console:
+    ports: !override
+      - "127.0.0.1:6276:80"
+  core-api:
+    ports: !override
+      - "127.0.0.1:16276:16276"

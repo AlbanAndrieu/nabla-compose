@@ -29,6 +29,8 @@ retired_hostnames:
   - nexus-albandrieu.albandrieu.com
   - ntopng-albandrieu.albandrieu.com
   - ollama-gpu-albandrieu.albandrieu.com
+  - ollama-gpu.albandrieu.com
+  - ollama.albandrieu.com
   - pihole.albandrieu.com
   - plumber-albandrieu.albandrieu.com
   - portracker-albandrieu.albandrieu.com

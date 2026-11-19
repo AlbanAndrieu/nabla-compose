@@ -1,0 +1,165 @@
+# Runbook CTEM — installation, exécution, réception
+
+Décision : [ADR 0004](../adr/0004-ctem.md). Le workflow existant
+`external-attack-surface.yml` est le point d'entrée outside-in. Toute
+mesure requiert périmètre, date, révision, scanner et conclusion.
+Aucune des opérations runtime décrites ci-dessous n'a été exécutée
+dans cette contribution API-only.
+
+## 1. Campagnes externes et intégration
+
+Dans [External attack surface](https://github.com/AlbanAndrieu/nabla-compose/actions/workflows/external-attack-surface.yml),
+après fusion et validation du workflow :
+- `mail` : audit DNS natif et job indépendant checkdmarc 6.0.3 / Nuclei DNS (templates épinglés SPF et DMARC, DKIM uniquement sur sélecteurs renseignés) ; compléter la liste depuis les zones Cloudflare réellement possédées et confirmer les fournisseurs. Pas de découverte par dictionnaire de sélecteurs ni de données TXT publiées.
+- `nuclei` : HTTP borné, résultats minimisés; les alias épinglés et IP
+  directes nécessitent `confirm_wan=true` après vérification de la propriété.
+- `network` : TCP sur ports sélectionnés uniquement; confirmer le WAN,
+  sinon le résultat ports est NOT_RUN_OR_INCOMPLETE; les observations
+  TLS de base et HEAD peuvent rester utiles.
+- `tls` : testssl.sh sur noms HTTPS publics connus, protocole, ciphers,
+  préférences, certificat et forward secrecy. Pin de la branche stable 3.2
+  au commit adf4dd45ed5a1a0e29097b747cbfc43d7b193821 ; mise à jour revue.
+  Le JSON public ne conserve que IDs/sévérités, pas les données brutes.
+- `all` : déclenchement manuel groupé; pas un gate de chaque PR.
+
+Conserver Nmap XML, rapports TLS et Nuclei complets dans un coffre local
+chiffré quand une analyse détaillée est nécessaire. Pour un certificat
+non validé, distinguer expiration, SAN/hostname, chaîne, timeout et
+frontend CDN/origine. Comparer SSL Labs (soumission manuelle uniquement,
+désactiver la publication du résultat), SSLyze et testssl; SSLCheck n'est
+pas configuré sans identification de l'outil exact. La note A/A+ n'est
+pas une preuve de conformité FIPS. Ne pas scanner l'origine d'un CDN
+en déduisant une IP mutualisée d'une réponse DNS.
+
+### Messagerie
+
+`config/security/public-mail-domains.json` contient albandrieu.com,
+albanandrieu.com, bababou.com. Tous sont encore `unverified`; la liste
+n'atteste pas toutes les zones détenues. Ajouter domaines d'envoi, domaines
+de stationnement et sous-domaines de messagerie explicitement.
+Vérifier les sélecteurs DKIM depuis chaque fournisseur, pas par liste
+devinée. Pour contrôle approfondi, sur runner extérieur de confiance :
+
+```bash
+umask 077
+python3 -m venv /tmp/ctem-mail
+/tmp/ctem-mail/bin/pip install 'checkdmarc==6.0.3'
+/tmp/ctem-mail/bin/checkdmarc albandrieu.com albanandrieu.com bababou.com \
+  --skip-tls -f json -o /tmp/ctem-mail-private.json
+```
+
+Le rapport checkdmarc (SPF lookup limit, DMARC, MX/STARTTLS, MTA-STS,
+TLS-RPT, DNSSEC selon version) peut comporter TXT et adresses : ne pas
+publier son JSON brut. Nuclei DNS `spf-limit-lookup` et les détections SPF/DMARC sont des signaux
+complémentaires, pas un substitut au validateur ni à DKIM. Collecter
+`rua` avec parsedmarc dans un premier temps, puis définir p/sp=reject
+après contrôle d'alignement. Aucun changement DNS mail automatique.
+
+### LiteLLM et Ollama — LAN uniquement
+
+Retrait des routes Cloudflare Ollama et Ollama GPU ; le bind TrueNAS
+est limité à l'adresse LAN déclarée. Vérifier cette adresse après
+changement de routeur. Examiner les routes, NAT, UPnP, Cloudflare,
+workstation et règles Docker/Traefik; un bind LAN n'est pas une preuve
+d'absence de redirection WAN. LiteLLM était déjà déclaré LAN-only.
+
+Appliquer via le circuit Terraform Cloudflare existant, **plan avant apply**.
+Si les deux CNAME sont déjà dans l'état `tunnel[...]`, supprimer les routes
+doit produire leur destruction dans le plan. Sinon recueillir les IDs live
+et suivre le workflow existant adopt/retire dans
+[README Cloudflare](../../terraform/cloudflare/README.md). Ne pas importer
+une deuxième fois un ID déjà dans l'état. Vérifier aussi les éventuelles
+routes workstation indépendantes. Après apply, refaire les contrôles
+HEAD publics; LAN et dépendances locales doivent continuer à fonctionner.
+Régénérer les sorties Backstage/consommateurs depuis les sources après
+coordination avec la PR #416; ne pas publier d'artefacts désynchronisés.
+
+## 2. Cartography et Neo4j Security
+
+Réutiliser `apps/neo4j/compose.yml` et `apps/cartography/compose.yml`;
+Neo4j doit être authentifié, dataset persistant, uniquement LAN/intranet.
+Les deux services étaient déclarés planned. Déployer Neo4j par le circuit
+TrueNAS Apps versionné existant après contrôle du secret, des datasets,
+de la mémoire et des ports. Vérifier que Neo4j répond et valider la connexion
+avant de lancer la première ingestion.
+
+Cartography est un **job one-shot**, pas un daemon à démarrer sans provider.
+Une fois l'identité fournisseur dédiée lecture seule et les variables
+`NEO4J_PASSWORD` / `GITHUB_CONFIG` matérialisées dans son fichier runtime
+privé, utiliser depuis l'hôte autorisé :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo docker compose -f apps/cartography/compose.yml --profile manual config --quiet
+sudo docker compose -f apps/cartography/compose.yml --profile manual run --rm cartography \
+  --selected-modules github --neo4j-uri bolt://neo4j-security:7687 \
+  --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD \
+  --github-config-env-var GITHUB_CONFIG
+```
+
+Confirmer les options avec `--help` sur l'image réelle et l'identité GitHub
+dédiée. Ne pas lancer tous les modules ni monter un kubeconfig admin.
+Accepter seulement après une synchronisation terminée, graphe non vide,
+scope vérifié et absence de secret dans les logs. Ajouter la cadence
+ensuite; paramètres de GitHub selon [Cartography CLI](https://docs.cartography.dev/usage/cli.html).
+
+## 3. Prowler
+
+Ancien `compose.prowler.yml` : ne pas déployer ses ports API/UI/MCP.
+La nouvelle configuration
+`config/security/ctem/prowler.compose.yml` est un job manuel CLI.
+Créer le dataset rapports dédié, vérifier propriétaire/permissions et
+matérialiser les seules variables nécessaires au tenant pilote dans Vaultwarden.
+Pas de credentiels administrateur et pas de socket Docker dans le conteneur.
+Image CLI tag 5.50.0 vérifié sur Docker Hub; verrouiller le digest après pull.
+
+```bash
+sudo docker compose -f config/security/ctem/prowler.compose.yml --profile manual config --quiet
+sudo docker compose -f config/security/ctem/prowler.compose.yml --profile manual run --rm prowler azure --help
+sudo docker compose -f config/security/ctem/prowler.compose.yml --profile manual run --rm prowler azure -M json-ocsf -o /output
+```
+
+Exécuter sur tenant explicitement autorisé, droits minimaux; M365/Entra
+et Kubernetes ont leurs identités, permissions et scopes distincts.
+Ne pas présumer d'une couverture équivalente ni déployer Server Prowler
+avant mesure RAM/stockage. Parser DefectDojo et mapping OCSF à accepter.
+
+## 4. OASM
+
+Le dépôt officiel `oasm-platform/oasm-docker` au commit
+`56dc2c657743200363b65cf2168ae4f91d0a953c` utilise un worker avec socket
+Docker, PostgreSQL 18, Redis, RustFS, API, console, migration et GeoIP.
+Lancer exclusivement sur une **VM dédiée isolée**, disposant de son
+moteur Docker propre, egress filtré et sans accès aux secrets/volumes
+TrueNAS. Pas de socket TrueNAS ni de montage kubeconfig. Le POC utilise
+ses dépendances isolées à cause de cette frontière de confiance; réévaluer
+la réutilisation des services seulement après preuve d'isolation.
+Le Compose contient des versions flottantes et des secrets par défaut,
+et une clé OASM Cloud obligatoire : il faut valider le fonctionnement sans
+export des données privées et verrouiller tous les digests avant lancement.
+Ne pas exécuter `make`/quick-start tel quel.
+
+`config/security/ctem/oasm-isolated.override.yml` limite la console et
+l'API à loopback. Vérifier la version Compose et toutes les autres
+publications, générer des secrets uniques dans le coffre, vérifier que
+`docker compose config --quiet` passe sans afficher les valeurs,
+puis démarrer sur la VM seulement. Prévoir CPU/RAM/stockage dédiés.
+Ne pas déployer un service TrueNAS non revu. L'acceptation doit prouver
+les limites de scan, les permissions et une exportation minimisée
+vers l'inventaire/DefectDojo. Aucun OASM cloud API key provisionné.
+
+## 5. Critères de clôture
+
+Les comptes d'actifs, expositions divergence, findings actifs par gravité,
+freshness, durée de résolution, couverture par type de scanner et échecs
+de jobs doivent rester séparés. Implémenter l'adaptation FastAPI dans son
+dépôt après versionnement du contrat et contrôles de visibilité. Importer
+uniquement les formats compatibles via le collecteur privé DefectDojo
+existant; ne pas élargir ses allowlists sans vérifier les parsers et la
+déduplication. Backstage garde l'intention; OASM et Cartography enrichissent
+avec observations, jamais avec une mutation automatique du catalogue.
+
+Prochaines preuves: quality gate, plan Cloudflare, catalogue généré,
+récupération des artefacts GitHub, Nmap/TLS/DMARC réels, sync Cartography,
+scan Prowler et POC OASM sur infrastructure dédiée. Statut NOT_RUN tant
+que ces observations ne sont pas enregistrées.

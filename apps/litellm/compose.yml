@@ -82,6 +82,7 @@ services:
       - name: web
         target: 4000
         published: "4000"
+        host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http
     # All proxy credentials and upstream keys come from the canonical runtime

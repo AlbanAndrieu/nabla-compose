@@ -1,0 +1,15 @@
+id: ctem-dkim-published
+info:
+  name: Known DKIM selector - public key signal
+  author: nabla
+  severity: info
+  description: Query only provider-confirmed selector FQDNs.
+  tags: dns,dkim,email
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: regex
+        part: answer
+        regex:
+          - '(?i)(^|[;\s"])p=[A-Za-z0-9+/=]+'
