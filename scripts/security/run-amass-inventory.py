@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import socket
 import subprocess
 import tempfile
@@ -16,6 +17,8 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = "5.1.3"
 SCOPE = ROOT / "config/security/public-mail-domains.json"
+CATALOG = ROOT / "catalog/generated/entities.json"
+EXPOSURE_POLICY = ROOT / "scripts/security/check-public-exposure-paths.py"
 DNS_NAME = re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 MAX_NAMES_BYTES = 2 * 1024 * 1024
 
@@ -49,6 +52,107 @@ def project_names(raw: str, domains: list[str]) -> tuple[list[dict], int]:
             "status": "CANDIDATE_REVIEW_REQUIRED",
         }
     return [candidates[name] for name in sorted(candidates)], rejected
+
+
+def reconcile_catalog(
+    payload: dict, candidates: list[dict], domains: list[str], lan_only: set[str]
+) -> tuple[dict, list[dict], list[dict]]:
+    """Join exact declared hostnames. Neither discovery nor a match proves access."""
+    revision = payload.get("catalogRevision")
+    if (
+        payload.get("schemaVersion") != 2
+        or payload.get("model") != "backstage"
+        or not isinstance(revision, str)
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", revision)
+        or not isinstance(payload.get("entities"), list)
+    ):
+        raise ValueError("invalid Backstage v2 catalog")
+    index: dict[str, list[dict]] = {}
+    seen_refs = set()
+    for entity in payload["entities"]:
+        ref = entity["entityRef"]
+        if not isinstance(ref, str) or not ref or ref in seen_refs:
+            raise ValueError("invalid or duplicate entityRef")
+        seen_refs.add(ref)
+        annotations = entity["metadata"].get("annotations", {})
+        slug = annotations.get("github.com/project-slug")
+        slug = (
+            slug
+            if isinstance(slug, str)
+            and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", slug)
+            else None
+        )
+        for exposure in entity.get("x-nabla", {}).get("exposure", []):
+            for raw in exposure.get("hostnames", []):
+                hostname = raw.lower().removesuffix(".")
+                if not DNS_NAME.fullmatch(hostname):
+                    # A wildcard or other non-exact binding is never expanded.
+                    continue
+                if not any(hostname == d or hostname.endswith("." + d) for d in domains):
+                    continue
+                access = exposure.get("access") or {}
+                required = access.get("required")
+                row = {
+                    "entityRef": ref,
+                    "declaredGithubProject": slug,
+                    "visibility": exposure.get("visibility"),
+                    "accessRequired": required if isinstance(required, bool) else None,
+                }
+                if row not in index.setdefault(hostname, []):
+                    index[hostname].append(row)
+    # Explicit operator LAN-only aliases override stale generated public intent,
+    # including names that have already disappeared from the catalog.
+    conflicts = [
+        {"hostname": name, "catalogMatches": index[name]}
+        for name in sorted(lan_only & index.keys())
+        if any(row["visibility"] == "public" for row in index[name])
+    ]
+    enriched = []
+    counts = {
+        "MATCHED_PUBLIC_INTENT": 0,
+        "LAN_ONLY_POLICY_REVIEW": 0,
+        "NON_PUBLIC_INTENT_REVIEW": 0,
+        "AMBIGUOUS_ENTITY_REVIEW": 0,
+        "UNMAPPED_REVIEW": 0,
+    }
+    missing_project_count = 0
+    for candidate in candidates:
+        hostname = candidate["hostname"]
+        matches = index.get(hostname, [])
+        if hostname in lan_only:
+            state = "LAN_ONLY_POLICY_REVIEW"
+        elif not matches:
+            state = "UNMAPPED_REVIEW"
+        elif len({row["entityRef"] for row in matches}) != 1:
+            state = "AMBIGUOUS_ENTITY_REVIEW"
+        elif any(row["visibility"] != "public" for row in matches):
+            state = "NON_PUBLIC_INTENT_REVIEW"
+        else:
+            state = "MATCHED_PUBLIC_INTENT"
+        counts[state] += 1
+        if matches and any(row["declaredGithubProject"] is None for row in matches):
+            missing_project_count += 1
+        enriched.append(
+            {
+                **candidate,
+                "catalogMatch": state,
+                "catalogMatches": matches,
+            }
+        )
+    summary = {
+        "catalogRevision": revision,
+        "catalogEntityCount": len(seen_refs),
+        "catalogHostnameCount": len(index),
+        "catalogHostnamesMissingGithubProject": sum(
+            any(row["declaredGithubProject"] is None for row in matches)
+            for matches in index.values()
+        ),
+        "catalogLanOnlyPolicyConflicts": len(conflicts),
+        "candidateMatchCounts": counts,
+        "matchedCandidatesMissingGithubProject": missing_project_count,
+        "semantics": "DECLARED_INTENT_ONLY_NOT_RUNTIME_OR_VULNERABILITY_PROOF",
+    }
+    return summary, enriched, conflicts
 
 
 def private_write(path: Path, data: object) -> None:
@@ -151,6 +255,23 @@ def main() -> int:
         parser.error("private candidate export is forbidden on GitHub-hosted workflow")
     domains = load_domains()
     candidates, rejected, status = discover(args.amass, domains)
+    catalog_summary: dict = {"status": "INCOMPLETE_CATALOG"}
+    enriched = candidates
+    conflicts = []
+    try:
+        payload = json.loads(CATALOG.read_text(encoding="utf-8"))
+        lan_only = set(runpy.run_path(str(EXPOSURE_POLICY))["LAN_ONLY_NAMES"])
+        catalog_summary, enriched, conflicts = reconcile_catalog(
+            payload, candidates, domains, lan_only
+        )
+        catalog_summary["status"] = (
+            "OBSERVED_NOT_CERTIFIED"
+            if status == "OBSERVED_NOT_CERTIFIED"
+            else "INCOMPLETE_DISCOVERY"
+        )
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        # A missing/malformed contract does not convert all names into new assets.
+        pass
     checked_at = datetime.now(timezone.utc).isoformat()
     summary = {
         "schema_version": 1,
@@ -163,13 +284,22 @@ def main() -> int:
         "scope": domains,
         "counts": {d: sum(row["domain"] == d for row in candidates) for d in domains},
         "rejected_count": rejected,
+        "catalogReconciliation": catalog_summary,
         "finding_semantics": "ASSET_CANDIDATES_NOT_VULNERABILITIES",
     }
     private_write(args.output, summary)
     if args.private_output:
-        private_write(args.private_output, {**summary, "candidates": candidates})
+        private_write(
+            args.private_output,
+            {**summary, "candidates": enriched, "catalogPolicyConflicts": conflicts},
+        )
     print(f"amass_inventory={status}; candidates={len(candidates)}; no names in logs")
-    return 0 if status == "OBSERVED_NOT_CERTIFIED" else 3
+    return (
+        0
+        if status == "OBSERVED_NOT_CERTIFIED"
+        and catalog_summary["status"] == "OBSERVED_NOT_CERTIFIED"
+        else 3
+    )
 
 
 if __name__ == "__main__":

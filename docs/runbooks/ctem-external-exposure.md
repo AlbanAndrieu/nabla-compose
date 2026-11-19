@@ -63,6 +63,31 @@ Ni port scan de l'IP résolue d'un CDN, ni extension automatique de la
 liste de cibles, ni mutation de catalogue. Accepter le premier run manuel
 avant d'ajouter une cadence hebdomadaire et un transfert privé.
 
+#### Rapprochement avec Backstage V2
+
+Le job Amass joint les noms découverts **en mémoire** aux hostnames exacts de
+`catalog/generated/entities.json` (`x-nabla.exposure.hostnames`, `entityRef`,
+`visibility`, `access.required`, et annotation `github.com/project-slug`).
+Aucune expansion de wildcard, correspondance par préfixe ou déduction depuis
+le nom du service. Un projet GitHub non renseigné reste inconnu ; le slug
+déclaré peut être le dépôt de déploiement et non le code de l'application.
+
+Le JSON public contient `catalogRevision`, compteurs par classification et
+nombre de conflits LAN-only, jamais les noms candidats, les références
+d'entité ou le graphe. L'export privé ajoute les correspondances et leur
+intention (pas de backend, token ou corps HTTP). Une correspondance ambiguë,
+un nom absent, un hostname LAN-only ou une intention non publique nécessite
+une revue ; la découverte passive seule ne prouve pas une exposition.
+La politique LAN-only réutilise `LAN_ONLY_NAMES` du contrôle HEAD existant,
+et signale les déclarations publiques contradictoires même si Amass ne les
+retrouve pas. Un catalogue invalide ou une découverte incomplète ne permet
+pas de conclure à zéro écart. Aucun élargissement du scope ni import automatique.
+
+La réception du catalogue reste distincte : régénérer les artefacts V2 à
+partir des sources après les changements Ollama, vérifier leur cohérence
+de révision et compléter les annotations GitHub manquantes à la source
+lorsque l'attribution est établie. Ne pas modifier le JSON généré à la main.
+
 **DefectDojo :** ne pas importer les noms Amass comme vulnérabilités.
 Une exposition inattendue doit être vérifiée et triée, puis un finding
 qualifié issu de Nuclei ou d'un contrôle d'exposition validé peut rejoindre
