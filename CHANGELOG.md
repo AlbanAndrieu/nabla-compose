@@ -1,3 +1,10 @@
+## [0.105.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.105.0...0.105.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **pfsense:** disable pfSense monitoring after the Netgate 1100 loss ([#419](https://github.com/AlbanAndrieu/nabla-compose/issues/419)) ([f2fb3e1](https://github.com/AlbanAndrieu/nabla-compose/commit/f2fb3e183312d5d2e163f79fe3054b438878b77f))
+
 # [0.105.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.104.0...0.105.0) (2026-11-19)
 
 
