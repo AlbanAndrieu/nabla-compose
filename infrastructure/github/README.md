@@ -3,18 +3,43 @@
 This live Terragrunt stack prepares GitHub repository governance as code for
 repositories owned by `AlbanAndrieu`.
 
-**Only repository settings are active.** `github_governance_enabled` and
-`manage_repository_settings` are on; every other mutation switch stays
+**Repository settings and default-branch rulesets are active** on every
+public, non-fork repository plus `dotfiles` (private ones need GitHub Pro):
+`manage_repository_settings`, `manage_rulesets` and
+`ruleset_enforcement = "active"`. Actions and workflow-token switches stay
 disabled:
 
-- `manage_rulesets = false`;
 - `manage_actions_permissions = false`;
-- `manage_workflow_permissions = false`;
-- `ruleset_enforcement = "disabled"`.
+- `manage_workflow_permissions = false`.
 
-A normal checkout, CI run, `tofu validate`, or Terragrunt plan must therefore
-not create or modify repository rules, Actions permissions, or workflow-token
-permissions.
+A normal checkout, CI run, `tofu validate`, or Terragrunt plan must not modify
+Actions permissions or workflow-token permissions.
+
+## Default-branch rulesets
+
+Each repository carries two rulesets on `~DEFAULT_BRANCH`, created through the
+API on 19/11/2026 and identical everywhere:
+
+- **`Protect master`** (OpenTofu, adopted through `ruleset_import_ids`):
+  no deletion, no force-push, linear history, pull request with squash only
+  and resolved threads, required `GitGuardian Security Checks` (App 46505), and
+  the release App `fastapi-sample-release` (4676280) as the only bypass.
+  Repository-specific checks are added in `repositories`; `dotfiles` requires
+  none because GitGuardian does not report on it.
+- **`Code quality`** (API only): the `code_quality` rule at `errors`. Provider
+  `integrations/github` 6.13 has no such rule, and an apply would drop it from
+  a shared ruleset, hence the separate ruleset.
+
+**Before the next apply**, install the release App on every repository
+(*App settings → Install App → All repositories*): a bypass for an App that is
+not installed fails with `422 must be part of the ruleset source`. On
+19/11/2026 the plan was `69 to import, 59 to change, 0 to destroy`: 10
+rulesets without diff, 41 only adding the App bypass, and
+`ansible-jenkins-slave-docker` adding its three prepared checks.
+
+Rollback of one repository: `gh api -X DELETE repos/AlbanAndrieu/<repo>/rulesets/<id>`,
+after removing it from `repositories` and `ruleset_import_ids` with a
+`state rm`.
 
 ## Repository settings
 
@@ -90,6 +115,9 @@ Activation must be a separate reviewed change:
    Actions settings;
 2. enable read-only inventory only;
 3. add repositories to the explicit allow-list;
+Steps 1 to 8 and 11 are done for rulesets (19/11/2026); step 10 waits for
+the release App installation above.
+
 4. enable `github_governance_enabled` plus `manage_rulesets` with
    `ruleset_enforcement = "disabled"` and inspect the plan;
 5. create the disabled pilot ruleset on one repository;

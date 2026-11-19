@@ -64,13 +64,20 @@ variable "release_app_id" {
   nullable    = true
 }
 
+variable "ruleset_import_ids" {
+  description = "Existing \"Protect master\" ruleset IDs, by repository, adopted by import on the next apply."
+  type        = map(number)
+  default     = {}
+}
+
 variable "repositories" {
   description = "Explicit repository policy allow-list. Repositories are never auto-enrolled from inventory."
   type = map(object({
-    required_checks                   = optional(set(string), [])
+    # Check context => GitHub App ID that reports it (46505 GitGuardian, 15368 GitHub Actions).
+    required_checks                   = optional(map(number), { "GitGuardian Security Checks" = 46505 })
     required_approving_review_count   = optional(number, 0)
     required_review_thread_resolution = optional(bool, true)
-    allowed_merge_methods             = optional(set(string), ["merge", "squash", "rebase"])
+    allowed_merge_methods             = optional(set(string), ["squash"])
     actions_enabled                   = optional(bool, true)
     sha_pinning_required              = optional(bool, true)
     default_workflow_permissions      = optional(string, "read")
