@@ -31,6 +31,93 @@ pas configuré sans identification de l'outil exact. La note A/A+ n'est
 pas une preuve de conformité FIPS. Ne pas scanner l'origine d'un CDN
 en déduisant une IP mutualisée d'une réponse DNS.
 
+### TrueNAS — job Compose passif et ordonnanceur natif (21/11/2026)
+
+Le projet officiel [`owasp-amass/amass-docker-compose`](https://github.com/owasp-amass/amass-docker-compose)
+est une infrastructure **beta** avec `enum/subs/viz/assoc/track`, un moteur
+Amass sur :4000 **dans son réseau Compose**, une base `assetdb`,
+`postal`, `syslog` et Neo4j. Son Compose upstream publie par défaut
+`55432:5432`, `7474:7474`, `7687:7687`, utilise des images
+`latest`, des builds distants `#main` et des noms de conteneur génériques.
+**Ne pas importer ni exécuter tel quel comme TrueNAS Custom App.**
+Une installation de la stack complète demandera un clone Git épinglé,
+le verrouillage des builds/images, des mots de passe hors Git, des volumes ZFS,
+la suppression des ports publiés et des noms globaux, un audit
+`docker compose config` et des tests de restauration. Cette variante est
+un POC ultérieur, pas une dépendance de la découverte passive H05.
+
+Pour le besoin CTEM actuel, le dépôt fournit à la place
+`config/security/ctem/amass-job.compose.yml` : **job Docker Compose
+éphémère**, sans App persistante ni port publié, sur réseau Docker isolé
+du namespace de LiteLLM (port Amass :4000 uniquement dans ce conteneur).
+Il réutilise **sans réimplémentation** `run-amass-inventory.py` et sa jointure
+Backstage V2 ; la base `assetdb` ne tourne pas. Le conteneur ne reçoit
+aucun socket Docker, aucun secret, ni écriture dans le checkout Git.
+L'image Python doit être verrouillée par digest après validation du pull.
+Un réseau bridge n'est **pas** une ACL de sortie LAN : la politique des
+cibles, le caractère passif, la suppression des ports entrants et les ACL
+réseau restent des contrôles distincts.
+
+Préparer les datasets et le binaire sur **TrueNAS amd64** uniquement
+après déploiement de ce commit, sans `apt` ni `pip` sur l'appliance :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo install -d -o root -g root -m 0700 \
+  /mnt/cpool/ctem/amass \
+  /mnt/cpool/ctem/amass/bin \
+  /mnt/cpool/ctem/amass/reports
+# L'installateur existant vérifie l'archive officielle v5.1.3 par SHA-256.
+# Il exécute -version sur l'hôte : pour isolation stricte, effectuer cette
+# étape sur une VM amd64 de confiance et transférer le binaire contrôlé.
+sudo bash scripts/security/install-pinned-amass.sh \
+  /mnt/cpool/ctem/amass/bin/amass
+sudo docker pull python:3.13-slim
+sudo docker compose -f config/security/ctem/amass-job.compose.yml \
+  --profile manual config --quiet
+bash scripts/security/run-ctem-amass-truenas.sh --check
+sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --check
+```
+
+Exécuter **une fois**, manuellement et sans élargissement du scope :
+
+```bash
+sudo bash scripts/security/run-ctem-amass-truenas.sh --run
+sudo ls -l /mnt/cpool/ctem/amass/reports/
+```
+
+Le script emploie `flock` pour éviter le chevauchement, `--pull never` pour
+éviter toute mise à jour implicite, et crée un fichier `summary-<UTC>.json`
+(agrégats uniquement) ainsi qu'un fichier `candidates-<UTC>.json`
+(permissions 0600, noms et associations, **strictement privé**).
+Aucun détail n'est téléversé dans un artifact GitHub ni dans FastAPI public.
+Chaque exécution possède des noms de fichiers distincts ; sans preuve
+`OBSERVED_NOT_CERTIFIED`, résultat `INCOMPLETE` ou code non nul, conserver
+le rapport et investiguer, ne pas le convertir en actif ou vulnérabilité.
+
+Une fois ce smoke validé, enregistrer le job Cron natif **désactivé** :
+
+```bash
+sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --apply
+sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --check-live
+# Après revue explicite de la première sortie privée et des ressources :
+sudo env CTEM_AMASS_CRON_APPROVED=YES \
+  python3 scripts/truenas/reconcile-ctem-amass-cron.py --enable
+# Arrêt de l'ordonnancement :
+sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --disable
+```
+
+La cadence choisie est **dimanche 05:35 heure locale de l'appliance**, dans
+une tâche distincte de `scripts/cron.sh` (horaire, Git sync / FastAPI).
+Le statut attendu de ce nouveau Cron est **CODED / NOT_INSTALLED / DISABLED**.
+N8n (déclaré actif via `apps/n8n/compose.yml`) peut être utilisé plus tard
+pour notifier, créer un ticket ou faire approuver des findings, **pas** pour
+exécuter à distance des commandes root ou accéder au socket Docker.
+Ne pas exposer les rapports CTEM via ses webhooks publics ;
+l'exception de politique Access pour le webhook n8n existe déjà et doit
+rester bornée. Le fonctionnement effectif de n8n doit être confirmé par
+`midclt call app.query` et non déduit du catalogue.
+
 ### Amass — inventaire passif, pas un scanner de vulnérabilités
 
 Le profil manuel `discovery` utilise Amass v5.1.3 (archive Linux amd64
