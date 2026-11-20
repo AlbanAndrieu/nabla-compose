@@ -1,3 +1,10 @@
+## [0.107.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.2...0.107.3) (2026-11-20)
+
+
+### Bug Fixes
+
+* **network:** syslog workstation, Freebox Pop, IPv6 du homelab et garde IPv6 TrueNAS ([#428](https://github.com/AlbanAndrieu/nabla-compose/issues/428)) ([4763257](https://github.com/AlbanAndrieu/nabla-compose/commit/4763257a6155176074ff98e969d18430855abdcd))
+
 ## [0.107.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.1...0.107.2) (2026-11-20)
 
 
