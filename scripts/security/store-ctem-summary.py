@@ -23,7 +23,8 @@ VALID_STATUSES = {
     "OBSERVED_NOT_CERTIFIED", "ENUM_INCOMPLETE", "EXPORT_INCOMPLETE",
     "EXPORT_EMPTY_OR_REJECTED", "INCOMPLETE", "ENGINE_EXITED",
     "ENGINE_NOT_READY", "PORT_4000_OCCUPIED", "POSTGRES_CONFIGURATION_INCOMPLETE",
-    "POSTGRES_CONFIGURATION_REQUIRED",
+    "POSTGRES_CONFIGURATION_REQUIRED", "VERSION_MISMATCH",
+    "EXPORT_MISSING_OR_OVERSIZED", "ENGINE_NOT_RUN",
 }
 
 
@@ -45,6 +46,29 @@ def projected_receipt(kind: str, data: dict) -> dict:
         if not all(isinstance(k, str) and re.fullmatch(r"[a-z0-9.-]+", k)
                    and type(v) is int and 0 <= v <= 1000000 for k, v in counts.items()):
             raise ValueError("invalid candidate count")
+        approved_domains = {
+            row["name"] for row in json.loads(
+                (Path(__file__).resolve().parents[2] /
+                 "config/security/public-mail-domains.json").read_text(encoding="utf-8")
+            )["domains"]
+        }
+        if set(counts) != approved_domains:
+            raise ValueError("Amass report scope differs from reviewed domains")
+        counts_by_match = reconciliation.get("candidateMatchCounts")
+        match_categories = {
+            "MATCHED_PUBLIC_INTENT", "LAN_ONLY_POLICY_REVIEW",
+            "NON_PUBLIC_INTENT_REVIEW", "AMBIGUOUS_ENTITY_REVIEW", "UNMAPPED_REVIEW",
+        }
+        if (not isinstance(counts_by_match, dict)
+                or set(counts_by_match) != match_categories
+                or any(type(value) is not int or value < 0
+                       for value in counts_by_match.values())
+                or sum(counts_by_match.values()) != sum(counts.values())):
+            raise ValueError("invalid Amass reconciliation totals")
+        if (type(data.get("rejected_count")) is not int or data["rejected_count"] < 0
+                or type(reconciliation.get("catalogEntityCount")) is not int
+                or type(reconciliation.get("catalogLanOnlyPolicyConflicts")) is not int):
+            raise ValueError("invalid Amass summary statistics")
         status = data.get("status")
         if status not in VALID_STATUSES:
             raise ValueError("unexpected Amass scan status")
@@ -66,6 +90,14 @@ def projected_receipt(kind: str, data: dict) -> dict:
     if kind == "checkdmarc":
         if not isinstance(data.get("checkdmarc"), dict) or not isinstance(data.get("scope"), list):
             raise ValueError("invalid normalized mail-deep report")
+        approved_domains = {
+            row["name"] for row in json.loads(
+                (Path(__file__).resolve().parents[2] /
+                 "config/security/public-mail-domains.json").read_text(encoding="utf-8")
+            )["domains"]
+        }
+        if set(data["scope"]) != approved_domains or len(data["scope"]) != len(approved_domains):
+            raise ValueError("unreviewed checkdmarc scope")
         status = data["checkdmarc"].get("status")
         if status not in ("OBSERVED_NOT_CERTIFIED", "INCOMPLETE"):
             raise ValueError("invalid checkdmarc status")
@@ -77,12 +109,30 @@ def projected_receipt(kind: str, data: dict) -> dict:
             "smtp_tls_reporting_valid", "spf_dns_lookups", "dnssec", "dmarc_p", "dmarc_sp",
         }
         rows = []
+        seen = set()
+        if len(raw_rows) not in (0, len(approved_domains)):
+            raise ValueError("incomplete per-domain checkdmarc coverage")
         for row in raw_rows:
             if not isinstance(row, dict) or set(row) - allowed:
                 raise ValueError("unexpected checkdmarc keys")
-            if row.get("domain") not in data["scope"]:
-                raise ValueError("unapproved mail domain")
+            if row.get("domain") not in approved_domains or row["domain"] in seen:
+                raise ValueError("unapproved or duplicate mail domain")
+            seen.add(row["domain"])
+            for field in ("spf_valid", "dmarc_valid", "mta_sts_valid",
+                          "smtp_tls_reporting_valid", "dnssec"):
+                if row.get(field) is not None and type(row[field]) is not bool:
+                    raise ValueError("non-boolean checkdmarc policy field")
+            if row.get("dmarc_p") not in (None, "none", "quarantine", "reject"):
+                raise ValueError("invalid DMARC policy")
+            if row.get("dmarc_sp") not in (None, "none", "quarantine", "reject"):
+                raise ValueError("invalid subdomain DMARC policy")
+            if (row.get("spf_dns_lookups") is not None and
+                    (type(row["spf_dns_lookups"]) is not int
+                     or not 0 <= row["spf_dns_lookups"] <= 10000)):
+                raise ValueError("invalid SPF lookup count")
             rows.append(row)
+        if status == "OBSERVED_NOT_CERTIFIED" and seen != approved_domains:
+            raise ValueError("observed checkdmarc scan lacks full domain coverage")
         return {
             "scanner": "checkdmarc",
             "checked_at": data["checked_at"],
