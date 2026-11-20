@@ -79,7 +79,7 @@ if not isinstance(counts, dict) or any(type(x) is not int for x in counts.values
 print(f"ctem_amass_status={data.get('status', 'INCOMPLETE')}; "
       f"assets_count={sum(counts.values())}; "
       f"mode={data.get('scan_mode')}")
-tmp = latest.with_suffix(".tmp")
+tmp = latest.with_name(latest.name + f".tmp-{os.getpid()}")
 fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w", encoding="utf-8") as out:
     json.dump(data, out, sort_keys=True)
