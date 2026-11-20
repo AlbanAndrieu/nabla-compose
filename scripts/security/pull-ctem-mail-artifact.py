@@ -69,7 +69,7 @@ def selected_run(rows: list[dict], now: datetime | None = None) -> dict:
 
 
 def chosen_artifact(rows: list[dict], run_id: int) -> dict:
-    if not isinstance(rows, list):
+    if not isinstance(rows, list) or len(rows) > 100:
         raise CtemMailPullError("ARTIFACT_LIST_INVALID")
     matches = [
         x for x in rows if isinstance(x, dict)
@@ -151,7 +151,6 @@ def stage_report(report: bytes, run_id: int, dest: Path, store: bool = False) ->
 
 
 def run(should_store: bool, *, report_root: Path = REPORT_ROOT) -> str:
-    from github_app_auth import installation_token
     token = installation_token(REPO)
     runs = metadata(
         f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=master&per_page=10",
