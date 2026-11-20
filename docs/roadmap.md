@@ -2,7 +2,7 @@
 
 > **pfSense** : travaux, historique et sécurité dans la [roadmap pfSense](pfsense/roadmap.md), extraite le 17/11 pour préparer le dépôt `nabla-pfsense` ([périmètre](pfsense/README.md)).
 
-> Mise à jour : **14 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
+> Réconciliation : **21 novembre 2026** (ordre opérateur du 14/11 inchangé). ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
 ## Ordre d’exécution validé — 14 novembre 2026
 
@@ -27,6 +27,15 @@
 
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
+
+## CTEM — réconciliation du 21 novembre 2026 (H04/H05/H13/H17)
+
+Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-external-exposure.md), sans roadmap parallèle : **H04** = exposition et contrôles de frontière ; **H05** = découverte passive Amass et rapprochement Backstage V2 ; **H13** = findings qualifiés dans DefectDojo ; **H17** = fiabilité des entités et révisions. Priorité au contrôle déclaratif sans accès LAN ; les campagnes actives sont séparées, bornées et autorisées. L'ordre général H01 → H02 → H04 → H05 → H12 → H13 → H16 n'est pas modifié.
+
+- **Fusionné / CODED :** PR [#421](https://github.com/AlbanAndrieu/nabla-compose/pull/421) (découverte Amass) et [#422](https://github.com/AlbanAndrieu/nabla-compose/pull/422) (jointure exacte des noms et `entityRef` V2 ; pas de publication de noms candidats). [#423](https://github.com/AlbanAndrieu/nabla-compose/pull/423) a ajouté le profil privé d'import Trivy FastAPI, sans réception runtime ni ouverture automatique à Nuclei.
+- **Nouvelle implémentation H04/H05 (branche CTEM) :** `scripts/security/audit-ctem-catalog-policy.py` vérifie **hors ligne** les contradictions entre `x-nabla.exposure` du Backstage V2 généré et la politique `LAN_ONLY_NAMES`, y compris sans sortie Amass ; artefact public avec compteurs uniquement, détails nominaux optionnels en fichier privé 0600. Son exit code non nul signale un conflit ou un catalogue invalide ; absence de conflit ne prouve ni absence de route WAN ni exhaustivité des domaines possédés. Test : `python3 -m unittest tests.test_ctem_catalog_policy -v`.
+- **Écart réel à instruire :** le catalogue `master` observé le 21/11 contient encore `component:default/ollama-gpu` avec un hostname déclaré public, malgré la politique LAN-only. Corriger **les sources** `catalog-info.yaml` / la déclaration de routage après revue et régénérer les artefacts V2 ensemble ; ne pas éditer `entities.json` isolément. Aucune reachabilité publique n'est déduite de cette déclaration.
+- **Critères de réception ouverts :** quality gate complet sur SHA Git, cohérence des révisions des générateurs, relevé Cloudflare DNS/Tunnel/Access négatif pour Ollama/LiteLLM, comparaison Amass privée (pas d'import de noms en vulnérabilités), cartographie des propriétaires et couverture scanner par source ; runtime NOT_VERIFIED. Aucun scan des IP mutualisées CDN, aucune mutation WAN ou élargissement des allowlists DefectDojo.
 
 ## Règles de suivi
 
