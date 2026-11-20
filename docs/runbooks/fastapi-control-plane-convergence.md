@@ -42,7 +42,7 @@ does not reconfigure unrelated hostnames and review any changes from null
 `origin_request` attributes before an apply; if default plan is nonzero,
 do NOT apply or claim a zero-impact default. Run local Traefik Host+SNI canary,
 MFA OWNER, signed and unsigned webhook, rate limit, 403, 404, headers, LAPI
-and plugin health first. CrowdSec AppSec is still not enabled. Observe
+and plugin health first. CrowdSec AppSec canary is now CODED but NOT_DEPLOYED; its fail-closed profile must pass runtime tests before enabling the Tunnel switch. Observe
 Cloudflare WAF/rulesets (import-first), never replace an existing phase.
 After canary, separately turn on the switch with approved plan/rollback,
 and only then review direct :8091 restriction for non-probe clients.
@@ -51,3 +51,14 @@ Provider init/plan, Docker compose validation and live acceptance NOT_RUN.
 ### AppSec WAF CODED — nouvelle frontière canary (21/11/2026)
 
 `apps/crowdsec/acquis.d/appsec.yaml` active le moteur AppSec 7422 sur le réseau Docker, via les collections officielles. Aucun port hôte `7422`. `apps/traefik/dynamic/crowdsec.yml` conserve `crowdsec@file` pour LAPI streaming et crée `crowdsec-appsec@file` pour streaming + AppSec v1.8.1 ; les paramètres LAPI restent identiques entre profils. Les routes public et webhook dans `apps/sample/compose.yml` emploient le profil AppSec, en fail-closed lorsque ce composant est inaccessible. Tant que le Tunnel garde `:8091` (switch `false`), cela n'impacte pas la production publique. **Le probe officiel CrowdSec déclenche une alerte, pas nécessairement 403.** Pour prouver le WAF, comparer une requête de test bloquée selon une règle canary dédiée approuvée et les requêtes légitimes non bloquées, avec compteurs `cscli metrics show appsec` et traces Traefik expurgées. En cas d'erreur, ne PAS basculer le Tunnel ; envisager rollback de l'attachement. Étape suivante : CrowdSec AppSec métriques Prometheus et UX OWNER par réutilisation des séries actuelles. Runtime NOT_RUN.
+
+### Commandes de réception AppSec (read-only, 21/11)
+
+```bash
+# Exécuter dans le repo Compose sur workstation/TrueNAS
+bash scripts/truenas/diagnose-crowdsec-appsec.sh --check
+# Exécuter uniquement sur TrueNAS où Docker est accessible ; ne change pas l'état
+sudo bash scripts/truenas/diagnose-crowdsec-appsec.sh --runtime
+```
+
+Le contrôle runtime distingue explicitement **configuration/collections/metrics** de la **preuve de blocage HTTP**. Vérifier le portail de métriques `cscli metrics show appsec` avant et après la sonde bénigne `/crowdsec-test-NtktlJHV4TfBSK3wvlhiOBnl` (officielle ; crée une alerte, pas obligatoirement un 403), puis un test de blocage contrôlé contre le canary isolé. Comparer les traces (sans JWT ni secret) et tester le webhook GitHub signé avant toute ouverture. L'étape Docker AppSec et les règles WAF peuvent consommer plus que la limite CrowdSec actuelle de 384 MiB : surveiller RSS/OOM/latence et adapter le budget seulement avec mesures. Les logs de Traefik conservent le User-Agent ; veiller à sa minimisation au regard des attaques qui injectent des chaînes sensibles. Tester `429` avec trafic non destructif, vérifier LAPI fail-open existant et WAF fail-closed sur seul canary. `fastapi_sample_tunnel_via_traefik` reste `false` par défaut. Aucune preuve de bon fonctionnement runtime n'est annoncée.

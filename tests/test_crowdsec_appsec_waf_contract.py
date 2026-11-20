@@ -30,6 +30,8 @@ def test_appsec_acquisition_is_internal_and_versioned_hub():
     # No other process sees an AppSec host port, only Docker traffic.
     assert not any(":7422" in str(p) or str(p).endswith(":7422") for p in crowdsec["ports"])
     assert crowdsec["networks"] == ["default", "traefik_network"]
+    assert crowdsec["image"] == "crowdsecurity/crowdsec:v1.8.1"
+    assert crowdsec["mem_limit"] == "384m"  # Monitor before cutover; no blind resource increase
     assert "./acquis.d:/etc/crowdsec/acquis.d:ro" in crowdsec["volumes"]
     assert not any(str(x).startswith("traefik.") for x in crowdsec.get("labels", []))
 
