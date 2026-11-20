@@ -53,6 +53,7 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("sha256sum", backup)
         self.assertIn("Downloaded state does not look like a valid OpenTofu state", backup)
         self.assertIn("Refusing apply", backup)
+        self.assertIn('sed \'s/^/   aws: /\' "${head_err}" >&2', backup)
         self.assertIn("must resolve to an absolute path", backup)
         self.assertIn("Refusing to store sensitive state backups inside the Git checkout", backup)
 

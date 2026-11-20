@@ -76,6 +76,8 @@ if ((head_rc != 0)); then
   fi
 
   echo "Unable to verify existing remote state before apply: ${state_key}" >&2
+  # AWS CLI errors name the endpoint and status, never the credentials.
+  sed 's/^/   aws: /' "${head_err}" >&2
   echo "Refusing apply because the current state cannot be backed up safely." >&2
   exit 1
 fi
