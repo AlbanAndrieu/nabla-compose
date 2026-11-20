@@ -215,7 +215,8 @@ def postgres_config(env: dict[str, str], work: Path) -> Path | None:
 def enum_arguments(domains: list[str], mode: str) -> list[str]:
     if mode not in ("passive", "active"):
         raise ValueError("unknown Amass mode")
-    base = ["enum", "-rigid", "-nocolor", "-timeout", "2", "-d", ",".join(domains)]
+    base = ["enum", "-rigid", "-nocolor", "-timeout",
+            "8" if mode == "active" else "2", "-d", ",".join(domains)]
     if mode == "active":
         base.extend(["-active", "-p", "80,443"])
     return base
