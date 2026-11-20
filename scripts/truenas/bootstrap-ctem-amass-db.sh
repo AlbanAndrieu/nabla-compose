@@ -50,6 +50,21 @@ GRANT CONNECT ON DATABASE assetdb TO amass;
 GRANT USAGE, CREATE ON SCHEMA public TO amass;
 ALTER ROLE amass NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
 ALTER DATABASE assetdb SET timezone TO 'UTC';
+-- CTEM report metadata is deliberately separate from the Amass asset graph.
+-- This creates a table within the existing DB, never another PostgreSQL App.
+CREATE SCHEMA IF NOT EXISTS ctem AUTHORIZATION amass;
+CREATE TABLE IF NOT EXISTS ctem.scan_reports (
+  sha256 char(64) PRIMARY KEY,
+  scanner text NOT NULL CHECK (scanner IN ('amass', 'checkdmarc')),
+  checked_at timestamptz NOT NULL,
+  status text NOT NULL,
+  catalog_revision text,
+  summary jsonb NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT USAGE, CREATE ON SCHEMA ctem TO amass;
+GRANT SELECT, INSERT ON ctem.scan_reports TO amass;
+
 SQL
 state="$(postgres_role_database_state "${container}" "${admin}" "${ROLE}" "${DATABASE}")"
 [[ "${state}" == "1|1|amass" ]] || fail "assetdb not owned by dedicated amass role"
