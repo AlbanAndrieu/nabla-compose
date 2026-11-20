@@ -22,6 +22,16 @@ locals {
       mta_sts_mx = ["aspmx.l.google.com", "*.aspmx.l.google.com"]
     }
   }
+  # Owner decision (20/11/2026): DMARC and TLS reports of every owned domain go
+  # to one mailbox. RFC 7489 7.1: albandrieu.com authorizes each other domain
+  # of config/security/public-mail-domains.json to send it DMARC reports.
+  report_mailbox = "openclaw@albandrieu.com"
+  dmarc_reported_domains = toset([
+    "albanandrieu.com", "bababou.com", "bababou.net", "dr-alban.com", "eokoo.net",
+    "eokou.com", "heoko.com", "heoko.net", "heoko.org", "heokoo.com", "heokoo.net",
+    "heokoo.org", "heokou.com", "heokou.net", "heokou.org", "papapou.com", "papapou.net",
+    "papapou.org", "papoyou.net",
+  ])
   # RFC 8461: a new id with every policy change. enforce comes after weeks of
   # clean TLS-RPT reports (docs/roadmap.md).
   mta_sts_id = "20261120000000"
@@ -51,14 +61,14 @@ resource "cloudflare_dns_record" "mail_spf" {
   }
 }
 
-# Created: no TLS-RPT record exists. Reports go to the DMARC technical mailbox.
+# Created: no TLS-RPT record exists. Reports go to the shared report mailbox.
 resource "cloudflare_dns_record" "mail_tls_rpt" {
   for_each = local.mail_domains
 
   zone_id = each.value.zone_id
   name    = "_smtp._tls.${each.key}"
   type    = "TXT"
-  content = "\"v=TLSRPTv1; rua=mailto:technical@${each.key}\""
+  content = "\"v=TLSRPTv1; rua=mailto:${local.report_mailbox}\""
   proxied = false
   ttl     = 1
   tags    = []
@@ -108,6 +118,24 @@ resource "cloudflare_dns_record" "mail_mta_sts" {
   tags    = []
 
   depends_on = [cloudflare_workers_custom_domain.mta_sts]
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Created: lets the other domains send DMARC reports to local.report_mailbox.
+# Their own _dmarc records (rua) are another zone each, not managed here yet.
+resource "cloudflare_dns_record" "dmarc_report_authorization" {
+  for_each = local.dmarc_reported_domains
+
+  zone_id = var.zone_id
+  name    = "${each.key}._report._dmarc.albandrieu.com"
+  type    = "TXT"
+  content = "\"v=DMARC1\""
+  proxied = false
+  ttl     = 1
+  tags    = []
 
   lifecycle {
     prevent_destroy = true

@@ -224,13 +224,17 @@ le TLS-RPT et MTA-STS des deux domaines personnels (section « Messagerie »).
    (PTR Free, `cloudflare_dns_record.home`), `hello.int` et `s3.int`
    (conservés, publiés par `cloudflare-ddns` de l'App Traefik : décision du
    propriétaire du 20/11).
-   Huitième tour (20/11/2026) : `mail2`, A et MX ensemble. Google seul
-   envoie et reçoit pour `albandrieu.com` (décision du propriétaire), alors
-   que ce MX visait un tiers (`mx3.mtahosting.com`) et que le A proxifié
-   répondait 403 1050. `mx3.mtahosting.com` résout vers un hébergeur mail
-   tiers (ni l'IP Free, ni TrueNAS) ; le honeypot (`apps/honeypot`, HTTP sur
-   31090, sans SMTP) n'en dépend pas. Même tour : `index`, CNAME proxifié vers
-   l'apex qui répondait 403 1050 (retiré, décision du propriétaire du 20/11).
+   Huitième tour (20/11/2026) : `index`, CNAME proxifié vers l'apex qui
+   répondait 403 1050 (retiré, décision du propriétaire du 20/11).
+   **`mail2` : décision du propriétaire en attente.**
+   - Son A et son MX `mx3.mtahosting.com` ont été créés depuis le dashboard
+     par le compte du propriétaire le 27/12/2025, le MX avec le commentaire
+     « projecthoneypot ».
+   - C'est très probablement un MX donné à Project Honey Pot. Ce n'est pas le
+     honeypot TrueNAS, mais c'est bien un usage « honeypot ».
+   - Il contredit la règle « Google seulement » : le scan externe le signale
+     (`mx_provider`) tant qu'il existe. S'il est gardé, il faut une
+     exception explicite ; s'il est retiré, il passe par ce circuit.
    Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
    ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
    l'état sous `tunnel[...]` (paragraphe suivant).
@@ -254,7 +258,7 @@ la DKIM `google._domainkey` et le DMARC (`p=reject`, `sp=reject`,
   `mail-record-ids.auto.tfvars`) puis passé de `~all` à `-all`. Plan
   attendu : 2 imports et 2 mises à jour du seul `content` ;
 - le TLS-RPT `_smtp._tls`, **créé** (2 ajouts), avec rapports vers
-  `technical@<domaine>`, déjà destinataire du DMARC ;
+  `openclaw@albandrieu.com` ;
 - MTA-STS en mode `testing` (décision du propriétaire du 20/11), **créé** :
   - le Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)),
     statique, sans origine ni binding : il sert
@@ -272,6 +276,17 @@ la DKIM `google._domainkey` et le DMARC (`p=reject`, `sp=reject`,
   `smtp.google.com`. Plan attendu : 5 ajouts (1 script, 2 domaines, 2 TXT).
   Toute modification de la politique change aussi `mta_sts_id`.
 
+Rapports DMARC (décision du propriétaire du 20/11) : les 20 zones du compte
+doivent envoyer leurs rapports agrégés à `openclaw@albandrieu.com`. La RFC 7489
+(§7.1) exige que le domaine destinataire autorise chaque domaine tiers.
+`mail.tofu` **crée** donc 19 TXT `<domaine>._report._dmarc.albandrieu.com`
+(`v=DMARC1`), un par domaine de `config/security/public-mail-domains.json` hors
+`albandrieu.com` (contrat `test_cloudflare_contract`). Le `rua` de chaque
+`_dmarc` reste à poser, zone par zone, après confirmation de la liste exacte
+(corps de PR) : cela demande d'élargir le jeton aux 18 autres zones et
+d'importer les quatre DMARC existants. La boîte ou l'alias
+`openclaw@albandrieu.com` doit exister dans Google Workspace.
+
 Prérequis : le jeton `nabla-opentofu` doit couvrir la zone `albanandrieu.com`
 et porter `Workers Scripts Write` (compte) et `Workers Routes Write` (zones).
 Appliquer d'abord l'unité [`cloudflaretokens`](../cloudflaretokens/README.md)
@@ -286,6 +301,9 @@ en **code 4** (`PROVIDER_POLICY_VIOLATION`) sur :
 - un DMARC non strict ;
 - une DKIM `google` absente ;
 - un TLS-RPT absent ;
+- (sur les 20 domaines) un `rua` DMARC sans `openclaw@albandrieu.com`, ou,
+  pour un autre domaine qu'`albandrieu.com`, sans autorisation
+  `<domaine>._report._dmarc.albandrieu.com` ;
 - un TXT `_mta-sts` absent, ou une politique MTA-STS absente, invalide,
   servie avec un certificat invalide ou une redirection, hors mode `testing`,
   ou dont les MX diffèrent des MX publiés de l'apex.

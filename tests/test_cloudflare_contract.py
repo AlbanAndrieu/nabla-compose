@@ -1,5 +1,6 @@
 """Offline contracts for the import-first Cloudflare OpenTofu unit."""
 
+import json
 from pathlib import Path
 import re
 import unittest
@@ -47,7 +48,8 @@ class CloudflareContract(unittest.TestCase):
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
              "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
-             "cloudflare_workers_script.mta_sts", "cloudflare_workers_custom_domain.mta_sts"}
+             "cloudflare_workers_script.mta_sts", "cloudflare_workers_custom_domain.mta_sts",
+             "cloudflare_dns_record.dmarc_report_authorization"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf"}:
@@ -69,6 +71,17 @@ class CloudflareContract(unittest.TestCase):
         self.assertIn("depends_on = [cloudflare_workers_custom_domain.mta_sts]", mail)
         worker = (TF / "mta-sts-worker.js.tftpl").read_text(encoding="utf-8")
         self.assertEqual(worker.count("fetch("), 1)  # the handler only: no outbound call
+
+    def test_every_other_owned_domain_may_report_dmarc_to_albandrieu(self):
+        # RFC 7489 7.1: one authorization record per domain of the mail scan scope.
+        mail = (TF / "mail.tofu").read_text(encoding="utf-8")
+        block = mail.split("dmarc_reported_domains = toset([", 1)[1].split("])", 1)[0]
+        scope = json.loads((ROOT / "config/security/public-mail-domains.json").read_text())
+        self.assertEqual(sorted(re.findall(r'"([a-z0-9.-]+)"', block)),
+                         sorted(row["name"] for row in scope["domains"]
+                                if row["name"] != "albandrieu.com"))
+        self.assertIn('report_mailbox = "openclaw@albandrieu.com"', mail)
+        self.assertIn('content = "\\"v=TLSRPTv1; rua=mailto:${local.report_mailbox}\\""', mail)
 
     def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
         # The joplin Access app is "Everyone bypass"; with no Joplin App behind

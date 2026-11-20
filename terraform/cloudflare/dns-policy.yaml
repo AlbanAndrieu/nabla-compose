@@ -23,10 +23,10 @@ version: 1
 # tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
 # and home (Free PTR, dns.tofu); hello.int and s3.int, published by
 # cloudflare-ddns (owner decision, 20/11/2026).
-# Eighth round (20/11/2026): mail2, A and MX together. Google alone sends and
-# receives mail for albandrieu.com (owner decision); its MX pointed to a third
-# party (mail.tofu, check-public-mail-auth.py). Also index, a proxied CNAME to
-# the apex answering 403 1050 (owner decision, 20/11/2026).
+# Eighth round (20/11/2026): index, a proxied CNAME to the apex answering 403
+# 1050 (owner decision). mail2 (A, MX to mx3.mtahosting.com) awaits the owner:
+# created by the owner on 27/12/2025 with the comment "projecthoneypot", most
+# likely an MX donated to Project Honey Pot, against the Google-only policy.
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com
@@ -38,7 +38,6 @@ retired_hostnames:
   - index.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
   - login.albandrieu.com
-  - mail2.albandrieu.com
   - manager.albandrieu.com
   - motion-albandrieu.albandrieu.com
   - netalertx-albandrieu.albandrieu.com
