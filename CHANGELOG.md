@@ -1,3 +1,10 @@
+## [0.107.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.1...0.107.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cloudflare:** retire dead A records to the Free IPv4 ([#426](https://github.com/AlbanAndrieu/nabla-compose/issues/426)) ([9d12fd9](https://github.com/AlbanAndrieu/nabla-compose/commit/9d12fd9cb581299282a448d06f13ff1ec41428c5)), closes [#425](https://github.com/AlbanAndrieu/nabla-compose/issues/425) [#425](https://github.com/AlbanAndrieu/nabla-compose/issues/425) [#422](https://github.com/AlbanAndrieu/nabla-compose/issues/422) [#423](https://github.com/AlbanAndrieu/nabla-compose/issues/423) [#425](https://github.com/AlbanAndrieu/nabla-compose/issues/425) [#423](https://github.com/AlbanAndrieu/nabla-compose/issues/423) [#423](https://github.com/AlbanAndrieu/nabla-compose/issues/423) [#423](https://github.com/AlbanAndrieu/nabla-compose/issues/423)
+
 ## [0.107.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.0...0.107.1) (2026-11-20)
 
 
