@@ -18,14 +18,26 @@ version: 1
 # sentry.int.albandrieu.com by Traefik; its public route is removed.
 # Sixth round (17/11/2026): traefik, drawio, pihole and autoxpose stay LAN-only
 # (owner decision); immich and nexus keep their public route behind Access.
+# Seventh round (20/11/2026): A records to the fixed Free IPv4, dead since
+# pfSense and its HAProxy left on 18/11 (public traffic only enters through the
+# tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
+# and home (Free PTR, dns.tofu). Not yet: hello.int and s3.int, which
+# favonia/cloudflare-ddns republishes (it recreated s3.int on 13/11), and
+# mail2, whose MX would be retired with it (the circuit retires every type).
 retired_hostnames:
+  - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com
+  - apache.albandrieu.com
+  - api.albandrieu.com
   - autoxpose.albandrieu.com
   - drawio.albandrieu.com
   - honeypot-albandrieu.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
+  - login.albandrieu.com
+  - manager.albandrieu.com
   - motion-albandrieu.albandrieu.com
   - netalertx-albandrieu.albandrieu.com
+  - nexus-albanandrieu.albandrieu.com
   - nexus-albandrieu.albandrieu.com
   - ntopng-albandrieu.albandrieu.com
   - ollama-gpu-albandrieu.albandrieu.com
@@ -35,8 +47,12 @@ retired_hostnames:
   - plumber-albandrieu.albandrieu.com
   - portracker-albandrieu.albandrieu.com
   - sentry.albandrieu.com
+  - toto.albandrieu.com
   - traefik.albandrieu.com
+  - truenas.albandrieu.com
   - vaultwarden-albandrieu.albandrieu.com
+  - warp.albandrieu.com
+  - www.toto.albandrieu.com
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
