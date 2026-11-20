@@ -58,8 +58,11 @@ Un réseau bridge n'est **pas** une ACL de sortie LAN : la politique des
 cibles, le caractère passif, la suppression des ports entrants et les ACL
 réseau restent des contrôles distincts.
 
-Préparer les datasets et le binaire sur **TrueNAS amd64** uniquement
-après déploiement de ce commit, sans `apt` ni `pip` sur l'appliance :
+Sur **TrueNAS amd64**, créer d'abord le dataset ZFS `cpool/ctem/amass`
+via l'UI TrueNAS si la rétention/snapshot ZFS dédiée est souhaitée ;
+`install -d` crée uniquement les répertoires et **ne crée pas un dataset ZFS**.
+Puis préparer les répertoires privés et le binaire, uniquement après
+fusion/déploiement de ce commit, sans `apt` ni `pip` sur l'appliance :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
