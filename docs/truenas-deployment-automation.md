@@ -64,7 +64,7 @@ The cron helper owns Git synchronization, an hourly runtime report and the
 gated FastAPI Sample refresh. **Opt-in CTEM** (`NABLA_CRON_CTEM_AMASS_ENABLED=true`)
 adds the weekly bounded active Amass job on Sunday at 05:00 appliance local time;
 `NABLA_CRON_CTEM_MAIL_ENABLED=true` separately archives the latest eligible
-GitHub App `public-mail-deep.json` into PostgreSQL on Monday at 06:00.
+GitHub App `public-mail-deep.json` into PostgreSQL on Monday at 08:00 (after the 04:41 UTC external scan window).
 Both reuse this same hourly Cron task, not creating another scheduler. It invokes
 `sudo -n` only for the reviewed CTEM runner; private results stay root-only,
 while the Cron mail contains counts/status only. It never redeploys a TrueNAS
