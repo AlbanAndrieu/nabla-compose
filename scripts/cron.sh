@@ -76,7 +76,7 @@ if command -v docker >/dev/null 2>&1; then
 fi
 
 sync_checkout() {
-  local local_sha remote_sha merge_output
+  local local_sha remote_sha merge_output reload
 
   if ! git -c fetch.recurseSubmodules=false fetch origin "${DEPLOY_BRANCH}" 2>/dev/null; then
     log_error "git fetch origin ${DEPLOY_BRANCH} failed; checkout left unchanged."
@@ -87,6 +87,10 @@ sync_checkout() {
 
   if [[ "${local_sha}" == "${remote_sha}" ]]; then
     log_info "Git: no new commit, checkout at ${local_sha:0:12}."
+    # A manual pull skips the diff-based reload below; this is a no-op unless a
+    # rule file is newer than Prometheus' last reload.
+    reload="$(sudo -n bash "${SCRIPT_DIR}/truenas/reload-prometheus-rules.sh" apply 2>&1 | tail -n 1)"
+    [[ "${reload}" == "OK: reload_needed=no"* ]] || log_info "Prometheus: ${reload}"
     return 0
   fi
 

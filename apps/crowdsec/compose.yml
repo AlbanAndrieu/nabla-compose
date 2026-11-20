@@ -32,6 +32,7 @@ services:
     image: crowdsecurity/crowdsec:v1.8.1
     container_name: crowdsec
     restart: unless-stopped
+    mem_limit: 384m
     x-nabla:
       id: crowdsec
       name: CrowdSec

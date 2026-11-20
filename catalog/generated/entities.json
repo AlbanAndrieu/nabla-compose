@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:9aac31ceb035867bf497efd7738a847d46b8b522171e79cc4c1f0b97b904cc3b",
+  "catalogRevision": "sha256:942d4dd20aff2ac0321ec7d4638ef0289e2c7be93d38b666610c2972d9520b7a",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -5087,23 +5087,17 @@
       "x-nabla": {
         "exposure": [
           {
-            "access": {
-              "required": true
-            },
             "backend": {
               "appProtocol": "http",
               "host": "172.17.0.24",
               "port": 30068
             },
             "backendPort": "web",
-            "gatewayRef": "resource:default/cloudflare-tunnel",
-            "hostnames": [
-              "ollama.albandrieu.com"
-            ],
-            "name": "public",
-            "protocol": "HTTPS",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
             "source": "apps/ollama/compose.yml#services/ollama",
-            "visibility": "public"
+            "visibility": "lan"
           }
         ],
         "runtime": {

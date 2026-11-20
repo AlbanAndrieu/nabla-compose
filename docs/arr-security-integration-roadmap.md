@@ -44,7 +44,7 @@ re-add ARR planning here.
 Current Nabla design is already stronger than a simple single-host tutorial in several areas:
 
 - `apps/crowdsec/compose.yml` is the central CrowdSec Security Engine/LAPI;
-- pfSense consumes decisions through a remediation-only bouncer model;
+- pfSense consumes decisions through a remediation-only bouncer model (moot since 2026-11-18: pfSense is retired, remediation moves to the Traefik bouncer, see the main roadmap);
 - Suricata `eve.json` is an intended CrowdSec acquisition source;
 - Prometheus has a CrowdSec metrics relationship.
 
@@ -95,7 +95,7 @@ Current Nabla features are useful:
 
 Recommended hardening:
 
-1. replace the direct Docker socket bind with the existing `docker-socket-proxy` where the required endpoints are supported; **CODED 2026-11-18** (`DOCKER_HOST=tcp://docker-socket-proxy:2375`, read-only endpoints already exposed, `POST=0`); redeploy pending (the App is stopped);
+1. replace the direct Docker socket bind with the existing `docker-socket-proxy` where the required endpoints are supported; **CODED 2026-11-18** (`DOCKER_HOST=tcp://docker-socket-proxy:2375`, read-only endpoints already exposed, `POST=0`); redeployed 2026-11-20, login required (`/` → 307 `/login`, API 401);
 2. default `DOZZLE_ENABLE_ACTIONS=false` and `DOZZLE_ENABLE_SHELL=false` unless an operator explicitly enables break-glass mode; **CODED 2026-11-18**;
 3. keep MCP disabled from untrusted/external networks and treat it as an administrative capability;
 4. use Dozzle agents for remote Docker engines rather than exposing Docker TCP sockets;
