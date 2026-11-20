@@ -46,7 +46,8 @@ class CloudflareContract(unittest.TestCase):
                 "fastapi_github_webhook",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
-             "cloudflare_dns_record.mail_tls_rpt"}
+             "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
+             "cloudflare_workers_script.mta_sts", "cloudflare_workers_custom_domain.mta_sts"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf"}:
@@ -56,6 +57,18 @@ class CloudflareContract(unittest.TestCase):
                 self.assertNotIn(f"to = {kind}.{name}\n", imports)
                 continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
+
+    def test_mta_sts_is_testing_and_served_by_a_static_worker(self):
+        # Owner decision (20/11/2026): testing first, enforce after clean TLS-RPT reports.
+        mail = (TF / "mail.tofu").read_text(encoding="utf-8")
+        self.assertIn('["version: STSv1", "mode: testing"]', mail)
+        self.assertIn('["max_age: 86400", ""]', mail)
+        self.assertIn('mta_sts_mx = ["aspmx.l.google.com", "*.aspmx.l.google.com", '
+                      '"smtp.google.com"]', mail)
+        self.assertIn('mta_sts_mx = ["aspmx.l.google.com", "*.aspmx.l.google.com"]\n', mail)
+        self.assertIn("depends_on = [cloudflare_workers_custom_domain.mta_sts]", mail)
+        worker = (TF / "mta-sts-worker.js.tftpl").read_text(encoding="utf-8")
+        self.assertEqual(worker.count("fetch("), 1)  # the handler only: no outbound call
 
     def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
         # The joplin Access app is "Everyone bypass"; with no Joplin App behind

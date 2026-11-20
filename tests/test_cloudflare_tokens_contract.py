@@ -14,8 +14,9 @@ def source() -> str:
 
 def test_opentofu_token_has_exactly_the_apply_permissions() -> None:
     text = source()
-    assert 'opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write"]' in text
-    assert 'opentofu_zone_permissions    = ["DNS Write"]' in text
+    assert ('opentofu_account_permissions = ["Access: Apps and Policies Write", '
+            '"Cloudflare Tunnel Write", "Workers Scripts Write"]') in text
+    assert 'opentofu_zone_permissions    = ["DNS Write", "Workers Routes Write"]' in text
     # DNS Write on the two personal zones only (bababou.com stays out).
     zones = re.findall(r'"com\.cloudflare\.api\.account\.zone\.\$\{var\.(\w+)\}"\s*=\s*"\*"', text)
     assert sorted(zones) == ["albanandrieu_zone_id", "zone_id"]

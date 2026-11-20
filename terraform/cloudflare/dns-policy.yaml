@@ -25,7 +25,8 @@ version: 1
 # cloudflare-ddns (owner decision, 20/11/2026).
 # Eighth round (20/11/2026): mail2, A and MX together. Google alone sends and
 # receives mail for albandrieu.com (owner decision); its MX pointed to a third
-# party (mail.tofu, check-public-mail-auth.py).
+# party (mail.tofu, check-public-mail-auth.py). Also index, a proxied CNAME to
+# the apex answering 403 1050 (owner decision, 20/11/2026).
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com
@@ -34,6 +35,7 @@ retired_hostnames:
   - autoxpose.albandrieu.com
   - drawio.albandrieu.com
   - honeypot-albandrieu.albandrieu.com
+  - index.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
   - login.albandrieu.com
   - mail2.albandrieu.com

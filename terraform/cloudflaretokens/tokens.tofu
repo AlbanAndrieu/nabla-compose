@@ -13,9 +13,10 @@ locals {
     if contains(group.scopes, "com.cloudflare.api.account.zone")
   }
   # Exactly what terraform/cloudflare plans and applies: Access applications,
-  # the shared tunnel configuration and the albandrieu.com DNS records.
-  opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write"]
-  opentofu_zone_permissions    = ["DNS Write"]
+  # the shared tunnel configuration, the DNS records and the MTA-STS Worker
+  # with its two custom domains (mail.tofu).
+  opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write", "Workers Scripts Write"]
+  opentofu_zone_permissions    = ["DNS Write", "Workers Routes Write"]
   opentofu_missing_permissions = concat(
     [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
     [for name in local.opentofu_zone_permissions : name if !contains(keys(local.zone_group_ids), name)],
@@ -36,7 +37,7 @@ resource "cloudflare_account_token" "opentofu" {
     {
       effect            = "allow"
       permission_groups = [for name in local.opentofu_zone_permissions : { id = local.zone_group_ids[name][0] }]
-      # albanandrieu.com only for the mail records of terraform/cloudflare/mail.tofu.
+      # albanandrieu.com only for the mail records and MTA-STS of terraform/cloudflare/mail.tofu.
       resources = jsonencode({
         "com.cloudflare.api.account.zone.${var.zone_id}"              = "*"
         "com.cloudflare.api.account.zone.${var.albanandrieu_zone_id}" = "*"

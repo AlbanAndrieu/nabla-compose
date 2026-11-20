@@ -47,6 +47,7 @@ dns_retired_record_ids = {
   "autoxpose.albandrieu.com/CNAME"              = "a985a5d4613a56fa5113f3f3414304ab" # gitleaks:allow
   "drawio.albandrieu.com/CNAME"                 = "7616336e922c64a36dbe4a68165736f6" # gitleaks:allow
   "honeypot-albandrieu.albandrieu.com/CNAME"    = "540b56a73212391c40a02c4d3011e480" # gitleaks:allow
+  "index.albandrieu.com/CNAME"                  = "6fc6a2bd62c9525f9ac44c3c1e7e20a0" # gitleaks:allow
   "localai-gpu-albandrieu.albandrieu.com/CNAME" = "2b177cf0756a42d70d0e603b27706218" # gitleaks:allow
   "login.albandrieu.com/A"                      = "0de26421b4dc699abd3aa441f47d6fcd" # gitleaks:allow
   "mail2.albandrieu.com/A"                      = "dab7482978652226127f050142fc0aef" # gitleaks:allow
