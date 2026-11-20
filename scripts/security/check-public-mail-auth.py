@@ -37,10 +37,21 @@ GOOGLE_POLICY = {
     "subdomain_dmarc": "REJECT_100",
     "dmarc_alignment": "STRICT",
     "dkim": "PUBLISHED_CONFIGURED",
+}
+# Owner decision (20/11/2026), terraform/cloudflare/mail.tofu: a zone receiving
+# mail publishes TLS reporting and MTA-STS; a zone without mail a null MX, a
+# deny-all SPF and DMARC reject.
+RECEIVING_POLICY = {
     "tls_rpt": "DNS_PRESENT_POLICY_UNVERIFIED",
     "mta_sts": "DNS_PRESENT_POLICY_UNVERIFIED",
     # Testing first; ENFORCE_MX_MATCH after weeks of clean TLS-RPT reports.
     "mta_sts_policy": "TESTING_MX_MATCH",
+}
+NO_MAIL_POLICY = {
+    "null_mx": "NULL_MX_DECLARED",
+    "no_mail_spf": "DENY_ALL_ONLY",
+    "dmarc": "REJECT_100",
+    "subdomain_dmarc": "REJECT_100",
 }
 GOOGLE_SPF = ["v=spf1", "include:_spf.google.com", "-all"]
 
@@ -195,10 +206,14 @@ def audit(row: dict) -> dict:
             == ["v=spf1 -all"] else "REVIEW_NO_MAIL_SPF"
         )
     wanted = {"dmarc_reporting": "OPENCLAW_RUA_AUTHORIZED"}
+    if row["mail_use"] == "no-mail":
+        wanted |= NO_MAIL_POLICY
+    else:
+        checks["mta_sts_policy"] = mta_sts_policy(domain)
+        wanted |= RECEIVING_POLICY
     if google:
         checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []), {
             f"{x['label']}.{domain}": x["target"] for x in row.get("mx_exceptions", [])})
-        checks["mta_sts_policy"] = mta_sts_policy(domain)
         wanted |= GOOGLE_POLICY
     # An unresolved lookup is incomplete evidence, never a violation.
     violations = sorted(

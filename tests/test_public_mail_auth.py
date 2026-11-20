@@ -25,6 +25,12 @@ head = module("public_head", "scripts/security/check-public-exposure-paths.py")
 
 
 class ExternalPostureTest(unittest.TestCase):
+    def setUp(self):
+        # No unit test reaches the network: a test needing a policy patches it again.
+        patcher = patch.object(mail, "fetch_policy", return_value=("UNVERIFIED", ""))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_domain_scope_is_explicit(self):
         rows = mail.read_scope(ROOT / "config/security/public-mail-domains.json")
         self.assertEqual([r["name"] for r in rows], list(mail.OWNED))  # the 20 zones
@@ -215,24 +221,48 @@ class ExternalPostureTest(unittest.TestCase):
                               side_effect=lambda n, rrtype="TXT": dns.get(n, ("NXDOMAIN", []))):
                 result = mail.audit({"name": name, "mail_use": "unverified",
                                      "dkim_selectors": []})
-            return result["checks"]["dmarc_reporting"], result["violations"]
+            return result["checks"]["dmarc_reporting"], "dmarc_reporting" in result["violations"]
 
         openclaw = "v=DMARC1; p=none; rua=mailto:openclaw@albandrieu.com"
         # The reporting domain itself needs no authorization record.
         self.assertEqual(reporting("albandrieu.com", openclaw)[0], "OPENCLAW_RUA_AUTHORIZED")
         self.assertEqual(reporting("bababou.com", openclaw, ("NOERROR", ["v=DMARC1"])),
-                         ("OPENCLAW_RUA_AUTHORIZED", []))
+                         ("OPENCLAW_RUA_AUTHORIZED", False))
         # Keeping the Cloudflare address next to openclaw (with a size limit) is fine.
         both = ("v=DMARC1; p=none; rua=mailto:x@dmarc-reports.cloudflare.net,"
                 "mailto:openclaw@albandrieu.com!10m")
         self.assertEqual(reporting("bababou.com", both, ("NOERROR", ["v=DMARC1"]))[0],
                          "OPENCLAW_RUA_AUTHORIZED")
         self.assertEqual(reporting("bababou.com", openclaw),
-                         ("EXTERNAL_AUTHORIZATION_MISSING", ["dmarc_reporting"]))
+                         ("EXTERNAL_AUTHORIZATION_MISSING", True))
         self.assertEqual(reporting("bababou.com", "v=DMARC1; p=none; rua=mailto:x@example.net"),
-                         ("OPENCLAW_RUA_MISSING", ["dmarc_reporting"]))
+                         ("OPENCLAW_RUA_MISSING", True))
         self.assertEqual(reporting("bababou.com", openclaw, ("UNVERIFIED", [])),
-                         ("UNVERIFIED", []))  # incomplete, never a violation
+                         ("UNVERIFIED", False))  # incomplete, never a violation
+
+    def test_zones_without_mail_need_null_mx_deny_all_spf_and_dmarc_reject(self):
+        hardened = {
+            ("heoko.net", "MX"): ("NOERROR", ["0 ."]),
+            ("heoko.net", "TXT"): ("NOERROR", ["v=spf1 -all"]),
+            ("_dmarc.heoko.net", "TXT"): ("NOERROR", [
+                "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s; "
+                "rua=mailto:openclaw@albandrieu.com; ruf=mailto:openclaw@albandrieu.com"]),
+            ("heoko.net._report._dmarc.albandrieu.com", "TXT"): ("NOERROR", ["v=DMARC1"]),
+        }
+
+        def audit(overrides=None):
+            dns = {**hardened, **(overrides or {})}
+            with patch.object(mail, "lookup", side_effect=lambda n, rrtype="TXT":
+                              dns.get((n, rrtype), ("NXDOMAIN", []))):
+                return mail.audit({"name": "heoko.net", "mail_use": "no-mail",
+                                   "dkim_selectors": []})["violations"]
+        self.assertEqual(audit(), [])  # no TLS-RPT nor MTA-STS needed without mail
+        self.assertEqual(audit({("heoko.net", "MX"): ("NXDOMAIN", []),
+                                ("heoko.net", "TXT"): ("NXDOMAIN", [])}),
+                         ["no_mail_spf", "null_mx"])
+        self.assertEqual(audit({("_dmarc.heoko.net", "TXT"): ("NOERROR", [
+            "v=DMARC1; p=none; rua=mailto:openclaw@albandrieu.com"])}),
+            ["dmarc", "subdomain_dmarc"])
 
     def test_dns_failure_never_claimed_missing(self):
         with patch.object(mail, "lookup", return_value=("UNVERIFIED", [])):
