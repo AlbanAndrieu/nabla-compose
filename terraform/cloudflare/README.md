@@ -175,8 +175,8 @@ interdit (`.int.albandrieu.com`, contrôlé par un bloc `check`).
 Propriété : ce module possède les CNAME du tunnel et le retrait des noms
 décommissionnés. Les enregistrements d'AutoXpose, de l'ancien companion Traefik,
 de DDNS, de la messagerie et de l'apex restent hors module jusqu'à leur adoption
-explicite ; le script de capture les classe `unmanaged`. Exception : le SPF,
-le TLS-RPT et MTA-STS des deux domaines personnels (section « Messagerie »).
+explicite ; le script de capture les classe `unmanaged`. Exception : les
+enregistrements mail des 20 zones (section « Messagerie »).
 
 1. **Inventaire et identifiants (lecture seule)** :
 
@@ -242,82 +242,79 @@ le TLS-RPT et MTA-STS des deux domaines personnels (section « Messagerie »).
    sous le même identifiant ; après l'apply, le plan `adopt` voudrait alors
    recréer un `retired[...]` vide.
 
-## Messagerie : Google seulement (`mail.tofu`)
+## Messagerie des 20 zones (`mail.tofu`)
 
-Décision du propriétaire (20/11/2026) : Google Workspace est le seul
-fournisseur autorisé à envoyer et à recevoir pour `albandrieu.com` et
-`albanandrieu.com`. `bababou.com` est hors de cette règle. Les MX (Google),
-la DKIM `google._domainkey` et le DMARC (`p=reject`, `sp=reject`,
-`adkim=s`, `aspf=s`) sont déjà conformes et restent gérés dans le dashboard.
-[`mail.tofu`](mail.tofu) gère, par domaine :
+Décisions du propriétaire (20/11/2026) : durcir les 20 zones du compte par
+OpenTofu. Google Workspace est le seul fournisseur autorisé à envoyer et à
+recevoir pour `albandrieu.com` et `albanandrieu.com`. Les rapports DMARC et
+TLS-RPT de toutes les zones vont à `openclaw@albandrieu.com` : cette boîte ou
+cet alias doit exister dans Google Workspace. Les MX et les DKIM restent gérés
+dans le dashboard. [`mail.tofu`](mail.tofu) gère, avec les identifiants de
+`mail-record-ids.auto.tfvars` (zones et enregistrements, lus en `GET` le
+20/11) :
 
-- le SPF de l'apex, **importé** (identifiants dans
-  `mail-record-ids.auto.tfvars`) puis passé de `~all` à `-all`. Plan
-  attendu : 2 imports et 2 mises à jour du seul `content` ;
-- le TLS-RPT `_smtp._tls`, **créé** (2 ajouts), avec rapports vers
-  `openclaw@albandrieu.com` ;
-- MTA-STS en mode `testing` (décision du propriétaire du 20/11), **créé** :
-  - le Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)),
-    statique, sans origine ni binding : il sert
-    `https://mta-sts.<domaine>/.well-known/mta-sts.txt` et répond 404
-    ailleurs ;
-  - deux domaines personnalisés `mta-sts.<domaine>` (Cloudflare crée leur
-    enregistrement DNS et leur certificat) ;
-  - le TXT `_mta-sts` (`v=STSv1; id=20261120000000`), créé après les
-    domaines (`depends_on`).
+| Enregistrements | Zones | Action |
+| --- | --- | --- |
+| SPF de l'apex `~all` → `-all` | `albandrieu.com`, `albanandrieu.com` | 2 imports, 2 mises à jour du seul `content` |
+| `_dmarc` : seuls `rua`/`ruf` passent à `openclaw@albandrieu.com`, la politique ne bouge pas | `albandrieu.com`, `albanandrieu.com` (`p=reject` strict) ; `bababou.com`, `dr-alban.com` (`p=none`, l'adresse DMARC Management de Cloudflare reste à côté) | 4 imports, 4 mises à jour |
+| `_dmarc` `p=none` avec `rua`/`ruf` | `heoko.com`, `papapou.com` (MX et DKIM Google, sans SPF) | 2 créations |
+| `_dmarc` `p=reject`, `sp=reject`, alignement strict ; MX nul `0 .` (RFC 7505) ; SPF `v=spf1 -all` | les 14 zones sans mail (`no_mail_domains`) | 42 créations |
+| `<domaine>._report._dmarc.albandrieu.com` (`v=DMARC1`, RFC 7489 §7.1) | les 19 autres zones | 19 créations dans `albandrieu.com` |
+| TLS-RPT `_smtp._tls` ; MTA-STS `testing` : domaine personnalisé `mta-sts.<domaine>` et TXT `_mta-sts` | les 6 zones qui reçoivent par Google (`mta_sts_mx`) | 18 créations |
+| Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)) | compte | 1 création |
 
-  La politique contient `version: STSv1`, `mode: testing`, `max_age: 86400`
-  et exactement les MX publiés (`mta_sts_mx`) : `aspmx.l.google.com`,
-  `*.aspmx.l.google.com` et `smtp.google.com` pour `albandrieu.com` ;
-  les deux premiers seulement pour `albanandrieu.com`, qui ne publie pas
-  `smtp.google.com`. Plan attendu : 5 ajouts (1 script, 2 domaines, 2 TXT).
-  Toute modification de la politique change aussi `mta_sts_id`.
+Une précondition refuse de créer un second `_dmarc` sur une zone qui en publie
+déjà un : deux enregistrements annuleraient la politique.
 
-Rapports DMARC (décision du propriétaire du 20/11) : les 20 zones du compte
-doivent envoyer leurs rapports agrégés à `openclaw@albandrieu.com`. La RFC 7489
-(§7.1) exige que le domaine destinataire autorise chaque domaine tiers.
-`mail.tofu` **crée** donc 19 TXT `<domaine>._report._dmarc.albandrieu.com`
-(`v=DMARC1`), un par domaine de `config/security/public-mail-domains.json` hors
-`albandrieu.com` (contrat `test_cloudflare_contract`). Le `rua` de chaque
-`_dmarc` reste à poser, zone par zone, après confirmation de la liste exacte
-(corps de PR) : cela demande d'élargir le jeton aux 18 autres zones et
-d'importer les quatre DMARC existants. La boîte ou l'alias
-`openclaw@albandrieu.com` doit exister dans Google Workspace.
+Le Worker est statique, sans origine ni binding. Il sert
+`https://mta-sts.<domaine>/.well-known/mta-sts.txt` et répond 404 ailleurs.
+Chaque politique contient `version: STSv1`, `mode: testing`,
+`max_age: 86400` et exactement les MX publiés de la zone (`mta_sts_mx`).
+Le TXT `_mta-sts` est créé après les domaines (`depends_on`). Toute
+modification d'une politique change aussi `mta_sts_id`.
 
-Prérequis : le jeton `nabla-opentofu` doit couvrir la zone `albanandrieu.com`
-et porter `Workers Scripts Write` (compte) et `Workers Routes Write` (zones).
-Appliquer d'abord l'unité [`cloudflaretokens`](../cloudflaretokens/README.md)
-(1 mise à jour de la politique du jeton), sinon le plan échoue sur ces
-ressources.
+Prérequis : le jeton `nabla-opentofu` doit couvrir les 20 zones
+(`DNS Write`, `Workers Routes Write`) et porter `Workers Scripts Write`
+(compte). Appliquer d'abord l'unité [`cloudflaretokens`](../cloudflaretokens/README.md)
+(1 mise à jour de la politique du jeton), sinon le plan échoue sur ces zones.
+Le MX nul s'écrit `.` en priorité 0 ; si Cloudflare refuse ce contenu, le
+plan ou l'apply le dira.
 
 Le scan externe ([`check-public-mail-auth.py`](../../scripts/security/check-public-mail-auth.py),
-`config/security/public-mail-domains.json`) applique la même politique et sort
-en **code 4** (`PROVIDER_POLICY_VIOLATION`) sur :
-- un MX hors `google.com`, à l'apex ou sur `mail2`. Seule exception,
-  explicite et documentée (`mx_exceptions`) : `mail2.albandrieu.com` →
-  `mx3.mtahosting.com`, don de MX Project Honey Pot. Elle vaut pour ce nom
-  exact et cette cible exacte ; toute autre cible, ou ce MX à l'apex,
-  échoue ;
-- un SPF autre que `include:_spf.google.com -all` ;
-- un DMARC non strict ;
-- une DKIM `google` absente ;
-- un TLS-RPT absent ;
-- (sur les 20 domaines) un `rua` DMARC sans `openclaw@albandrieu.com`, ou,
-  pour un autre domaine qu'`albandrieu.com`, sans autorisation
-  `<domaine>._report._dmarc.albandrieu.com` ;
-- un TXT `_mta-sts` absent, ou une politique MTA-STS absente, invalide,
-  servie avec un certificat invalide ou une redirection, hors mode `testing`,
-  ou dont les MX diffèrent des MX publiés de l'apex.
+`config/security/public-mail-domains.json`, 20 zones avec leur `mail_use`)
+applique la même politique et sort en **code 4** (`PROVIDER_POLICY_VIOLATION`)
+dans ces cas :
+
+- **Toutes les zones** : un `rua` DMARC sans `openclaw@albandrieu.com`, ou,
+  hors `albandrieu.com`, sans autorisation
+  `<domaine>._report._dmarc.albandrieu.com`.
+- **Zones sans mail** : MX nul absent, SPF autre que `v=spf1 -all`, ou DMARC
+  non `reject`.
+- **Zones qui reçoivent** :
+  - TLS-RPT ou TXT `_mta-sts` absent ;
+  - politique MTA-STS absente ou invalide ;
+  - certificat invalide ou redirection ;
+  - mode autre que `testing` ;
+  - MX de la politique différents des MX publiés de l'apex.
+- **Domaines Google** :
+  - un MX hors `google.com`, à l'apex ou sur `mail2` ;
+  - un SPF autre que `include:_spf.google.com -all` ;
+  - un DMARC non strict ;
+  - une DKIM `google` absente.
+
+  Seule exception, explicite et documentée (`mx_exceptions`) :
+  `mail2.albandrieu.com` → `mx3.mtahosting.com`, don de MX Project Honey
+  Pot. Elle vaut pour ce nom exact et cette cible exacte : toute autre cible,
+  ou ce MX à l'apex, échoue.
 
 Une résolution DNS ratée reste `UNVERIFIED` et n'est jamais comptée comme
-violation. Le relevé du 20/11 depuis la workstation signale notamment
-`spf_provider` et `tls_rpt` sur `albandrieu.com`, et `spf_provider` sur
-`albanandrieu.com` : c'est l'état attendu tant que les applies n'ont pas eu
-lieu.
+violation. Le résolveur local de la workstation renvoie SERVFAIL sur les
+réponses NXDOMAIN de ces zones, alors que 1.1.1.1 répond bien : depuis le LAN,
+beaucoup de contrôles restent donc `UNVERIFIED`.
 
 Étape suivante : passer MTA-STS à `enforce` après quelques semaines de
-rapports TLS-RPT propres (`mode`, `mta_sts_id` et la valeur attendue
-`ENFORCE_MX_MATCH` du scan changent ensemble).
+rapports TLS-RPT propres. `mode`, `mta_sts_id` et la valeur attendue
+`ENFORCE_MX_MATCH` du scan changent ensemble.
 
 Proposé, **non appliqué** :
 
@@ -326,6 +323,9 @@ Proposé, **non appliqué** :
   Nabu Casa), puis l'Universal SSL et les certificats edge de Cloudflare
   (Google Trust Services, Let's Encrypt, SSL.com…). Un CAA incomplet casse
   le renouvellement.
+- **SPF de `heoko.com` et `papapou.com`** : ces zones envoient par Google
+  (DKIM publiée) sans SPF. Il faudrait `include:_spf.google.com`, puis
+  durcir leur DMARC après lecture des rapports.
 
 ## Tunnel workstation `nabla-albandrieu`
 

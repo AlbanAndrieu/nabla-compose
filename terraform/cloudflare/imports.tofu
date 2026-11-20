@@ -59,7 +59,14 @@ import {
 import {
   for_each = var.mail_spf_record_ids
   to       = cloudflare_dns_record.mail_spf[each.key]
-  id       = "${local.mail_domains[each.key].zone_id}/${each.value}"
+  id       = "${local.mail_zone_ids[each.key]}/${each.value}"
+}
+
+# Existing DMARC records of mail.tofu: adopt them before rua/ruf move.
+import {
+  for_each = var.mail_dmarc_record_ids
+  to       = cloudflare_dns_record.mail_dmarc[each.key]
+  id       = "${local.mail_zone_ids[each.key]}/${each.value}"
 }
 
 # Forward A for Free's PTR: adopt an existing record if found.

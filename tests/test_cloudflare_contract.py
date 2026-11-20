@@ -49,10 +49,12 @@ class CloudflareContract(unittest.TestCase):
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
              "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
              "cloudflare_workers_script.mta_sts", "cloudflare_workers_custom_domain.mta_sts",
-             "cloudflare_dns_record.dmarc_report_authorization"}
+             "cloudflare_dns_record.dmarc_report_authorization",
+             "cloudflare_dns_record.no_mail_mx", "cloudflare_dns_record.no_mail_spf"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
-            if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf"}:
+            if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf",
+                                    "cloudflare_dns_record.mail_dmarc"}:
                 self.assertIn(f"to       = {kind}.{name}[each.key]", imports)
                 continue
             if f"{kind}.{name}" in created:
@@ -65,23 +67,44 @@ class CloudflareContract(unittest.TestCase):
         mail = (TF / "mail.tofu").read_text(encoding="utf-8")
         self.assertIn('["version: STSv1", "mode: testing"]', mail)
         self.assertIn('["max_age: 86400", ""]', mail)
-        self.assertIn('mta_sts_mx = ["aspmx.l.google.com", "*.aspmx.l.google.com", '
+        self.assertIn('"albandrieu.com"   = ["aspmx.l.google.com", "*.aspmx.l.google.com", '
                       '"smtp.google.com"]', mail)
-        self.assertIn('mta_sts_mx = ["aspmx.l.google.com", "*.aspmx.l.google.com"]\n', mail)
+        self.assertIn('"heoko.com"        = ["smtp.google.com"]', mail)
         self.assertIn("depends_on = [cloudflare_workers_custom_domain.mta_sts]", mail)
         worker = (TF / "mta-sts-worker.js.tftpl").read_text(encoding="utf-8")
         self.assertEqual(worker.count("fetch("), 1)  # the handler only: no outbound call
 
-    def test_every_other_owned_domain_may_report_dmarc_to_albandrieu(self):
-        # RFC 7489 7.1: one authorization record per domain of the mail scan scope.
+    def test_the_twenty_zones_follow_the_mail_scan_scope(self):
+        # Owner decision (20/11/2026): harden every zone of the account through OpenTofu.
         mail = (TF / "mail.tofu").read_text(encoding="utf-8")
-        block = mail.split("dmarc_reported_domains = toset([", 1)[1].split("])", 1)[0]
-        scope = json.loads((ROOT / "config/security/public-mail-domains.json").read_text())
-        self.assertEqual(sorted(re.findall(r'"([a-z0-9.-]+)"', block)),
-                         sorted(row["name"] for row in scope["domains"]
-                                if row["name"] != "albandrieu.com"))
+        ids = (TF / "mail-record-ids.auto.tfvars").read_text(encoding="utf-8")
+        rows = json.loads((ROOT / "config/security/public-mail-domains.json").read_text())["domains"]
+        names = {row["name"] for row in rows}
+        no_mail = {row["name"] for row in rows if row["mail_use"] == "no-mail"}
+
+        def keys(text, block):
+            return set(re.findall(r'"([a-z0-9.-]+)"\s*=', text.split(block, 1)[1].split("}", 1)[0]))
+        self.assertEqual(keys(ids, "mail_zone_ids = {") | {"albandrieu.com", "albanandrieu.com"},
+                         names)
+        listed = mail.split("no_mail_domains = toset([", 1)[1].split("])", 1)[0]
+        self.assertEqual(set(re.findall(r'"([a-z0-9.-]+)"', listed)), no_mail)
+        # Every zone with mail gets MTA-STS and an explicit DMARC; the others a
+        # generated DMARC reject, a null MX and SPF -all.
+        self.assertEqual(keys(mail, "mta_sts_mx = {"), names - no_mail)
+        explicit = set(re.findall(r'^\s*"([a-z0-9.-]+)"\s*=\s*"v=DMARC1', mail, re.M))
+        self.assertEqual(explicit, names - no_mail)
+        self.assertEqual(keys(ids, "mail_dmarc_record_ids = {"),
+                         set(re.findall(r'"([a-z0-9.-]+)"', mail.split("dmarc_existing = [", 1)[1]
+                                                                .split("]", 1)[0])))
+        dmarc = re.findall(r'"v=DMARC1;\s*p=[^"\n]*"', mail)  # policies, not authorizations
+        self.assertEqual(len(dmarc), 1 + len(names - no_mail))  # generated + explicit
+        for record in dmarc:
+            self.assertIn("rua=mailto:", record)
+            self.assertIn("mailto:${local.report_mailbox}", record)
         self.assertIn('report_mailbox = "openclaw@albandrieu.com"', mail)
         self.assertIn('content = "\\"v=TLSRPTv1; rua=mailto:${local.report_mailbox}\\""', mail)
+        self.assertIn('content  = "."\n  priority = 0', mail)  # RFC 7505 null MX
+        self.assertIn('content = "\\"v=spf1 -all\\""', mail)
 
     def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
         # The joplin Access app is "Everyone bypass"; with no Joplin App behind

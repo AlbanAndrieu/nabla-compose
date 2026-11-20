@@ -17,10 +17,15 @@ def test_opentofu_token_has_exactly_the_apply_permissions() -> None:
     assert ('opentofu_account_permissions = ["Access: Apps and Policies Write", '
             '"Cloudflare Tunnel Write", "Workers Scripts Write"]') in text
     assert 'opentofu_zone_permissions    = ["DNS Write", "Workers Routes Write"]' in text
-    # DNS Write on the two personal zones only (bababou.com stays out).
-    zones = re.findall(r'"com\.cloudflare\.api\.account\.zone\.\$\{var\.(\w+)\}"\s*=\s*"\*"', text)
-    assert sorted(zones) == ["albanandrieu_zone_id", "zone_id"]
-    assert "61e2a1b07b61809660ad83963e0dbfd7" not in text
+    # Zone permissions on the 20 zones of the account, listed by id (no wildcard).
+    assert "concat([var.zone_id, var.albanandrieu_zone_id], values(var.mail_zone_ids))" in text
+    assert "zone.*" not in text
+    tfvars = (UNIT.parent / "cloudflare" / "mail-record-ids.auto.tfvars").read_text(encoding="utf-8")
+    shared = tfvars.split("mail_zone_ids = {", 1)[1].split("}", 1)[0]
+    default = text.split('variable "mail_zone_ids"', 1)[1].split("}\n}", 1)[0]
+    assert sorted(re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', default)) == sorted(
+        re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', shared))
+    assert len(re.findall(r'"[0-9a-f]{32}"', shared)) == 18
     assert text.count('effect            = "allow"') == 2
 
 
