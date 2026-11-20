@@ -53,6 +53,8 @@ services:
       FTLCONF_misc_dnsmasq_lines: "local=/int.albandrieu.com/"
       # Never 172.17.0.1: since pfSense left (2026-11-18) it is the R7000, which relays
       # the LAN to this Pi-hole, so forwarding there loops. AdGuard Home (:553, Quad9 DoH) first.
+      # Same for conditional forwarding: dns.revServers stays [] (cleared 2026-11-20 in
+      # pihole.toml); FTLCONF has no documented empty-array form, so it is not pinned here.
       FTLCONF_dns_upstreams: "172.17.0.24#553;9.9.9.9"
       # The whole LAN arrives from one client (the R7000 relay): the 1000/60 s default throttles it.
       FTLCONF_dns_rateLimit_count: "6000"
