@@ -31,95 +31,143 @@ pas configuré sans identification de l'outil exact. La note A/A+ n'est
 pas une preuve de conformité FIPS. Ne pas scanner l'origine d'un CDN
 en déduisant une IP mutualisée d'une réponse DNS.
 
-### TrueNAS — job Compose passif et ordonnanceur natif (21/11/2026)
+### TrueNAS — Amass actif + PostgreSQL commun + Cron existant (21/11/2026)
 
-Le projet officiel [`owasp-amass/amass-docker-compose`](https://github.com/owasp-amass/amass-docker-compose)
-est une infrastructure **beta** avec `enum/subs/viz/assoc/track`, un moteur
-Amass sur :4000 **dans son réseau Compose**, une base `assetdb`,
-`postal`, `syslog` et Neo4j. Son Compose upstream publie par défaut
-`55432:5432`, `7474:7474`, `7687:7687`, utilise des images
-`latest`, des builds distants `#main` et des noms de conteneur génériques.
-**Ne pas importer ni exécuter tel quel comme TrueNAS Custom App.**
-Une installation de la stack complète demandera un clone Git épinglé,
-le verrouillage des builds/images, des mots de passe hors Git, des volumes ZFS,
-la suppression des ports publiés et des noms globaux, un audit
-`docker compose config` et des tests de restauration. Cette variante est
-un POC ultérieur, pas une dépendance de la découverte passive H05.
+**Décision opérateur :** exécuter Amass **actif** sur TrueNAS (DNS, TLS,
+HTTP limités aux ports 80/443) ; réutiliser la **même instance PostgreSQL**
+TrueNAS, le **cron horaire existant** (`scripts/cron.sh`) et le collecteur
+DefectDojo existant. Aucun nouvel App Postgres/Neo4j, aucune interface WAN,
+aucun `git clone` upstream sur l'appliance. Le projet officiel
+[`amass-docker-compose`](https://github.com/owasp-amass/amass-docker-compose)
+fournit une stack multi-services ; elle n'est pas installée telle quelle ici.
 
-Pour le besoin CTEM actuel, le dépôt fournit à la place
-`config/security/ctem/amass-job.compose.yml` : **job Docker Compose
-éphémère**, sans App persistante ni port publié, sur réseau Docker isolé
-du namespace de LiteLLM (port Amass :4000 uniquement dans ce conteneur).
-Il réutilise **sans réimplémentation** `run-amass-inventory.py` et sa jointure
-Backstage V2 ; la base `assetdb` ne tourne pas. Le conteneur ne reçoit
-aucun socket Docker, aucun secret, ni écriture dans le checkout Git.
-L'image Python doit être verrouillée par digest après validation du pull.
-Un réseau bridge n'est **pas** une ACL de sortie LAN : la politique des
-cibles, le caractère passif, la suppression des ports entrants et les ACL
-réseau restent des contrôles distincts.
+- Identités : `assetdb` (une **nouvelle base au sein du serveur PostgreSQL
+  existant**, pas une seconde instance) et rôle strict `amass`. Extension
+  `pg_trgm` uniquement dans cette base ; état applicatif Amass persistant.
+- Sortie opérationnelle : `/mnt/cpool/ctem/amass/reports` (répertoire root 0700,
+  `candidates-<UTC>.json` privé 0600, `summary-<UTC>.json` et
+  `summary-latest.json`, eux aussi privés) ; table
+  `assetdb.ctem.scan_reports` pour reçus JSON **expurgés**, SHA-256 et révision
+  V2, sans aucun hostname découvert.
+- Publication : le cron horaire **envoie déjà un compte rendu par e-mail**
+  à l'opérateur ; pour CTEM, uniquement `status`, compteur agrégé et erreur.
+  Les détails sont consultables **localement**, jamais dans GitHub Actions,
+  FastAPI public, n8n webhook public ni DefectDojo sans triage.
+- Active boundary : domaines explicitement revus dans
+  `config/security/public-mail-domains.json` ; `-active -rigid -p 80,443`,
+  sans brute force, altération, plages IP, scanning WAN direct. **Amass actif
+  peut contacter des infrastructures CDN/tiers** derrière un hostname :
+  valider les autorisations et règles du fournisseur avant lancement. Le
+  réseau Docker bridge n'est pas une politique d'egress.
+- Secret PostgreSQL `root:root 0600` hors dépôt, jamais en argument CLI :
+  `/mnt/cpool/secrets/runtime/ctem-amass/.env.secrets` avec
+  `AMASS_DB_USER=amass`, `AMASS_DB_NAME=assetdb`,
+  `AMASS_DB_HOST=172.17.0.24`, `AMASS_DB_PASSWORD=<secret>`.
+  Il faut préalablement vérifier le SAN de la CA PostgreSQL pour
+  `sslmode=verify-full` (CA :
+  `/mnt/cpool/secrets/runtime/postgres/tls/ca.crt`). Aucune valeur
+  réelle de secret ne figure dans ce runbook.
 
-Sur **TrueNAS amd64**, créer d'abord le dataset ZFS `cpool/ctem/amass`
-via l'UI TrueNAS si la rétention/snapshot ZFS dédiée est souhaitée ;
-`install -d` crée uniquement les répertoires et **ne crée pas un dataset ZFS**.
-Puis préparer les répertoires privés et le binaire, uniquement après
-fusion/déploiement de ce commit, sans `apt` ni `pip` sur l'appliance :
+Procédure après fusion, checkout propre et provisioning du secret via
+Vaultwarden (pas d'installation `apt` sur TrueNAS) :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-sudo install -d -o root -g root -m 0700 \
-  /mnt/cpool/ctem/amass \
-  /mnt/cpool/ctem/amass/bin \
-  /mnt/cpool/ctem/amass/reports
-# L'installateur existant vérifie l'archive officielle v5.1.3 par SHA-256.
-# Il exécute -version sur l'hôte : pour isolation stricte, effectuer cette
-# étape sur une VM amd64 de confiance et transférer le binaire contrôlé.
+sudo install -d -o root -g root -m 0700 /mnt/cpool/ctem/amass \
+  /mnt/cpool/ctem/amass/bin /mnt/cpool/ctem/amass/reports
+
+# Le binaire v5.1.3 est vérifié par SHA-256. Son installateur l'exécute
+# brièvement sur l'hôte ; variante stricte : préparer dans une VM amd64.
 sudo bash scripts/security/install-pinned-amass.sh \
   /mnt/cpool/ctem/amass/bin/amass
 sudo docker pull python:3.13-slim
+
+# Vérifier d'abord le serveur Postgres existant (aucune mutation)
+sudo bash scripts/truenas/bootstrap-ctem-amass-db.sh --check
+# Muter uniquement le rôle/base Amass après revue et secret 0600
+sudo env CTEM_AMASS_DB_APPROVED=YES \
+  bash scripts/truenas/bootstrap-ctem-amass-db.sh --apply
+
 sudo docker compose -f config/security/ctem/amass-job.compose.yml \
   --profile manual config --quiet
 bash scripts/security/run-ctem-amass-truenas.sh --check
-sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --check
-```
 
-Exécuter **une fois**, manuellement et sans élargissement du scope :
+# PREMIER SMOKE actif approuvé ; sortie nominative jamais dans les logs
+sudo env CTEM_AMASS_ACTIVE_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+  bash scripts/security/run-ctem-amass-truenas.sh --run
 
-```bash
-sudo bash scripts/security/run-ctem-amass-truenas.sh --run
+# Preuves : aucun candidat n'est imprimé
 sudo ls -l /mnt/cpool/ctem/amass/reports/
+sudo jq '{scan_mode,status,counts,catalogReconciliation}' \
+  /mnt/cpool/ctem/amass/reports/summary-latest.json
 ```
 
-Le script emploie `flock` pour éviter le chevauchement, `--pull never` pour
-éviter toute mise à jour implicite, et crée un fichier `summary-<UTC>.json`
-(agrégats uniquement) ainsi qu'un fichier `candidates-<UTC>.json`
-(permissions 0600, noms et associations, **strictement privé**).
-Aucun détail n'est téléversé dans un artifact GitHub ni dans FastAPI public.
-Chaque exécution possède des noms de fichiers distincts ; sans preuve
-`OBSERVED_NOT_CERTIFIED`, résultat `INCOMPLETE` ou code non nul, conserver
-le rapport et investiguer, ne pas le convertir en actif ou vulnérabilité.
+**Cron intégré** : le job TrueNAS horaire existant (ID 6 dans le dernier
+relevé documenté, à revérifier) continue d'appeler `scripts/cron.sh`.
+Aucun second `cronjob.create`. La fonction `run_weekly_ctem_amass`
+s'exécute uniquement **dimanche à 05:00** heure de l'appliance, si le
+checkout `master` a été synchronisé et si
+`NABLA_CRON_CTEM_AMASS_ENABLED=true`. Elle reste **opt-in** : pour
+activer, ajouter cette variable à la tâche Cron horaire déjà enregistrée,
+après un smoke concluant, et vérifier via `midclt call cronjob.query`.
+La commande lance `sudo -n` ; les permissions sudoers réelles doivent
+autoriser ce chemin précis, sinon `NOT_RUN` avec erreur explicite.
+Le verrou `flock` empêche les chevauchements. Les résumés sont persistés
+dans PostgreSQL (approval d'écriture bornée à ce flux) et le mail Cron.
+Ne pas transformer l'absence de relevé en statut DOWN.
 
-Une fois ce smoke validé, enregistrer le job Cron natif **désactivé** :
+**Résultats externes/checkdmarc** : le workflow GitHub
+`external-attack-surface.yml` utilise `checkdmarc==6.0.3`,
+`-f json` pour le JSON natif temporaire (SPF, DMARC, MX, TLS-RPT,
+MTA-STS, DNSSEC), puis `run-public-mail-deep.py` construit
+`public-mail-deep.json`, uniquement les validations et politiques
+autorisées. Cet artifact est conservé **7 jours** dans GitHub Actions ;
+il n'entre **pas automatiquement** dans le PostgreSQL TrueNAS.
+Un import interne, après récupération autorisée de cet artifact, est
+préparé par :
 
 ```bash
-sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --apply
-sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --check-live
-# Après revue explicite de la première sortie privée et des ressources :
-sudo env CTEM_AMASS_CRON_APPROVED=YES \
-  python3 scripts/truenas/reconcile-ctem-amass-cron.py --enable
-# Arrêt de l'ordonnancement :
-sudo python3 scripts/truenas/reconcile-ctem-amass-cron.py --disable
+python3 scripts/security/store-ctem-summary.py \
+  --kind checkdmarc --input /chemin-prive/public-mail-deep.json --check
+sudo env CTEM_REPORT_STORE_APPROVED=YES \
+  python3 scripts/security/store-ctem-summary.py \
+  --kind checkdmarc --input /chemin-prive/public-mail-deep.json --apply
 ```
 
-La cadence choisie est **dimanche 05:35 heure locale de l'appliance**, dans
-une tâche distincte de `scripts/cron.sh` (horaire, Git sync / FastAPI).
-Le statut attendu de ce nouveau Cron est **CODED / NOT_INSTALLED / DISABLED**.
-N8n (déclaré actif via `apps/n8n/compose.yml`) peut être utilisé plus tard
-pour notifier, créer un ticket ou faire approuver des findings, **pas** pour
-exécuter à distance des commandes root ou accéder au socket Docker.
-Ne pas exposer les rapports CTEM via ses webhooks publics ;
-l'exception de politique Access pour le webhook n8n existe déjà et doit
-rester bornée. Le fonctionnement effectif de n8n doit être confirmé par
-`midclt call app.query` et non déduit du catalogue.
+Le validateur rejette les champs DNS non minimisés ; les rapports complets
+ne sont **pas** téléversés vers un dépôt public. Un pipeline automatique
+de récupération du mail-deep via GitHub App reste à raccorder à l'outbox
+existante ; ne pas annoncer cette ingestion comme déployée.
+
+**DefectDojo** : il n'existe pas de parser `checkdmarc` natif prouvé dans
+notre configuration actuelle. Une revue explicite du résultat expurgé
+permet de préparer des *findings* SPF/DMARC via le format
+`Generic Findings Import` (produit logique `ctem-mail`, engagement
+privé **à identifier**, IDs de déduplication stables, `verified=false`).
+Ce n'est ni une importation de tout l'inventaire Amass ni un import
+automatique des rapports non concluants :
+
+```bash
+python3 scripts/security/project-ctem-mail-findings.py \
+  --input /chemin-prive/public-mail-deep.json \
+  --output /chemin-prive/ctem-mail-findings.json --reviewed
+
+DEFECTDOJO_SERVICE_ID=ctem-mail \
+DEFECTDOJO_SCAN_TYPE='Generic Findings Import' \
+DEFECTDOJO_ENGAGEMENT_ID=<identifiant-existant> \
+  bash scripts/security/import-scan-defectdojo.sh \
+  --check /chemin-prive/ctem-mail-findings.json
+# --apply uniquement après validation parser, RBAC, token et déduplication.
+```
+
+Pour les résultats **Nuclei**, le parser DefectDojo natif `Nuclei Scan`
+est disponible, mais l'allowlist et les preuves ont leurs contraintes
+propres. Les noms Amass et les échecs d'exécution restent des **observations**
+Backstage/CTEM, et non des Findings DefectDojo.
+
+**Statut** : CODED, CI ciblée à vérifier, installation TrueNAS/PG,
+premier scan actif, collecte du rapport GitHub, import DefectDojo et
+contrôles WAN : **NOT_RUN**.
 
 ### Amass — inventaire passif, pas un scanner de vulnérabilités
 
