@@ -24,7 +24,7 @@ def test_stuck_app_diagnostic_is_read_only_and_bounded() -> None:
     assert "no repository-owned OpenArchiver Compose exists" in text
     assert "no repository-owned Paperless-ngx Compose exists" in text
     assert "required catalog dependencies" in text
-    assert "service-topology.json" in text
+    assert "catalog/generated/operator-inventory.json" in text
     assert "NABLA_REBOOT_STATE_ROOT" in text
     assert "apps-before.json" in text
     assert "resume-apps.txt" in text

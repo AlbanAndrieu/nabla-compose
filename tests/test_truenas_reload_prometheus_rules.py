@@ -74,5 +74,13 @@ class ReloadPrometheusRulesTest(unittest.TestCase):
         self.assertNotIn("kill", calls)
 
 
+class CronReloadContractTest(unittest.TestCase):
+    def test_up_to_date_checkout_still_reloads_stale_rules(self) -> None:
+        # A manual `git pull` leaves cron with no new commit: the reload must not depend on its diff.
+        cron = (ROOT / "scripts/cron.sh").read_text(encoding="utf-8")
+        branch = cron.split('no new commit, checkout at', 1)[1].split("return 0", 1)[0]
+        self.assertIn('reload-prometheus-rules.sh" apply', branch)
+
+
 if __name__ == "__main__":
     unittest.main()
