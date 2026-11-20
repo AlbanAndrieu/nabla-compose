@@ -140,7 +140,7 @@ def validate(service: str, scanner: str, data: bytes) -> None:
                 "title", "severity", "description", "unique_id_from_tool", "active", "verified"
             }:
                 raise ValueError("unapproved CTEM mail finding fields")
-            match = re.fullmatch(r"(.+) \\(([a-z0-9.-]+)\\)", row["title"])
+            match = re.fullmatch(r"(.+) \(([a-z0-9.-]+)\)", row["title"])
             if not match or match[1] not in controls or match[2] not in spec["hosts"]:
                 raise ValueError("CTEM mail finding out of approved scope")
             key = controls[match[1]]
