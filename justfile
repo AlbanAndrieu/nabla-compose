@@ -474,7 +474,7 @@ crowdsec-bouncer-config-test:
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
     # Route canary, plugin and AppSec acquisition contracts are part of
     # the existing CrowdSec quality gate, not an isolated unrun test.
-    bash scripts/quality/run-pytest-local.sh -q tests/test_traefik_crowdsec_bouncer_contract.py tests/test_crowdsec_appsec_waf_contract.py tests/test_fastapi_traefik_canary_contract.py
+    bash scripts/quality/run-pytest-local.sh -q tests/test_traefik_crowdsec_bouncer_contract.py tests/test_crowdsec_appsec_waf_contract.py tests/test_fastapi_traefik_canary_contract.py tests/test_traefik_secure_admin_metrics_contract.py
 
 # Workstation only: verify loaded PF rules, not just populated CrowdSec tables.
 # Audit can prove root "block in quick" presence; cannot prove WAN packet drops.

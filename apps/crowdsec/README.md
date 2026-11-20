@@ -34,8 +34,7 @@ appel LAPI par IP. Si le plugin ne se télécharge pas au démarrage
 (`plugins.traefik.io` injoignable), Traefik désactive les plugins et
 continue : seuls les routeurs qui portent le middleware échouent.
 
-**Exposition de la clé.** L'API Traefik `api.insecure` (port 8080, LAN, sans
-authentification) affiche la configuration rendue du plugin, donc la clé.
+**Exposition de la clé.** Ancienne API Traefik `api.insecure` (port 8080, sans authentification) : affiche la configuration rendue du plugin, donc potentiellement la clé. Le correctif IaC sur la PR canary supprime :8080 et place `api@internal` derrière BasicAuth privé ; **NON DÉPLOYÉ**.
 Une clé de bouncer ne peut que lire les décisions ; la révoquer avec
 `cscli bouncers delete TRAEFIK` si elle fuit. Ne jamais activer
 `providers.file.debugLogGeneratedTemplate`, qui écrirait la clé dans les logs.
@@ -93,7 +92,7 @@ le nouveau chemin d'entrée (voir
      awk -F= '$1 == "CROWDSEC_BOUNCER_LAPI_KEY" {print $1 "=PRESENT"}'
    ```
 
-   Le tableau de bord (`http://172.17.0.24:8080`) doit lister le middleware
+   Le tableau de bord durci (`https://traefik.int.albandrieu.com/dashboard/`, BasicAuth) doit lister le middleware
    `crowdsec@file`.
 
 3. **Redéployer CrowdSec** : `deploy-crowdsec.sh --check`, puis `--apply`,

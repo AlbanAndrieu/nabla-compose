@@ -74,7 +74,7 @@ services:
 
       # API / Dashboard
       - "--api.dashboard=true"
-      - "--api.insecure=true"
+      - "--api.insecure=false"
 
       # Entrypoints
       - "--entrypoints.web.address=:80"
@@ -82,6 +82,8 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--entrypoints.websecure.address=:443"
+      # Prometheus is separate from the admin API and LAN-bound on :8082.
+      - "--entrypoints.metrics.address=:8082"
       - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
 
       #  - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
@@ -122,7 +124,7 @@ services:
 
       # Logging
       # - "--log.level=INFO"
-      - "--log.level=DEBUG"
+      - "--log.level=INFO"
       # JSON file acquired by CrowdSec (apps/crowdsec/acquis.d/traefik.yaml).
       # Headers are dropped except User-Agent, needed by the HTTP scenarios.
       - "--accesslog=true"
@@ -134,6 +136,7 @@ services:
 
       # Metrics
       - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entrypoint=metrics"
       - "--metrics.prometheus.addentrypointslabels=true"
       - "--metrics.prometheus.addserviceslabels=true"
 
@@ -148,14 +151,11 @@ services:
         published: "443"
         protocol: tcp
         app_protocol: https
-      - name: dashboard
-        target: 8080
-        published: "8080"
-        protocol: tcp
-        app_protocol: http
+      # Dashboard/API 8080 is no longer published. Prometheus alone uses 8082.
       - name: metrics
         target: 8082
         published: "8082"
+        host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http
 
@@ -170,14 +170,15 @@ services:
     networks: ["traefik_network"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/traefik"
-      # - "traefik.enable=true"
-      # - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
-      # - "traefik.http.routers.traefik.entrypoints=websecure"
-      # - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      # Only the private split-DNS hostname may reach api@internal.
+      # BasicAuth is read via the existing file provider from Vaultwarden's
+      # canonical TRAEFIK_DASHBOARD_BASIC_AUTH runtime environment secret.
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.int.albandrieu.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.traefik.service=api@internal" # This "api@internal" is to access the dashboard
-      # NOK - "traefik.http.routers.traefik.middlewares=traefik-auth"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=traefik-admin-auth@file"
 
   cloudflare-ddns:
     logging: *nabla-logging
