@@ -37,6 +37,9 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("--all", wrapper)
         self.assertIn("Refusing repository-wide Terragrunt apply", wrapper)
         self.assertIn("backup-garage-state.sh", wrapper)
+        # Dedicated Garage keys override an unrelated AWS profile in the shell.
+        self.assertIn('export AWS_ACCESS_KEY_ID="${GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID}"', wrapper)
+        self.assertIn("unset AWS_PROFILE AWS_SESSION_TOKEN", wrapper)
 
     def test_state_backup_is_private_and_validated(self) -> None:
         backup = (ROOT / "scripts/infra/backup-garage-state.sh").read_text(
@@ -50,6 +53,8 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("sha256sum", backup)
         self.assertIn("Downloaded state does not look like a valid OpenTofu state", backup)
         self.assertIn("Refusing apply", backup)
+        self.assertIn('if [[ -v AWS_PROFILE && -z "${AWS_PROFILE}" ]]; then', backup)
+        self.assertIn('sed \'s/^/   aws: /\' "${head_err}" >&2', backup)
         self.assertIn("must resolve to an absolute path", backup)
         self.assertIn("Refusing to store sensitive state backups inside the Git checkout", backup)
 

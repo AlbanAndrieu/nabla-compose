@@ -16,6 +16,14 @@ if [[ ! -d "${target_dir}" ]]; then
   exit 2
 fi
 
+# The Garage state backend reads AWS_*; an interactive shell often carries other
+# AWS keys or a profile (403 on HeadObject), so the dedicated keys win when set.
+if [[ -n "${GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID:-}" && -n "${GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY:-}" ]]; then
+  export AWS_ACCESS_KEY_ID="${GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID}"
+  export AWS_SECRET_ACCESS_KEY="${GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY}"
+  unset AWS_PROFILE AWS_SESSION_TOKEN
+fi
+
 for command in flock terragrunt; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Missing required command: ${command}" >&2
