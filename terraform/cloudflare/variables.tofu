@@ -82,3 +82,9 @@ variable "home_dns_a_create_approved" {
   type        = bool
   default     = false
 }
+
+variable "fastapi_github_webhook_edge_ready" {
+  description = "Explicitly enable the webhook path Access exception only after receiver and exact host/path/method/GitHub hook IP WAF acceptance."
+  type        = bool
+  default     = false
+}

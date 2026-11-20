@@ -96,3 +96,5 @@ La projection générée `catalog/generated/operator-inventory.json` relie la r�
 - H13/F10 : diagnostic privé de la collecte par phase et bootstrap App manifest documentés ; App créée/installée, premier téléchargement et import non vérifiés.
 
 - H13/F10 : scope App artifacts via stack OpenTofu isolé, bootstrap manifest requis, quatre dépôts vérifiés avant adoption. Worker privé Compose ; statut agrégé OWNER FastAPI à implémenter. Runtime NOT_RUN.
+
+- H13/F12 : FastAPI GitHub webhook pilot and isolated control-plane App registration CODED; WAF/TLS/Redis/consent and apply NOT_RUN. No write grants before bounded worker and independent hardware approval verification. [Runbook](github-app-control-plane.md).

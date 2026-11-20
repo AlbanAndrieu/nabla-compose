@@ -1,0 +1,15 @@
+{
+  "name": "fastapi-sample",
+  "url": "https://github.com/AlbanAndrieu/fastapi-sample",
+  "description": "Private workflow event control plane; read-only pilot",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://fastapi-sample.albandrieu.com/webhooks/github",
+    "active": false
+  },
+  "default_permissions": {
+    "actions": "read"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}

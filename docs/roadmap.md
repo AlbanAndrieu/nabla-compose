@@ -271,3 +271,5 @@ Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrat
 - **H13** : diagnostic GitHub App `--probe-auth` et codes d'erreur par phase CODED ; vérifier App réelle, installation sélectionnée et accès API `Actions:read`, puis artefact/master et import LAN. Tests et runtime NOT_RUN.
 
 - **H13** : déclaration OpenTofu isolée de la sélection `nabla-github-app` après consentement initial, vérification des quatre dépôts et ID partagé CODED. App initiale/plan/apply NOT_RUN. Conserver worker/PEM et import-token hors FastAPI web ; futur DTO en lecture seule de supervision F10.
+
+- **H13/F12** — GitHub control plane `fastapi-sample` separate from `nabla-github-app`: private read-only manifest, loopback bootstrap/profile, opt-in Access webhook route CODED; no WAF or webhook enabled, no privileged worker/apply. Acceptance: deploy signed receiver first, review GitHub hook IP/WAF rule preserving existing zone rules, verify installation + negative requests, then enable. Existing Entra hardware signature/owner checks remain unchanged. [Runbook](github-app-control-plane.md).
