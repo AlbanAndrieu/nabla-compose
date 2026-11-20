@@ -292,7 +292,7 @@ run_weekly_ctem_mail() {
   fi
   weekday="$(date +%u)"
   hour="$(date +%H)"
-  if [[ "${weekday}" != 1 || "${hour}" != 06 ]]; then
+  if [[ "${weekday}" != 1 || "${hour}" != 08 ]]; then
     return 0
   fi
   if [[ ! -f "${SCRIPT_DIR}/security/pull-ctem-mail-artifact.py" ]]; then
