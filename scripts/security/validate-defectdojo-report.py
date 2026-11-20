@@ -186,7 +186,6 @@ def validate(service: str, scanner: str, data: bytes) -> None:
             if allowed_targets is not None and target not in allowed_targets:
                 raise ValueError("unapproved project lockfile target")
             if service == "nabla-compose":
-                import re
                 if not re.fullmatch(
                     r"(?:uv[.]lock|poetry[.]lock|Pipfile[.]lock|package-lock[.]json|"
                     r"pnpm-lock[.]yaml|requirements[A-Za-z0-9._-]*[.]txt)", target
