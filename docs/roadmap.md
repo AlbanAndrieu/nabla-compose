@@ -269,3 +269,5 @@ Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrat
 - **H13/F10 (19/11)**: native FastAPI image import profile, staged-report resume with acknowledgement marker, and TLS pinned LAN import CODED; runtime/quality NOT_RUN. Preserve stage-only Cron; owner Compose + FastAPI must prove exact artifact, parser/engagement, Celery status, dedupe, RBAC and WAN isolation before scheduling imports. Prowler GitHub and full repository/ZAP imports remain separate private evidence paths; [runbook](defectdojo-private-scan-ingestion.md).
 
 - **H13** : diagnostic GitHub App `--probe-auth` et codes d'erreur par phase CODED ; vérifier App réelle, installation sélectionnée et accès API `Actions:read`, puis artefact/master et import LAN. Tests et runtime NOT_RUN.
+
+- **H13** : déclaration OpenTofu isolée de la sélection `nabla-github-app` après consentement initial, vérification des quatre dépôts et ID partagé CODED. App initiale/plan/apply NOT_RUN. Conserver worker/PEM et import-token hors FastAPI web ; futur DTO en lecture seule de supervision F10.

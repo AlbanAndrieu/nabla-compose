@@ -40,11 +40,13 @@ class GithubAppInstallTests(unittest.TestCase):
                 "account": {"login": "AlbanAndrieu"},
                 "permissions": {"actions": "read", "metadata": "read"},
             }
+            requested = []
             class Opener:
                 def __init__(self, data):
                     self.data = data
 
-                def open(self, *_args, **_kwargs):
+                def open(self, req, **_kwargs):
+                    requested.append(req.full_url)
                     return BytesIO(json.dumps(self.data).encode())
 
             with (
@@ -55,6 +57,10 @@ class GithubAppInstallTests(unittest.TestCase):
                 mock.patch.object(module.request, "build_opener", return_value=Opener(good)),
             ):
                 self.assertEqual(module.query_installation()["installation_id"], 99)
+                self.assertEqual(set(requested), {
+                    f"https://api.github.com/repos/{repo}/installation"
+                    for repo in module.auth.ALLOWED_REPOSITORIES
+                })
             for bad in (
                 {**good, "repository_selection": "all"},
                 {**good, "permissions": {"actions": "write"}},

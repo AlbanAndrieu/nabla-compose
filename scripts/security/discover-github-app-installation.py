@@ -16,7 +16,6 @@ from urllib import error, request
 import github_app_auth as auth
 from github_actions_artifact_api import GitHubArtifactError, NoRedirect, bounded_read
 
-REPO = "AlbanAndrieu/nabla-site-bababou"
 MAX_BYTES = 16_384
 
 
@@ -36,34 +35,40 @@ def query_installation() -> dict:
     if type(app_id) is not int or app_id <= 0:
         raise GitHubArtifactError("invalid GitHub App ID")
     jwt = auth.make_jwt(app_id)
-    req = request.Request(
-        f"https://api.github.com/repos/{REPO}/installation",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {jwt}",
-            "X-GitHub-Api-Version": "2026-03-10",
-            "User-Agent": "nabla-defectdojo-app-provisioning",
-        },
-    )
-    try:
-        with request.build_opener(request.ProxyHandler({}), NoRedirect()).open(
-            req, timeout=20
-        ) as response:
-            installed = json.loads(bounded_read(response, MAX_BYTES))
-    except (error.URLError, OSError, ValueError, TimeoutError):
-        raise GitHubArtifactError("GitHub App installation not verified") from None
-    if (not isinstance(installed, dict)
-            or installed.get("app_id") != app_id
-            or installed.get("account", {}).get("login") != "AlbanAndrieu"
-            or installed.get("repository_selection") != "selected"
-            or installed.get("permissions", {}).get("actions") != "read"
-            or set(installed.get("permissions", {})) - {"actions", "metadata"}
-            or type(installed.get("id")) is not int or installed["id"] <= 0):
-        raise GitHubArtifactError("GitHub App installation violates read-only policy")
+    installation_ids = set()
+    for repository in sorted(auth.ALLOWED_REPOSITORIES):
+        req = request.Request(
+            f"https://api.github.com/repos/{repository}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {jwt}",
+                "X-GitHub-Api-Version": "2026-03-10",
+                "User-Agent": "nabla-defectdojo-app-provisioning",
+            },
+        )
+        try:
+            with request.build_opener(request.ProxyHandler({}), NoRedirect()).open(
+                req, timeout=20
+            ) as response:
+                installed = json.loads(bounded_read(response, MAX_BYTES))
+        except (error.URLError, OSError, ValueError, TimeoutError):
+            raise GitHubArtifactError(f"GitHub App installation not verified for {repository}") from None
+        if (not isinstance(installed, dict)
+                or installed.get("app_id") != app_id
+                or installed.get("account", {}).get("login") != "AlbanAndrieu"
+                or installed.get("repository_selection") != "selected"
+                or installed.get("permissions", {}).get("actions") != "read"
+                or set(installed.get("permissions", {})) - {"actions", "metadata"}
+                or type(installed.get("id")) is not int or installed["id"] <= 0):
+            raise GitHubArtifactError("GitHub App installation violates read-only policy")
+        installation_ids.add(installed["id"])
+    if len(installation_ids) != 1:
+        raise GitHubArtifactError("selected repositories do not share one installation")
+    installed_id = installation_ids.pop()
     identifier = config.get("installation_id")
-    if type(identifier) is not int or (identifier not in (0, installed["id"])):
+    if type(identifier) is not int or (identifier not in (0, installed_id)):
         raise GitHubArtifactError("installation ID drift; refusing overwrite")
-    config["installation_id"] = installed["id"]
+    config["installation_id"] = installed_id
     return config
 
 
@@ -102,4 +107,4 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, GitHubArtifactError):
-        raise SystemExit("REJECTED: GitHub App installation cannot be verified") from None
+        raise SystemExit("REJECTED: GitHub App installation cannot be verified across all four approved repositories") from None
