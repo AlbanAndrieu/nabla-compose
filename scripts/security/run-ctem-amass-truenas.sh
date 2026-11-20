@@ -83,7 +83,7 @@ tmp = latest.with_suffix(".tmp")
 fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w", encoding="utf-8") as out:
     json.dump(data, out, sort_keys=True)
-    out.write("\\n")
+    out.write("\n")
 os.replace(tmp, latest)
 PY
   # The dedicated role can insert only minimized receipts into assetdb.ctem.
