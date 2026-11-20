@@ -190,6 +190,19 @@ Migration de dépôt **historiquement réceptionnée**. Les futurs travaux Gatew
 
 **Clôture** : batterie de tests d'anonymat (§9) verte et datée sur le SHA déployé ; aucun service média joignable depuis l'extérieur.
 
+## P1 — GitHub : gouvernance, App et webhook (20 novembre 2026)
+
+- **Rulesets — DEPLOYED (API), plan OpenTofu PASS** : « Protect master » identique sur les 52 dépôts publics et `dotfiles` (suppression et force-push interdits, historique linéaire, squash, GitGuardian exigé, App `fastapi-sample-release` seule exception) + ruleset « Code quality » hors OpenTofu (provider 6.13). Repris par import ([#420](https://github.com/AlbanAndrieu/nabla-compose/pull/420), [#424](https://github.com/AlbanAndrieu/nabla-compose/pull/424)) ; `apply` NOT_RUN. [Runbook](../infrastructure/github/README.md).
+- **À ne pas oublier — séparer les rôles de l'App** : décision du 20/11, `fastapi-sample-release` (App `4676280`, installation `155552350`, tous les dépôts) porte provisoirement release **et** gouvernance OpenTofu (*Administration* et *Variables* en écriture). Sa clé est aussi un secret Actions de 4 dépôts : un workflow compromis peut créer des jetons administrateur. Créer ensuite une App de gouvernance dont la clé reste dans Vaultwarden et sur la Workstation, puis retirer ces droits à l'App de release.
+- **Clé de l'App dans Vaultwarden — NOT_RUN** : importer `~/.ssh/fastapi-sample-release.*.pem` en pièce jointe de `nabla/prod/fastapi-sample-release` (coffre verrouillé le 20/11), puis supprimer la copie locale. Même chose pour `fastapi-sample-renovate` et `nabla-grafana`.
+- **Webhook de l'App — PLANNED** : point d'entrée public via Cloudflare Tunnel, Access en *bypass* sur le seul chemin du webhook restreint aux plages `hooks` de `api.github.com/meta`, signature `X-Hub-Signature-256` vérifiée par FastAPI Sample sur TrueNAS ; secret du webhook dans Vaultwarden et `/mnt/cpool/secrets/runtime/`. Usages : réveil du Gateway OpenClaw sur `workflow_run`, `check_suite` et `pull_request`. Aucune fusion automatique (décision du 20/11).
+- **fastapi-sample, constats API du 20/11** :
+  - alerte secret scanning #1 ouverte depuis le 02/08 (*GitLab Feature Flag Client Token*, `charts/generic-service/values.yaml`, commit `0bf6314d`) : rotation puis fermeture, décision propriétaire ;
+  - 100+ alertes code scanning ouvertes (11 critiques, 21 hautes) et 37 Dependabot (14 hautes) à trier ;
+  - `tmp-agent-autofix.yml` (déclenché sur tout push, `contents: write`, identifiants persistés) à retirer ; 57 workflows fantômes désactivés le 20/11 ;
+  - releases immuables : exigent une release en brouillon puis publiée, car `release.yml` téléverse les artefacts après publication ; attestations de build (`attest-build-provenance`) à ajouter au même moment ;
+  - fait le 20/11 : bouton « Update branch » activé. Contrôles de validité et motifs génériques du secret scanning : refusés sur un compte personnel.
+
 ## P1 — Assistants IA, IaC et observabilité (11 novembre 2026)
 
 - **H12** : OpenRAG/LiteLLM/Docling, embeddings workstation, clés virtuelles non maîtresses, corpus privé. [Runbook](runbooks/openrag-babou-ingestion-diagnostics.md).

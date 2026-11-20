@@ -44,6 +44,22 @@ inputs = {
   # installed on every repository below, or the apply fails with a 422.
   release_app_id = 4676280
 
+  # RELEASE_APP_CLIENT_ID of every release workflow; the full value is validated,
+  # a truncated copy broke two repositories on 19/11/2026.
+  release_app_client_id = "Iv23liN665uZOuJJwTJ7"
+  release_app_client_id_repositories = [
+    "fastapi-sample",
+    "nabla-compose",
+    "nabla-site-alban",
+    "nabla-site-bababou",
+  ]
+
+  # App authentication (installation 155552350 of fastapi-sample-release), used
+  # when TF_VAR_github_app_pem is exported. Temporary: governance and release
+  # share this App until a separate governance App exists (docs/roadmap.md).
+  github_app_id              = 4676280
+  github_app_installation_id = 155552350
+
   # "Protect master" rulesets created through the API on 19/11/2026, adopted by import.
   # The separate "Code quality" ruleset stays outside OpenTofu: provider 6.13 has no
   # code_quality rule (infrastructure/github/README.md).
