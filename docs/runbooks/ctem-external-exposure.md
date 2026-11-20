@@ -121,9 +121,46 @@ Ne pas transformer l'absence de relevé en statut DOWN.
 `-f json` pour le JSON natif temporaire (SPF, DMARC, MX, TLS-RPT,
 MTA-STS, DNSSEC), puis `run-public-mail-deep.py` construit
 `public-mail-deep.json`, uniquement les validations et politiques
-autorisées. Cet artifact est conservé **7 jours** dans GitHub Actions ;
-il n'entre **pas automatiquement** dans le PostgreSQL TrueNAS.
-Un import interne, après récupération autorisée de cet artifact, est
+autorisées. Cet artifact est conservé **7 jours** dans GitHub Actions.
+
+**Nouveau collecteur GitHub App (CODED, non déployé)** :
+`scripts/security/pull-ctem-mail-artifact.py` utilise l'installation
+GitHub App déjà utilisée pour les imports DefectDojo, en permission
+`Actions:read` sur `nabla-compose`. Il sélectionne **uniquement la
+dernière** run `master` réussie du workflow
+`external-attack-surface.yml` (schedule ou workflow_dispatch),
+strictement âgée de 7 jours au maximum. Une run plus récente en échec
+empêche de rejouer un succès ancien. Le fichier ZIP doit contenir
+**exactement** `public-mail-deep.json` ; son contenu est vérifié avec
+le même validateur de portée et de minimisation que l'insertion PostgreSQL.
+Aucun token GitHub App n'est transmis au stockage externe de l'artifact.
+`/mnt/cpool/ctem/amass/reports/mail/` conserve le JSON brut *déjà
+minimisé* en `root:root 0600`, dans un sous-répertoire 0700.
+La base PostgreSQL partagée reçoit le reçu expurgé
+`assetdb.ctem.scan_reports`, idempotent par SHA-256.
+
+```bash
+# Aucun réseau, token ou écriture en --check
+python3 scripts/security/pull-ctem-mail-artifact.py --check
+
+# Pull + vérification du dernier artifact autorisé, sans mutation PostgreSQL
+sudo env CTEM_MAIL_PULL_APPROVED=YES \
+  python3 scripts/security/pull-ctem-mail-artifact.py --pull
+
+# Pull + dépôt privé + UPSERT dans PostgreSQL partagé
+sudo env CTEM_MAIL_PULL_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+  python3 scripts/security/pull-ctem-mail-artifact.py --store
+```
+
+Le cron horaire **déjà existant** déclenche ce collecteur seulement le
+**lundi à 06:00**, si `NABLA_CRON_CTEM_MAIL_ENABLED=true` est activé
+dans sa propre configuration, après vérification du secret GitHub App,
+des ACL root et du connecteur SQL. Le fichier GitHub reste soumis à
+sa rétention de 7 jours ; la copie privée et le reçu PostgreSQL
+persistent indépendamment. Le pipeline de collecte ne crée aucun
+DefectDojo Test, ne réimporte aucun scan et ne publie rien sur le WAN.
+
+En secours, un import interne manuel d'un fichier déjà récupéré est
 préparé par :
 
 ```bash
@@ -135,9 +172,11 @@ sudo env CTEM_REPORT_STORE_APPROVED=YES \
 ```
 
 Le validateur rejette les champs DNS non minimisés ; les rapports complets
-ne sont **pas** téléversés vers un dépôt public. Un pipeline automatique
-de récupération du mail-deep via GitHub App reste à raccorder à l'outbox
-existante ; ne pas annoncer cette ingestion comme déployée.
+ne sont **pas** téléversés vers un dépôt public. La récupération GitHub
+App et son insertion PostgreSQL sont désormais **CODED**, mais leur
+réception TrueNAS, le dernier artifact réel et le déclenchement Cron
+restent **NOT_RUN**. L'intégration éventuelle à l'outbox de notifications
+FastAPI/Slack est un travail distinct, non nécessaire à la persistance.
 
 **DefectDojo** : il n'existe pas de parser `checkdmarc` natif prouvé dans
 notre configuration actuelle. Une revue explicite du résultat expurgé
