@@ -10,6 +10,12 @@ variable "zone_id" {
   default     = "015b9ec0f8674ce52b6cceb99d3adb3d"
 }
 
+variable "albanandrieu_zone_id" {
+  description = "albanandrieu.com zone identifier (not a secret); mail records of terraform/cloudflare only."
+  type        = string
+  default     = "227e423f0194d42016dd753d4a23437f"
+}
+
 # The repository is public: the operator WAN address is passed through
 # TF_VAR_opentofu_token_client_ips, never committed.
 variable "opentofu_token_client_ips" {

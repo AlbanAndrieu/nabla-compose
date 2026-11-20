@@ -22,8 +22,10 @@ version: 1
 # pfSense and its HAProxy left on 18/11 (public traffic only enters through the
 # tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
 # and home (Free PTR, dns.tofu); hello.int and s3.int, published by
-# cloudflare-ddns (owner decision, 20/11/2026). Not here: mail2, whose MX
-# would go with it (the circuit retires every type).
+# cloudflare-ddns (owner decision, 20/11/2026).
+# Eighth round (20/11/2026): mail2, A and MX together. Google alone sends and
+# receives mail for albandrieu.com (owner decision); its MX pointed to a third
+# party (mail.tofu, check-public-mail-auth.py).
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com
@@ -34,6 +36,7 @@ retired_hostnames:
   - honeypot-albandrieu.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
   - login.albandrieu.com
+  - mail2.albandrieu.com
   - manager.albandrieu.com
   - motion-albandrieu.albandrieu.com
   - netalertx-albandrieu.albandrieu.com

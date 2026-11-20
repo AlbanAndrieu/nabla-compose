@@ -36,7 +36,11 @@ resource "cloudflare_account_token" "opentofu" {
     {
       effect            = "allow"
       permission_groups = [for name in local.opentofu_zone_permissions : { id = local.zone_group_ids[name][0] }]
-      resources         = jsonencode({ "com.cloudflare.api.account.zone.${var.zone_id}" = "*" })
+      # albanandrieu.com only for the mail records of terraform/cloudflare/mail.tofu.
+      resources = jsonencode({
+        "com.cloudflare.api.account.zone.${var.zone_id}"              = "*"
+        "com.cloudflare.api.account.zone.${var.albanandrieu_zone_id}" = "*"
+      })
     },
   ]
 

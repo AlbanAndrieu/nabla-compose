@@ -8,7 +8,7 @@ sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
 | Portée | Permission |
 | --- | --- |
 | Compte `bdfe00ee…` | Access: Apps and Policies Write, Cloudflare Tunnel Write |
-| Zone `albandrieu.com` | DNS Write |
+| Zones `albandrieu.com` et `albanandrieu.com` (enregistrements mail seulement, [`mail.tofu`](../cloudflare/mail.tofu)) | DNS Write |
 | Condition | adresses clientes de `TF_VAR_opentofu_token_client_ips` |
 | Expiration | `opentofu_token_expires_on` (rotation : avancer la date) |
 

@@ -38,7 +38,8 @@ serait écrasée au prochain apply. Le module voisin
 `CLOUDFLARE_API_TOKEN` vient de Vaultwarden, n'est jamais écrit dans un
 fichier du dépôt ni affiché (vérifier avec `[ -n "${CLOUDFLARE_API_TOKEN:-}" ]`).
 Deux jetons distincts, limités au compte `bdfe00ee…` et à la zone
-`albandrieu.com`, idéalement avec filtrage d'IP client et date d'expiration :
+`albandrieu.com` (plus `albanandrieu.com` pour [`mail.tofu`](mail.tofu)),
+idéalement avec filtrage d'IP client et date d'expiration :
 
 | Usage | Type | Élément | Permission |
 | --- | --- | --- | --- |
@@ -174,7 +175,8 @@ interdit (`.int.albandrieu.com`, contrôlé par un bloc `check`).
 Propriété : ce module possède les CNAME du tunnel et le retrait des noms
 décommissionnés. Les enregistrements d'AutoXpose, de l'ancien companion Traefik,
 de DDNS, de la messagerie et de l'apex restent hors module jusqu'à leur adoption
-explicite ; le script de capture les classe `unmanaged`.
+explicite ; le script de capture les classe `unmanaged`. Exception : le SPF et
+le TLS-RPT des deux domaines personnels (section « Messagerie »).
 
 1. **Inventaire et identifiants (lecture seule)** :
 
@@ -219,10 +221,13 @@ explicite ; le script de capture les classe `unmanaged`.
    `www.toto`, `truenas`, `warp`. Les consommateurs internes de `truenas`
    (Sample, CSI) épinglent déjà `172.17.0.24`. Restent hors circuit :
    l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
-   (PTR Free, `cloudflare_dns_record.home`), `mail2` (son MX partirait avec
-   lui : le circuit retire tous les types d'un nom), `hello.int` et `s3.int`
+   (PTR Free, `cloudflare_dns_record.home`), `hello.int` et `s3.int`
    (conservés, publiés par `cloudflare-ddns` de l'App Traefik : décision du
    propriétaire du 20/11).
+   Huitième tour (20/11/2026) : `mail2`, A et MX ensemble. Google seul
+   envoie et reçoit pour `albandrieu.com` (décision du propriétaire), alors
+   que ce MX visait un tiers (`mx3.mtahosting.com`) et que le A proxifié
+   répondait 403 1050.
    Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
    ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
    l'état sous `tunnel[...]` (paragraphe suivant).
@@ -232,6 +237,55 @@ explicite ; le script de capture les classe `unmanaged`.
    Le lister aussi dans `dns_retired_record_ids` l'importe une seconde fois
    sous le même identifiant ; après l'apply, le plan `adopt` voudrait alors
    recréer un `retired[...]` vide.
+
+## Messagerie : Google seulement (`mail.tofu`)
+
+Décision du propriétaire (20/11/2026) : Google Workspace est le seul
+fournisseur autorisé à envoyer et à recevoir pour `albandrieu.com` et
+`albanandrieu.com`. `bababou.com` est hors de cette règle. Les MX (Google),
+la DKIM `google._domainkey` et le DMARC (`p=reject`, `sp=reject`,
+`adkim=s`, `aspf=s`) sont déjà conformes et restent gérés dans le dashboard.
+[`mail.tofu`](mail.tofu) gère deux enregistrements par domaine :
+
+- le SPF de l'apex, **importé** (identifiants dans
+  `mail-record-ids.auto.tfvars`) puis passé de `~all` à `-all`. Plan
+  attendu : 2 imports et 2 mises à jour du seul `content` ;
+- le TLS-RPT `_smtp._tls`, **créé** (2 ajouts), avec rapports vers
+  `technical@<domaine>`, déjà destinataire du DMARC.
+
+Prérequis : le jeton `nabla-opentofu` doit couvrir la zone `albanandrieu.com`.
+Appliquer d'abord l'unité [`cloudflaretokens`](../cloudflaretokens/README.md)
+(1 mise à jour de la politique du jeton), sinon la lecture de cette zone échoue
+au plan.
+
+Le scan externe ([`check-public-mail-auth.py`](../../scripts/security/check-public-mail-auth.py),
+`config/security/public-mail-domains.json`) applique la même politique et sort
+en **code 4** (`PROVIDER_POLICY_VIOLATION`) sur :
+- un MX hors `google.com`, à l'apex ou sur `mail2` ;
+- un SPF autre que `include:_spf.google.com -all` ;
+- un DMARC non strict ;
+- une DKIM `google` absente ;
+- un TLS-RPT absent.
+
+Une résolution DNS ratée reste `UNVERIFIED` et n'est jamais comptée comme
+violation. Le relevé du 20/11 depuis la workstation signale `mx_provider`
+(`mail2`), `spf_provider` et `tls_rpt` sur `albandrieu.com`, et
+`spf_provider` sur `albanandrieu.com` : c'est l'état attendu tant que les
+applies n'ont pas eu lieu.
+
+Proposés, **non appliqués** :
+
+- **MTA-STS** : un TXT `_mta-sts` (`v=STSv1; id=<date>`) et une politique
+  servie en HTTPS sur `https://mta-sts.<domaine>/.well-known/mta-sts.txt`.
+  Elle déclarerait d'abord `mode: testing`, avec les MX
+  `aspmx.l.google.com`, `*.aspmx.l.google.com` et `smtp.google.com`, puis
+  passerait à `enforce` après lecture des rapports TLS-RPT. Il faut un
+  hébergement HTTPS (Worker, Pages ou route tunnel), absent aujourd'hui.
+- **CAA** : à n'ajouter qu'après inventaire des émetteurs réellement
+  utilisés : Let's Encrypt (Traefik en DNS-01, Vercel, GitHub Pages,
+  Nabu Casa), puis l'Universal SSL et les certificats edge de Cloudflare
+  (Google Trust Services, Let's Encrypt, SSL.com…). Un CAA incomplet casse
+  le renouvellement.
 
 ## Tunnel workstation `nabla-albandrieu`
 

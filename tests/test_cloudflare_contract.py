@@ -45,11 +45,12 @@ class CloudflareContract(unittest.TestCase):
                 "affine", "freshrss", "plumber_api", "immich", "ha", "famp_albandrieu",
                 "fastapi_github_webhook",
             )
-        } | {"cloudflare_zero_trust_access_policy.freshrss_site"}
+        } | {"cloudflare_zero_trust_access_policy.freshrss_site",
+             "cloudflare_dns_record.mail_tls_rpt"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
-            if f"{kind}.{name}" == "cloudflare_dns_record.home":
-                self.assertIn("to       = cloudflare_dns_record.home[each.key]", imports)
+            if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf"}:
+                self.assertIn(f"to       = {kind}.{name}[each.key]", imports)
                 continue
             if f"{kind}.{name}" in created:
                 self.assertNotIn(f"to = {kind}.{name}\n", imports)
