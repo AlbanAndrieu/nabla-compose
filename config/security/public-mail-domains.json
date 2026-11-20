@@ -1,8 +1,20 @@
 {
   "version": 1,
   "domains": [
-    {"name": "albandrieu.com", "mail_use": "unverified", "dkim_selectors": []},
-    {"name": "albanandrieu.com", "mail_use": "unverified", "dkim_selectors": []},
-    {"name": "bababou.com", "mail_use": "unverified", "dkim_selectors": []}
+    {
+      "name": "albandrieu.com",
+      "mail_use": "sending",
+      "mail_provider": "google",
+      "dkim_selectors": ["google"],
+      "mx_subdomains": ["mail2"]
+    },
+    {
+      "name": "albanandrieu.com",
+      "mail_use": "sending",
+      "mail_provider": "google",
+      "dkim_selectors": ["google"],
+      "mx_subdomains": []
+    },
+    { "name": "bababou.com", "mail_use": "unverified", "dkim_selectors": [] }
   ]
 }

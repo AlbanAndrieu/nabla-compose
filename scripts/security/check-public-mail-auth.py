@@ -13,6 +13,19 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 OWNED = ("albandrieu.com", "albanandrieu.com", "bababou.com")
 NAME_RE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+$")
+LABEL_RE = re.compile(r"^[a-z0-9-]{1,63}$")
+# Owner decision (20/11/2026): Google Workspace alone sends and receives for a
+# domain declared mail_provider=google. Any other observed value is a violation.
+GOOGLE_POLICY = {
+    "mx_provider": "GOOGLE_ONLY",
+    "spf_provider": "GOOGLE_ONLY_HARD_FAIL",
+    "dmarc": "REJECT_100",
+    "subdomain_dmarc": "REJECT_100",
+    "dmarc_alignment": "STRICT",
+    "dkim": "PUBLISHED_CONFIGURED",
+    "tls_rpt": "DNS_PRESENT_POLICY_UNVERIFIED",
+}
+GOOGLE_SPF = ["v=spf1", "include:_spf.google.com", "-all"]
 
 
 def read_scope(file: Path) -> list[dict]:
@@ -27,6 +40,12 @@ def read_scope(file: Path) -> list[dict]:
             raise ValueError("domain outside reviewed scope")
         if row.get("mail_use") not in {"sending", "no-mail", "unverified"}:
             raise ValueError("invalid mail use")
+        if row.get("mail_provider") not in {None, "google"}:
+            raise ValueError("invalid mail provider")
+        if row.get("mail_provider") and row["mail_use"] != "sending":
+            raise ValueError("a mail provider implies mail_use=sending")
+        if not all(LABEL_RE.fullmatch(x) for x in row.get("mx_subdomains", [])):
+            raise ValueError("invalid MX subdomain label")
         for sel in row.get("dkim_selectors", []):
             if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", sel):
                 raise ValueError("invalid DKIM selector")
@@ -59,9 +78,12 @@ def lookup(name: str, rrtype: str = "TXT") -> tuple[str, list[str]]:
 def audit(row: dict) -> dict:
     domain = row["name"]
     checks = {}
+    google = row.get("mail_provider") == "google"
     state, records = lookup(domain)
     if state == "UNVERIFIED":
         checks["spf"] = "UNVERIFIED"
+        if google:
+            checks["spf_provider"] = "UNVERIFIED"
     else:
         spf = [x for x in records if x.lower().startswith("v=spf1")]
         checks["spf"] = (
@@ -70,14 +92,23 @@ def audit(row: dict) -> dict:
             "HARD_FAIL_POLICY_DECLARED" if re.search(r"(?:^|\s)-all(?:\s|$)", spf[0], re.I)
             else "NON_STRICT_POLICY"
         )
+        if google:
+            checks["spf_provider"] = (
+                "GOOGLE_ONLY_HARD_FAIL" if len(spf) == 1
+                and spf[0].lower().split() == GOOGLE_SPF else "NOT_GOOGLE_ONLY_HARD_FAIL"
+            )
     state, records = lookup("_dmarc." + domain)
     if state == "UNVERIFIED":
         checks["dmarc"] = checks["subdomain_dmarc"] = "UNVERIFIED"
+        if google:
+            checks["dmarc_alignment"] = "UNVERIFIED"
     else:
         dmarc = [x for x in records if x.lower().startswith("v=dmarc1")]
         if len(dmarc) != 1:
             checks["dmarc"] = "MISSING_OR_INVALID"
             checks["subdomain_dmarc"] = "UNVERIFIED"
+            if google:
+                checks["dmarc_alignment"] = "MISSING_OR_INVALID"
         else:
             tags = {k.lower(): v.lower() for k, v in re.findall(
                 r"(?:^|;)\s*([a-z]+)\s*=\s*([^;\s]+)", dmarc[0], re.I
@@ -90,6 +121,11 @@ def audit(row: dict) -> dict:
                 "REJECT_100" if full and tags.get("sp", tags.get("p")) == "reject"
                 else "NON_STRICT"
             )
+            if google:
+                checks["dmarc_alignment"] = (
+                    "STRICT" if tags.get("adkim") == "s" and tags.get("aspf") == "s"
+                    else "RELAXED"
+                )
     selectors = row.get("dkim_selectors", [])
     if not selectors:
         checks["dkim"] = (
@@ -131,7 +167,29 @@ def audit(row: dict) -> dict:
             "DENY_ALL_ONLY" if [x for x in spf_records if x.lower().startswith("v=spf1")]
             == ["v=spf1 -all"] else "REVIEW_NO_MAIL_SPF"
         )
-    return {"domain": domain, "mail_use": row["mail_use"], "checks": checks}
+    result = {"domain": domain, "mail_use": row["mail_use"], "checks": checks}
+    if google:
+        checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []))
+        # An unresolved lookup is incomplete evidence, never a violation.
+        result["violations"] = sorted(
+            key for key, want in GOOGLE_POLICY.items()
+            if checks[key] != want and not checks[key].startswith("UNVERIFIED")
+        )
+    return result
+
+
+def google_mx(domain: str, labels: list[str]) -> str:
+    """Apex must route to Google; a listed subdomain may have no MX, never another host."""
+    hosts = []
+    for name in [domain, *(f"{label}.{domain}" for label in labels)]:
+        state, values = lookup(name, "MX")
+        if state == "UNVERIFIED":
+            return "UNVERIFIED"
+        if name == domain and not values:
+            return "MISSING_APEX_MX"
+        hosts += [value.split()[-1].rstrip(".").lower() for value in values]
+    return ("GOOGLE_ONLY" if all(h == "google.com" or h.endswith(".google.com") for h in hosts)
+            else "NON_GOOGLE_MX")
 
 
 def main() -> int:
@@ -145,14 +203,16 @@ def main() -> int:
         status.startswith("UNVERIFIED")
         for row in results for status in row["checks"].values()
     )
+    violated = any(row.get("violations") for row in results)
     report = {"scope": "reviewed_domain_apex_only", "vantage": "github_hosted",
-              "result": "INCOMPLETE_UNVERIFIED" if incomplete else "OBSERVED_NOT_CERTIFIED",
+              "result": "PROVIDER_POLICY_VIOLATION" if violated
+              else "INCOMPLETE_UNVERIFIED" if incomplete else "OBSERVED_NOT_CERTIFIED",
               "results": results}
     args.output.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     print(f"mail_dns_domains={len(results)} result={report['result']}")
-    return 3 if incomplete else 0
+    return 4 if violated else 3 if incomplete else 0
 
 
 if __name__ == "__main__":
