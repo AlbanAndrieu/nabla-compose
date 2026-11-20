@@ -12,7 +12,7 @@
 1. **H01 — Talos / Kubernetes CSI** : établir le pilote réellement installé et sa compatibilité TrueNAS 27 ; vérifier controller/DaemonSet, PVC NFS RWX sur deux workers, persistance, reclaim ZFS et NetworkPolicy. Ne pas déplacer Keycloak/Hermes/Vault avant réception. [Préflight CSI](kubernetes-csi-preflight.md).
    - **H01 / Falco Talos — PLANNED, NOT_INSTALLED** : déjà configuré dans `kubernetes/platform-tools/falco-values.yaml`, chart 9.1.0 et Falco 0.44.1 épinglés ; `install-platform-tools.sh --preflight falco` disponible en lecture seule. Contrôler les contraintes eBPF/PSA, CPU/RAM, alertes et rollback avant une installation distincte, sans confondre avec Harden-Runner GitHub. [Platform tools](kubernetes-platform-tools.md).
    - **Talos P2 / SPIRE — PLANNED, NOT_DEPLOYED** : attestation des nœuds et workloads SPIFFE/SVID (JWT/X.509), mTLS et tests négatifs après réception CSI, NetworkPolicy et PKI. Aucun déploiement à ce stade ; [plan IAM](security/entra-id-homelab-lab.md).
-   - 16/11 : pilote installé `truenas-csi` v1.0.3. Le csi-resizer v2 ne pouvait pas lire les Pods : RBAC corrigé par `install-truenas-csi-nfs.sh --apply`. PVC RWX écrit sur taloswk01 et relu sur taloswk02 : `TESTED`. Restent le reclaim ZFS (suppression des namespaces de smoke), la NetworkPolicy et `auth.login_with_api_key`, retiré dans TrueNAS 28. Cluster arrêté du 16 au 19/11 ; taloscp01 avait pris l'IP publique du WAN du 14 au 15/11 ([incident](incidents/2026-11-14-talos-control-plane-public-wan-lease.md)). 19/11 à 23:53 : les trois VMs sont de nouveau `RUNNING` ; l'API Talos répond sur les adresses fixes 172.17.0.50 à 52, l'API Kubernetes sur taloscp01. État du cluster (nœuds, CSI, PVC, NetworkPolicy) `NOT_RUN` : le `talosconfig` du poste est vide et aucun kubeconfig Talos n'y est présent.
+   - 16/11 : pilote installé `truenas-csi` v1.0.3. Le csi-resizer v2 ne pouvait pas lire les Pods : RBAC corrigé par `install-truenas-csi-nfs.sh --apply`. PVC RWX écrit sur taloswk01 et relu sur taloswk02 : `TESTED`. Restent le reclaim ZFS (suppression des namespaces de smoke), la NetworkPolicy et `auth.login_with_api_key`, retiré dans TrueNAS 28. Cluster arrêté du 16 au 19/11 ; taloscp01 avait pris l'IP publique du WAN du 14 au 15/11 ([incident](incidents/2026-11-14-talos-control-plane-public-wan-lease.md)). 19/11 à 23:53 : les trois VMs sont de nouveau `RUNNING` ; l'API Talos répond sur les adresses fixes 172.17.0.50 à 52, l'API Kubernetes sur taloscp01. 20/11 : `talosconfig` et kubeconfig copiés de TrueNAS sur le poste (`~/.config/nabla/talos`, 0600, empreintes identiques) ; trois nœuds `Ready` (Talos v1.13.9, Kubernetes v1.36.3), pods CSI `Running`, aucun PV ni PVC et aucun dataset enfant sous `cpool/k8s/csi` (reclaim constaté) ; NetworkPolicy toujours absente.
 2. **H02 — Sauvegardes PostgreSQL** : rotation privée de `postgres_exporter`, sauvegarde TLS `verify-full` avec SHA-256, restauration Docker isolée sans réseau et comparaison des données ; activer la planification seulement après restauration prouvée. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
 3. **H04 — Cloudflare / sécurité WAN** : contrôler DNS publics, routes Tunnel, Access et Service Auth, refus de `/realms/master`, absence d'exposition des services privés ; `s3.int` uniquement après plan et approbation explicite. [IaC Cloudflare](../terraform/cloudflare/README.md).
 4. **H05 — Gatus / Prometheus** : comparer `app.query`, Gatus, scrapes `up`, `entityRef` et `catalogRevision`, avec preuve horodatée ; `NOT_RUN`/`DENIED` ne signifient pas `DOWN`. [Runbook sondes](runbooks/2026-11-04-probe-remediation.md).
@@ -113,7 +113,7 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
    - **Sentry et LiteLLM LAN seulement** (décision de l'opérateur, soir du 16/11). Sentry : route Tunnel `sentry.albandrieu.com` retirée, CNAME au 5ᵉ tour de retrait, UI servie par Traefik en `https://sentry.int.albandrieu.com` (`SENTRY_SYSTEM_URL_PREFIX`, `CSRF_TRUSTED_ORIGINS`), audit `audit-app-lifecycle.sh` qui exige que le nom public ne réponde plus : **CODED**, plan, apply et redéploiement de l'App **NOT_RUN**. LiteLLM n'a plus ni route ni DNS depuis le 05/11 (NXDOMAIN le 16/11) ; FastAPI le classe encore « At risk » à cause de son application Access orpheline.
    - **6ᵉ tour (17/11, décision de l'opérateur)** : routes Tunnel `traefik`, `drawio`, `pihole` et `autoxpose` retirées, CNAME au 6ᵉ tour de retrait ; ces services restent sur le LAN. `immich` et `nexus` gardent leur route publique derrière Access : leur catalogue passe en `visibility: public` avec `access.required` (`nexus` aussi `external: true` dans `homelab-services.json`). **CODED**, plan, apply et tour DNS **NOT_RUN**. Réception : ces six lignes absentes de `health=at-risk` (immich y reste tant que son application Access n'est pas appliquée).
    - **Applications Access orphelines** (aucune route Tunnel, relevé FastAPI du 16/11 19:35 UTC) : `litellm`, `sentry`, `traefik`, `drawio`, `pihole` et `autoxpose` (ces cinq après l'apply), `bichon`, `clamav`, `garage-admin`, `kibana`, `test`, plus `motion-albandrieu` et `nexus` ci-dessus. À importer puis supprimer par plan, comme le tour DNS : relever d'abord leurs identifiants avec le jeton de lecture Access (aucun identifiant n'est exposé par FastAPI). Garder `manager` (route HAProxy WAN), `int` (`*.int`, garde-fou) et les applications système. Réception : `/api?operator=1&ui_full=1&health=at-risk` sans ces lignes.
-   - `ddns-updater` : ni :8000 ni :30007 n'écoutent (16/11, revu le 18/11), parce que l'App est `STOPPED` (`app.query`) et non à cause du port. Le DynDNS Cloudflare passait par pfSense, retiré le 18/11 : relancer l'App, ou constater que l'IP publique Free est fixe. Question dans la [passe du 18/11](runbooks/2026-11-18-roadmap-pass-blockers.md).
+   - `ddns-updater` : ni :8000 ni :30007 n'écoutent (16/11, revu le 18/11), parce que l'App est `STOPPED` (`app.query`) et non à cause du port. Le DynDNS Cloudflare passait par pfSense, retiré le 18/11 : relancer l'App, ou constater que l'IP publique Free est fixe. 20/11 : l'IP publique Free est fixe (propriétaire) : App retirée (`disabled`, f8dc2893), données conservées.
    - Jeton Cloudflare de FastAPI Cloud (`AuthenticationError`, 23 `warn`) : rotation par l'opérateur, sans afficher la valeur.
 
 **Clôture** : règles Access du moindre privilège et sondes de bord expurgées, sans régression du DNS ni création d'une exposition WAN.
@@ -155,7 +155,7 @@ Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, 
 - **Plan de performance validé par l'opérateur le 16/11**. Mesures du 16/11, 3 jours après le reboot du 12/11 : raidz2 de 4 HDD, IOPS aléatoires d'un seul disque ; PSI IO `full` à 7–10 % même avec bitcoind arrêté ; écritures depuis le reboot : bitcoind 1,66 To, ntopng 564 Go pour 160 Mo de données, Docker 235 Go, ClickHouse 100 Go, PostgreSQL HA 31 Go, Gatus 12 Go ; 90 conteneurs sur 133 sans limite mémoire ; 5,7 Gio disponibles. Les lectures sont servies à 99,9 % par l'ARC, un L2ARC n'apporterait rien.
   1. [ ] **ntopng** : `recordsize=16K` sur `cpool/ntopng` puis recopie des fichiers, car chaque mise à jour RRD réécrit un bloc de 128 Ko. `CODED` : profil dans `config/truenas/dataset-profiles.json`, appliqué par `bootstrap-repository-storage.sh --apply ntopng`. Mesurer les écritures physiques du pool (`zpool iostat`) : `nwritten` compte les écritures logiques, que `recordsize` ne change pas. Réécriture unique des fichiers existants : `scripts/truenas/rewrite-ntopng-records.sh` (`--check`/`--apply`).
   2. [x] **Abandonné le 16/11 (décision opérateur)** — **Bases de données** : `recordsize=16K` et `logbias=throughput` sur `cpool/ha/postgres` et sur la base `postgres` partagée. App arrêtée, snapshot avant. Script versionné `--check`/`--apply`. 16/11 : non fait, gain faible. Ces datasets écrivent 2,8 et 0,2 écritures/s, contre 395 pour ntopng, et appartiennent à des Apps du catalogue, hors du bootstrap de stockage. Abandon validé par l'opérateur.
-  3. [ ] **Appliquer ce qui attend** : fenêtre nocturne, redéploiement de Prometheus et clamav, redéploiement de scanopy, litellm et ntopng (zombies) après fusion.
+  3. [ ] **Appliquer ce qui attend** : fenêtre nocturne, redéploiement de Prometheus et clamav, redéploiement de scanopy, litellm et ntopng (zombies) après fusion. 20/11 (`DEPLOYED`) : homarr, litellm, ollama et prometheus redéployés sains (les deux alertes pfSense s'éteignent), dsomm avec sa limite de 128m, Dozzle démarré derrière le proxy du socket (connexion exigée) ; scrutiny attend `SCRUTINY_CUTOVER_APPROVED` après revue ; restent clamav, scanopy et ntopng.
   4. [x] **VMs Talos arrêtées** le 16/11 (`just talos-vms-stop`, autostart désactivé) : `MemAvailable` passe de 5,7 à 13 Gio. Le CSI est réparé (RBAC du csi-resizer, smoke RWX réussi). Au redémarrage, appliquer l'adressage statique des nœuds ([incident du 14/11](incidents/2026-11-14-talos-control-plane-public-wan-lease.md)).
   5. [ ] **Tests SMART longs** sortis des nuits de bitcoind (ansible-workstation).
   6. [ ] **Limites mémoire** à partir de `memory.peak` × 1,5 sur les conteneurs qui n'en ont pas. Relevé cgroup du 16/11 : openclaw-gateway, nexus, les OpenSearch, clamav et kafka avaient déjà une limite, mais 90 conteneurs n'en ont pas (32 Gio de pics cumulés). `CODED` : `mem_limit` sur sentry-web, sentry-taskworker, clickhouse, langfuse-web, langflow, suricata, mongo, litellm, languagetool, openwebui et fastapi-sample. Le test cliquet `tests/test_compose_resource_ratchet.py` empêche le nombre de services sans limite d'augmenter. Prise d'effet au redéploiement de chaque App. **18/11** : `memory.peak` relevé sur les 88 conteneurs encore sans limite (32,6 Gio de pics). `CODED` : `mem_limit` sur 71 services de 33 fichiers (pic × 1,5, plancher 128m, 35,6 Gio au total), ratchet de 132 à 59. Écartés exprès : `pihole` (le rebuild hebdomadaire de gravity n'est pas dans le pic) et `squid` (`cache_mem` par défaut de 256 Mo). Redéploiement par l'opérateur, puis surveiller les OOM des services dont la mémoire suit la charge (docling, loki, prometheus, mimir, minio, tempo) et des apps Node, dont le heap se cale sur la limite cgroup. 20/11 : Traefik et ses deux compagnons, Redis, `redis_exporter` et CrowdSec plafonnés d'après leur pic de 25 h × 2 (51f39601), cliquet 59 → 53 ; restent surtout des services `planned`, plus Pi-hole et squid par choix.
@@ -247,24 +247,22 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
 
 ## Recommandations de la passe du 2026-11-20
 
-1. **Redéployer par lots dans une fenêtre de nuit.** Le plus gros écart de la
-   roadmap est `CODED` → `DEPLOYED` : Redis, Dozzle, Traefik puis CrowdSec,
-   les `mem_limit` (passes du 18 et du 20/11), dsomm, scrutiny et Sentry en LAN
-   attendent un redéploiement. Partir de
-   `just truenas-impacted-apps-plan <sha> master`, un lot à la fois, avec
-   `docker inspect` sur `HostConfig.Memory` après chaque lot.
+1. **Finir les redéploiements par lots de nuit.** Premier lot fait le 20/11
+   (homarr, litellm, ollama, prometheus, dsomm, Dozzle). Restent, après fusion
+   de cette branche, les limites de Traefik et Redis, puis la bascule scrutiny
+   (après revue) et clamav, scanopy, ntopng. Partir de
+   `just truenas-impacted-apps-plan <sha> master`, avec `docker inspect` sur
+   `HostConfig.Memory` après chaque lot.
 2. **Rendre le contrôle du catalogue bloquant avant fusion.** #416 et #418
-   passaient chacune leurs tests, mais leur combinaison a cassé `master`
-   (artefacts du catalogue V2 périmés), et aucun test ne tourne sur un push de
-   `master`. Le ruleset « Protect master » (géré par OpenTofu depuis #420)
-   n'exige que GitGuardian, sans branche à jour : y ajouter le job pre-commit
-   ou catalogue, avec `strict_required_status_checks_policy`, aurait refusé
-   la fusion de #418.
-3. **Rendre l'accès Talos au poste avant tout travail H01.** H01 est le
-   premier chantier de l'ordre validé, mais le `talosconfig` du poste est vide
-   et aucun kubeconfig Talos n'y est présent : ni reclaim ZFS, ni
-   NetworkPolicy, ni recette CSI ne peuvent se vérifier, alors que les VMs
-   tournent depuis le 19/11.
+   passaient chacune leurs tests, mais leur combinaison a cassé `master`.
+   `CODED` (075b9a99) : `pre-commit` requis et branche à jour obligatoire sur
+   nabla-compose ; plan et apply OpenTofu `NOT_RUN`. Les 50 autres dépôts gérés
+   n'ont pas de job pre-commit sur leurs PR : l'y ajouter avant de l'exiger.
+3. **Remettre une source de mises à jour des images.** Vaultwarden tournait
+   en 1.37.3 avec deux correctifs de sécurité en retard (1.37.4 High, 1.37.5),
+   parce que Renovate est configuré mais inactif sur le dépôt et que Watchtower
+   reste `planned` en surveillance seule. Montée en 1.37.5 `CODED` (78415e6e) ;
+   réactiver l'App Renovate pour ne plus dépendre d'un relevé manuel.
 
 ## Historique minimal : problèmes à ne pas reproduire
 
