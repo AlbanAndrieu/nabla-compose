@@ -51,6 +51,7 @@ fi
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 echo "ctem_amass=STARTED; timestamp=${timestamp}; candidates_private=true"
 # Never expose the private inventory to GitHub artifacts or a public web route.
+rc=0
 timeout 14m docker compose \
   --project-directory "${ROOT}/config/security/ctem" \
   --file "${COMPOSE}" \
@@ -58,5 +59,44 @@ timeout 14m docker compose \
   --amass /tools/amass \
   --mode active \
   --output "/reports/summary-${timestamp}.json" \
-  --private-output "/reports/candidates-${timestamp}.json"
-echo "ctem_amass=COMPLETE; no candidate names logged"
+  --private-output "/reports/candidates-${timestamp}.json" || rc=$?
+
+summary="${REPORTS}/summary-${timestamp}.json"
+if [[ -f "${summary}" ]]; then
+  # Print only counts/status in the existing TrueNAS Cron mail, never candidates.
+  python3 - "${summary}" "${REPORTS}/summary-latest.json" <<'PY'
+import json
+import os
+from pathlib import Path
+import sys
+source, latest = map(Path, sys.argv[1:])
+data = json.loads(source.read_text(encoding="utf-8"))
+if data.get("schema_version") != 1 or data.get("scanner") != "amass":
+    raise SystemExit("REJECTED: invalid Amass summary")
+counts = data.get("counts")
+if not isinstance(counts, dict) or any(type(x) is not int for x in counts.values()):
+    raise SystemExit("REJECTED: invalid Amass counts")
+print(f"ctem_amass_status={data.get('status', 'INCOMPLETE')}; "
+      f"assets_count={sum(counts.values())}; "
+      f"mode={data.get('scan_mode')}")
+tmp = latest.with_suffix(".tmp")
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(data, out, sort_keys=True)
+    out.write("\\n")
+os.replace(tmp, latest)
+PY
+  # The dedicated role can insert only minimized receipts into assetdb.ctem.
+  # A failed receipt must NOT be logged as a successful publication.
+  if [[ "${CTEM_REPORT_STORE_APPROVED:-}" == YES ]]; then
+    python3 "${ROOT}/scripts/security/store-ctem-summary.py" \
+      --kind amass --input "${summary}" --apply || rc=3
+  else
+    echo "ctem_storage=PRIVATE_FILE_ONLY; shared-postgresql insertion not enabled"
+  fi
+fi
+if ((rc != 0)); then
+  echo "ctem_amass=INCOMPLETE; exit=${rc}; no automatic DefectDojo finding" >&2
+  exit "${rc}"
+fi
+echo "ctem_amass=COMPLETE; summary persisted privately; no candidate names logged"
