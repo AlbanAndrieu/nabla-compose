@@ -15,6 +15,95 @@
       "dkim_selectors": ["google"],
       "mx_subdomains": []
     },
-    { "name": "bababou.com", "mail_use": "unverified", "dkim_selectors": [] }
+    {
+      "name": "bababou.com",
+      "mail_use": "unverified",
+      "dkim_selectors": []
+    },
+    {
+      "name": "bababou.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "dr-alban.com",
+      "mail_use": "unverified",
+      "dkim_selectors": []
+    },
+    {
+      "name": "eokoo.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "eokou.com",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heoko.com",
+      "mail_use": "unverified",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heoko.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heoko.org",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokoo.com",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokoo.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokoo.org",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokou.com",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokou.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "heokou.org",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "papapou.com",
+      "mail_use": "unverified",
+      "dkim_selectors": []
+    },
+    {
+      "name": "papapou.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "papapou.org",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    },
+    {
+      "name": "papoyou.net",
+      "mail_use": "no-mail",
+      "dkim_selectors": []
+    }
   ]
 }

@@ -27,8 +27,11 @@ head = module("public_head", "scripts/security/check-public-exposure-paths.py")
 class ExternalPostureTest(unittest.TestCase):
     def test_domain_scope_is_explicit(self):
         rows = mail.read_scope(ROOT / "config/security/public-mail-domains.json")
-        self.assertEqual({r["name"] for r in rows}, {
-            "albandrieu.com", "albanandrieu.com", "bababou.com"})
+        self.assertEqual([r["name"] for r in rows], list(mail.OWNED))  # the 20 zones
+        uses = {r["name"]: r["mail_use"] for r in rows}
+        self.assertEqual({n for n, use in uses.items() if use == "unverified"},
+                         {"bababou.com", "dr-alban.com", "heoko.com", "papapou.com"})
+        self.assertEqual(list(uses.values()).count("no-mail"), 14)
         with tempfile.TemporaryDirectory() as folder:
             file = Path(folder) / "bad.json"
             file.write_text(json.dumps({"version": 1, "domains": [
@@ -94,7 +97,8 @@ class ExternalPostureTest(unittest.TestCase):
         dns = {
             ("albandrieu.com", "TXT"): ("NOERROR", ["v=spf1 include:_spf.google.com -all"]),
             ("_dmarc.albandrieu.com", "TXT"): ("NOERROR", [
-                "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s"]),
+                "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s;"
+                "rua=mailto:openclaw@albandrieu.com"]),
             ("google._domainkey.albandrieu.com", "TXT"): ("NOERROR", ["v=DKIM1;k=rsa;p=MIIB"]),
             ("_mta-sts.albandrieu.com", "TXT"): ("NOERROR", ["v=STSv1; id=20261120000000"]),
             ("_smtp._tls.albandrieu.com", "TXT"): ("NOERROR", [
@@ -127,7 +131,7 @@ class ExternalPostureTest(unittest.TestCase):
         })
         result = self.google_audit(drift)
         self.assertEqual(result["violations"], [
-            "dmarc_alignment", "mx_provider", "spf_provider", "tls_rpt"])
+            "dmarc_alignment", "dmarc_reporting", "mx_provider", "spf_provider", "tls_rpt"])
         self.assertEqual(result["checks"]["mx_provider"], "NON_GOOGLE_MX")
         # A look-alike host is not Google.
         lookalike = self.google_dns({("albandrieu.com", "MX"): (
@@ -178,6 +182,34 @@ class ExternalPostureTest(unittest.TestCase):
         self.assertEqual(report["result"], "PROVIDER_POLICY_VIOLATION")
         self.assertNotIn("mtahosting", json.dumps(report))  # value-blind report
         self.assertNotIn("aspmx", json.dumps(report))
+
+    def test_dmarc_reports_go_to_openclaw_with_external_authorization(self):
+        auth = "bababou.com._report._dmarc.albandrieu.com"
+
+        def reporting(name, dmarc, authorization=("NXDOMAIN", [])):
+            dns = {"_dmarc." + name: ("NOERROR", [dmarc]), auth: authorization}
+            with patch.object(mail, "lookup",
+                              side_effect=lambda n, rrtype="TXT": dns.get(n, ("NXDOMAIN", []))):
+                result = mail.audit({"name": name, "mail_use": "unverified",
+                                     "dkim_selectors": []})
+            return result["checks"]["dmarc_reporting"], result["violations"]
+
+        openclaw = "v=DMARC1; p=none; rua=mailto:openclaw@albandrieu.com"
+        # The reporting domain itself needs no authorization record.
+        self.assertEqual(reporting("albandrieu.com", openclaw)[0], "OPENCLAW_RUA_AUTHORIZED")
+        self.assertEqual(reporting("bababou.com", openclaw, ("NOERROR", ["v=DMARC1"])),
+                         ("OPENCLAW_RUA_AUTHORIZED", []))
+        # Keeping the Cloudflare address next to openclaw (with a size limit) is fine.
+        both = ("v=DMARC1; p=none; rua=mailto:x@dmarc-reports.cloudflare.net,"
+                "mailto:openclaw@albandrieu.com!10m")
+        self.assertEqual(reporting("bababou.com", both, ("NOERROR", ["v=DMARC1"]))[0],
+                         "OPENCLAW_RUA_AUTHORIZED")
+        self.assertEqual(reporting("bababou.com", openclaw),
+                         ("EXTERNAL_AUTHORIZATION_MISSING", ["dmarc_reporting"]))
+        self.assertEqual(reporting("bababou.com", "v=DMARC1; p=none; rua=mailto:x@example.net"),
+                         ("OPENCLAW_RUA_MISSING", ["dmarc_reporting"]))
+        self.assertEqual(reporting("bababou.com", openclaw, ("UNVERIFIED", [])),
+                         ("UNVERIFIED", []))  # incomplete, never a violation
 
     def test_dns_failure_never_claimed_missing(self):
         with patch.object(mail, "lookup", return_value=("UNVERIFIED", [])):

@@ -15,7 +15,17 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-OWNED = ("albandrieu.com", "albanandrieu.com", "bababou.com")
+# The 20 zones of the Cloudflare account (config/security/public-mail-domains.json).
+OWNED = (
+    "albandrieu.com", "albanandrieu.com", "bababou.com", "bababou.net", "dr-alban.com",
+    "eokoo.net", "eokou.com", "heoko.com", "heoko.net", "heoko.org", "heokoo.com",
+    "heokoo.net", "heokoo.org", "heokou.com", "heokou.net", "heokou.org", "papapou.com",
+    "papapou.net", "papapou.org", "papoyou.net",
+)
+# Owner decision (20/11/2026): the DMARC aggregate reports of every owned domain
+# go to one mailbox; another domain must authorize it (RFC 7489 7.1).
+REPORT_MAILBOX = "openclaw@albandrieu.com"
+REPORT_DOMAIN = "albandrieu.com"
 NAME_RE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+$")
 LABEL_RE = re.compile(r"^[a-z0-9-]{1,63}$")
 # Owner decision (20/11/2026): Google Workspace alone sends and receives for a
@@ -104,8 +114,10 @@ def audit(row: dict) -> dict:
                 "GOOGLE_ONLY_HARD_FAIL" if len(spf) == 1
                 and spf[0].lower().split() == GOOGLE_SPF else "NOT_GOOGLE_ONLY_HARD_FAIL"
             )
+    rua: set[str] | None = set()
     state, records = lookup("_dmarc." + domain)
     if state == "UNVERIFIED":
+        rua = None
         checks["dmarc"] = checks["subdomain_dmarc"] = "UNVERIFIED"
         if google:
             checks["dmarc_alignment"] = "UNVERIFIED"
@@ -121,6 +133,8 @@ def audit(row: dict) -> dict:
                 r"(?:^|;)\s*([a-z]+)\s*=\s*([^;\s]+)", dmarc[0], re.I
             )}
             full = tags.get("pct", "100") == "100"
+            rua = {uri.split("!")[0].removeprefix("mailto:")
+                   for uri in tags.get("rua", "").split(",")}
             checks["dmarc"] = (
                 "REJECT_100" if full and tags.get("p") == "reject" else "NON_STRICT"
             )
@@ -133,6 +147,7 @@ def audit(row: dict) -> dict:
                     "STRICT" if tags.get("adkim") == "s" and tags.get("aspf") == "s"
                     else "RELAXED"
                 )
+    checks["dmarc_reporting"] = dmarc_reporting(domain, rua)
     selectors = row.get("dkim_selectors", [])
     if not selectors:
         checks["dkim"] = (
@@ -174,16 +189,34 @@ def audit(row: dict) -> dict:
             "DENY_ALL_ONLY" if [x for x in spf_records if x.lower().startswith("v=spf1")]
             == ["v=spf1 -all"] else "REVIEW_NO_MAIL_SPF"
         )
-    result = {"domain": domain, "mail_use": row["mail_use"], "checks": checks}
+    wanted = {"dmarc_reporting": "OPENCLAW_RUA_AUTHORIZED"}
     if google:
         checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []))
         checks["mta_sts_policy"] = mta_sts_policy(domain)
-        # An unresolved lookup is incomplete evidence, never a violation.
-        result["violations"] = sorted(
-            key for key, want in GOOGLE_POLICY.items()
-            if checks[key] != want and not checks[key].startswith("UNVERIFIED")
-        )
-    return result
+        wanted |= GOOGLE_POLICY
+    # An unresolved lookup is incomplete evidence, never a violation.
+    violations = sorted(
+        key for key, want in wanted.items()
+        if checks[key] != want and not checks[key].startswith("UNVERIFIED")
+    )
+    return {"domain": domain, "mail_use": row["mail_use"], "checks": checks,
+            "violations": violations}
+
+
+def dmarc_reporting(domain: str, rua: set[str] | None) -> str:
+    """Aggregate reports reach REPORT_MAILBOX, authorized when another domain sends them."""
+    if rua is None:
+        return "UNVERIFIED"
+    if REPORT_MAILBOX not in rua:
+        return "OPENCLAW_RUA_MISSING"
+    if domain == REPORT_DOMAIN:
+        return "OPENCLAW_RUA_AUTHORIZED"
+    state, values = lookup(f"{domain}._report._dmarc.{REPORT_DOMAIN}")
+    if state == "UNVERIFIED":
+        return "UNVERIFIED"
+    return ("OPENCLAW_RUA_AUTHORIZED"
+            if any(v.lower().startswith("v=dmarc1") for v in values)
+            else "EXTERNAL_AUTHORIZATION_MISSING")
 
 
 def google_mx(domain: str, labels: list[str]) -> str:
