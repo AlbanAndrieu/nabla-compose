@@ -315,3 +315,7 @@ inventaire read-only mais classe les A hors tunnel `unmanaged`.
 
 Cette modification DNS ne rétablit pas à elle seule la connectivité IPv4/IPv6
 de pfSense. Si la passerelle WAN est DOWN, diagnostiquer d'abord le transport.
+
+## WAF — inventaire IaC sans mutation
+
+`waf_inventory_enabled` (default false) active les data sources v5.28.1 des rulesets zone entrypoint custom, managed et rate limit. `waf_inventory_summary` expose uniquement identifiants, phase et nombre de règles actives/total. Les détails de règles lus par Terraform restent dans le state Garage privé et peuvent être sensibles. Utiliser un jeton Zone WAF Read seul pour l'inventaire dans un environnement opérateur, et les autres droits read nécessaires au reste du module selon le plan. Plan ciblé ou revue normale : aucun apply de WAF à ce stade. Après inventaire, identifier propriétaire, entitlement et phase, importer chaque ruleset existant avec toutes ses règles et refs, générer/revoir HCL complet, et refuser toute suppression inattendue. Ne pas créer un second entrypoint ni réécrire un ruleset entier avec une règle isolée. Voir [runbook convergence](../../docs/runbooks/fastapi-control-plane-convergence.md).

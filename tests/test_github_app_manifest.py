@@ -29,6 +29,22 @@ class GitHubAppManifestTests(unittest.TestCase):
             with mock.patch("sys.argv", [str(SCRIPT), "--check"]):
                 self.assertEqual(app.main(), 0)
 
+    def test_control_plane_profile_starts_read_only_and_hook_disabled(self):
+        manifest = app.manifest_for("http://127.0.0.1:8765/callback", control=True)
+        self.assertEqual(manifest["name"], "fastapi-sample")
+        self.assertEqual(manifest["default_permissions"], {"actions": "read"})
+        self.assertFalse(manifest["hook_attributes"]["active"])
+        self.assertEqual(manifest["hook_attributes"]["url"], app.CONTROL_WEBHOOK)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "staging"
+            out.mkdir(mode=0o700)
+            app.persist_response(out, {"pem": "test-only", "id": 111}, control=True)
+            path = out / "github-webhook-secret"
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertGreaterEqual(len(path.read_bytes()), 32)
+            config = json.loads((out / "github-app.json").read_text())
+            self.assertEqual(set(config["repositories"]), set(app.CONTROL_REPOSITORIES))
+
     def test_private_output_permissions_and_no_clobber(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "staging"

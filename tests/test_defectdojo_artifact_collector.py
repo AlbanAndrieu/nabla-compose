@@ -229,6 +229,22 @@ class GitHubArtifactsTests(TestCase):
             self.assertEqual(poll.main(), 0)
         self.assertIn("no token or LAN access", output.getvalue())
 
+    def test_probe_never_downloads_or_imports(self):
+        with (
+            mock.patch.dict(poll.os.environ, {"DEFECTDOJO_FASTAPI_PULL_APPROVED": "YES"}, clear=True),
+            mock.patch.object(poll.os, "geteuid", return_value=0),
+            mock.patch.object(poll.Path, "is_dir", return_value=True),
+            mock.patch.object(poll, "installation_token", return_value="private-fixture"),
+            mock.patch.object(poll, "latest_runs", return_value={"trivy": 123}),
+            mock.patch.object(poll, "stage", side_effect=AssertionError("download forbidden")),
+            mock.patch.object(poll, "import_report", side_effect=AssertionError("import forbidden")),
+            mock.patch.object(sys, "argv", ["poll", "--source", "fastapi-sample", "--kind", "trivy", "--probe-auth"]),
+            contextlib.redirect_stdout(StringIO()) as output,
+        ):
+            self.assertEqual(poll.main(), 0)
+        self.assertIn("eligible_run=123", output.getvalue())
+        self.assertNotIn("private-fixture", output.getvalue())
+
     def test_automatic_import_needs_separate_opt_in(self):
         with (
             mock.patch.object(poll.os, "environ", {}),

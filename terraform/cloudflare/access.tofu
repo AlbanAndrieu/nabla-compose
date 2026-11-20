@@ -377,3 +377,23 @@ resource "cloudflare_zero_trust_access_application" "plumber_api" {
     prevent_destroy = true
   }
 }
+
+# GitHub cannot supply interactive Access credentials for webhook delivery.
+# Enable ONLY after the signed receiver and exact path/method/IP WAF have been
+# accepted. No change to hostname-wide policies, /api, or the legacy alias.
+resource "cloudflare_zero_trust_access_application" "fastapi_github_webhook" {
+  count                = var.fastapi_github_webhook_edge_ready ? 1 : 0
+  account_id           = var.account_id
+  app_launcher_visible = false
+  destinations = [{
+    type = "public"
+    uri  = "fastapi-sample.albandrieu.com/webhooks/github"
+  }]
+  domain = "fastapi-sample.albandrieu.com/webhooks/github"
+  name   = "fastapi-github-webhook"
+  policies = [{
+    id         = local.access_policy_everyone_bypass_id
+    precedence = 1
+  }]
+  type = "self_hosted"
+}

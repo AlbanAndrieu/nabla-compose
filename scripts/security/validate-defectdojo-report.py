@@ -12,6 +12,34 @@ ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/security/defectdojo-allowed-imports.json"
 
 
+def validate_fastapi_image(report: dict) -> None:
+    """Native image profile; never expand the older reduced lockfile contract."""
+    if (report.get("SchemaVersion") != 2
+            or report.get("ArtifactType") != "container_image"
+            or report.get("ArtifactName") != "ghcr.io/albanandrieu/fastapi-sample:latest"
+            or not isinstance(report.get("Results"), list)
+            or not 0 < len(report["Results"]) <= 1000):
+        raise ValueError("unexpected FastAPI image report provenance")
+    total = 0
+    for row in report["Results"]:
+        if not isinstance(row, dict) or row.get("Secrets") or row.get("Misconfigurations") or row.get("Licenses"):
+            raise ValueError("private non-vulnerability evidence forbidden")
+        if not isinstance(row.get("Target"), str) or not row["Target"]:
+            raise ValueError("missing image scan target")
+        findings = row.get("Vulnerabilities") or []
+        if not isinstance(findings, list) or len(findings) > 5000:
+            raise ValueError("invalid image findings")
+        for finding in findings:
+            if (not isinstance(finding, dict)
+                    or finding.get("Severity") not in {"UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"}
+                    or not all(isinstance(finding.get(k), str) and finding[k]
+                               for k in ("VulnerabilityID", "PkgName"))):
+                raise ValueError("invalid native image vulnerability")
+            total += 1
+    if not total:
+        raise ValueError("no actionable image findings")
+
+
 def validate(service: str, scanner: str, data: bytes) -> None:
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
     if not policy.get("defaultDeny"):
@@ -90,6 +118,9 @@ def validate(service: str, scanner: str, data: bytes) -> None:
     if not isinstance(report, dict):
         raise ValueError("report must be a JSON object")
     if scanner == "Trivy Scan":
+        if service == "fastapi-sample-image":
+            validate_fastapi_image(report)
+            return
         results = report.get("Results")
         if not isinstance(results, list):
             raise ValueError("not a Trivy report")

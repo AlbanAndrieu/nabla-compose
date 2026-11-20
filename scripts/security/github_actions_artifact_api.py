@@ -27,6 +27,51 @@ class GitHubArtifactError(Exception):
     """Fail-closed source/size/provenance error without response-body leakage."""
 
 
+# Only locally authored reason codes may reach logs. Never print exception
+# bodies, URLs, underlying OSError text, redirect locations or headers.
+SAFE_REASONS = {
+    "GitHub App runtime file absent or symlink": "APP_RUNTIME_MISSING",
+    "GitHub App files require root:root 0600": "APP_RUNTIME_PERMISSIONS",
+    "GitHub App collector requires TrueNAS root": "APP_REQUIRES_ROOT",
+    "invalid GitHub App metadata file": "APP_METADATA_INVALID",
+    "unsupported GitHub App metadata fields": "APP_METADATA_SCHEMA",
+    "GitHub App repository scope mismatch": "APP_REPOSITORY_NOT_CONFIGURED",
+    "invalid GitHub App or installation identifier": "APP_INSTALLATION_ID_INVALID",
+    "GitHub App JWT signing failed": "APP_JWT_SIGN_FAILED",
+    "GitHub App signature size rejected": "APP_JWT_SIGNATURE_INVALID",
+    "invalid GitHub App identifier": "APP_ID_INVALID",
+    "GitHub App repository not allowlisted": "APP_REPOSITORY_NOT_ALLOWED",
+    "GitHub App installation token request failed": "APP_TOKEN_TRANSPORT",
+    "invalid GitHub App token response": "APP_TOKEN_RESPONSE_INVALID",
+    "invalid installation token": "APP_TOKEN_INVALID",
+    "Actions:read permission not verified": "APP_ACTIONS_READ_MISSING",
+    "installation token has excessive permissions": "APP_TOKEN_EXCESS_PERMISSIONS",
+    "installation token repository scope unverified": "APP_TOKEN_SCOPE_UNVERIFIED",
+    "installation token repository differs": "APP_TOKEN_REPO_MISMATCH",
+    "installation token expiry missing": "APP_TOKEN_EXPIRY_INVALID",
+    "unexpected installation token expiry": "APP_TOKEN_EXPIRY_INVALID",
+    "GitHub API response exceeds allowlisted size": "GITHUB_RESPONSE_TOO_LARGE",
+    "unapproved GitHub Actions API route": "GITHUB_ROUTE_NOT_ALLOWED",
+    "archive must use GitHub's signed redirect": "ARTIFACT_REDIRECT_MISSING",
+    "GitHub API request rejected": "GITHUB_API_REJECTED",
+    "archive redirect is not a trusted artifact-storage origin": "ARTIFACT_REDIRECT_DENIED",
+    "artifact retrieval failed": "ARTIFACT_DOWNLOAD_FAILED",
+    "invalid GitHub metadata": "GITHUB_METADATA_INVALID",
+    "unexpected metadata response": "GITHUB_METADATA_SCHEMA",
+    "GitHub API transport failed": "GITHUB_API_TRANSPORT",
+}
+
+
+def safe_reason(exc: GitHubArtifactError) -> str:
+    if len(exc.args) == 2 and exc.args[0] in (
+        "APP_TOKEN_HTTP", "GITHUB_API_HTTP", "ARTIFACT_STORAGE_HTTP"
+    ) and type(exc.args[1]) is int and 400 <= exc.args[1] <= 599:
+        return f"{exc.args[0]}_{exc.args[1]}"
+    if len(exc.args) == 1 and isinstance(exc.args[0], str):
+        return SAFE_REASONS.get(exc.args[0], "UNCLASSIFIED")
+    return "UNCLASSIFIED"
+
+
 class NoRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -76,8 +121,10 @@ def api(route: str, token: str) -> bytes:
             return bounded_read(response, MAX_API_BYTES)
     except error.HTTPError as exc:
         if not download or exc.code not in {302, 303, 307}:
-            raise GitHubArtifactError("GitHub API request rejected") from None
+            raise GitHubArtifactError("GITHUB_API_HTTP", exc.code) from None
         target = exc.headers.get("Location", "")
+    except (error.URLError, TimeoutError, OSError):
+        raise GitHubArtifactError("GitHub API transport failed") from None
     if not allowed_download_url(target):
         raise GitHubArtifactError("archive redirect is not a trusted artifact-storage origin")
     # CRITICAL: no Authorization header (nor API token) crosses to the signed URL.
@@ -88,6 +135,8 @@ def api(route: str, token: str) -> bytes:
     try:
         with opener.open(signed, timeout=30) as response:
             return bounded_read(response, MAX_ARCHIVE_BYTES)
+    except error.HTTPError as exc:
+        raise GitHubArtifactError("ARTIFACT_STORAGE_HTTP", exc.code) from None
     except (error.URLError, TimeoutError, OSError):
         raise GitHubArtifactError("artifact retrieval failed") from None
 

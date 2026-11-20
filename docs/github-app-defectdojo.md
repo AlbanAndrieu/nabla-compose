@@ -43,12 +43,12 @@ la GitHub App. GitHub expose plutôt un protocole officiel
 6. Installer **une seule fois** l'App depuis les paramètres GitHub
    et sélectionner explicitement les dépôts autorisés. Pour TrueNAS,
    matérialiser PEM + JSON en `root:root 0600` dans
-   `/mnt/cpool/secrets/runtime/defectdojo/`.
+   `/mnt/cpool/secrets/runtime/nabla-github-app/`.
    L'ID d'installation vaut initialement **0** pour empêcher toute
    activation prématurée.
 7. Depuis TrueNAS, le script
    `scripts/security/discover-github-app-installation.py --apply`
-   consulte l'installation du dépôt Bababou via un JWT App signé.
+   consulte l'installation des quatre dépôts via un JWT App signé et exige le même ID.
    Il exige propriétaire `AlbanAndrieu`, `repository_selection=selected`,
    `Actions:read`, puis remplit l'ID privé sans le stocker dans Git.
 8. Activer le Cron **seulement** après vérification des permissions,
@@ -57,7 +57,7 @@ la GitHub App. GitHub expose plutôt un protocole officiel
 Le manifeste versionné constitue l'état désiré. La création est **un
 bootstrap autorisé une seule fois**, pas un Terraform `apply` en CI ;
 les scripts de validation sont le contrôleur de dérive.
-La gestion GitHub Terraform existante peut poursuivre après ce bootstrap,
+Le stack IaC isolé `infrastructure/github-artifact-app` adopte ensuite la sélection exacte des quatre dépôts après consentement (voir son README),
 mais l'inventaire import-first et les droits réels priment sur le state.
 
 ## Convergence avec Site Bababou
@@ -128,3 +128,11 @@ avant le polling `--source all --pull`.
 L'ID d'installation reste à 0 jusqu'à l'installation GitHub vérifiée
 et `discover-github-app-installation.py --apply`. Ne pas déclarer l'App
 créée, la PEM importée ou le Cron activé sans preuves runtime.
+
+## Diagnostic de collecte (19/11/2026)
+
+La création effective de l'App n'est pas attestée par Git. Vérifier d'abord https://github.com/settings/apps et l'installation sélectionnée, ne pas recréer si elle existe. Depuis TrueNAS, `sudo env DEFECTDOJO_FASTAPI_PULL_APPROVED=YES python3 scripts/security/poll-defectdojo-gh-artifacts.py --source fastapi-sample --kind trivy --probe-auth` vérifie le jeton temporaire et les métadonnées du workflow, sans télécharger ni importer. `--check` reste strictement hors réseau. `APP_RUNTIME_MISSING` indique le JSON/PEM manquant, `APP_INSTALLATION_ID_INVALID` un ID non provisionné, `APP_TOKEN_HTTP_401` une authentification refusée, `APP_TOKEN_HTTP_404` une installation non trouvée ou inaccessible, `APP_TOKEN_HTTP_422` une portée refusée. Les erreurs DNS/TLS/transport ont des codes distincts par phase ; aucun corps HTTP ni URL signée n'est affiché. Un probe OK avec NOT_OBSERVED n'est pas un scan réussi. La réception runtime reste NOT_RUN.
+
+## IaC après bootstrap (20/11/2026)
+
+Le stack [github-artifact-app](../infrastructure/github-artifact-app/README.md) gère la sélection des dépôts après installation manuelle initiale. Ne pas confondre App ID et Installation ID ; aucun secret dans le state. L'identité opérateur pour IaC est distincte du collecteur Actions:read. L'App ne peut pas se donner de nouveaux droits. Validation et apply NOT_RUN.

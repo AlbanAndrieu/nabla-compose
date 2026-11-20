@@ -122,6 +122,8 @@ def installation_token(repository: str = DEFAULT_REPOSITORY) -> str:
     try:
         with opener.open(req, timeout=20) as response:
             payload = json.loads(bounded_read(response, MAX_JSON_BYTES))
+    except error.HTTPError as exc:
+        raise GitHubArtifactError("APP_TOKEN_HTTP", exc.code) from None
     except (error.URLError, OSError, ValueError, TimeoutError):
         raise GitHubArtifactError("GitHub App installation token request failed") from None
     if not isinstance(payload, dict):
@@ -143,6 +145,8 @@ def installation_token(repository: str = DEFAULT_REPOSITORY) -> str:
         expires = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
     except (KeyError, ValueError, TypeError, AttributeError):
         raise GitHubArtifactError("installation token expiry missing") from None
+    if expires.tzinfo is None:
+        raise GitHubArtifactError("unexpected installation token expiry")
     seconds = (expires - datetime.now(timezone.utc)).total_seconds()
     if not 30 < seconds <= 3600:
         raise GitHubArtifactError("unexpected installation token expiry")

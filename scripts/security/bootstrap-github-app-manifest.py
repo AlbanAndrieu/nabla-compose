@@ -29,16 +29,22 @@ REPOSITORIES = [
     "AlbanAndrieu/nabla-site-bababou",
 ]
 APP_NAME = "nabla-github-app"
+CONTROL_NAME = "fastapi-sample"
+CONTROL_MANIFEST = ROOT / "config/github-apps/fastapi-control-plane.manifest.json"
+CONTROL_REPOSITORIES = ["AlbanAndrieu/fastapi-sample", "AlbanAndrieu/nabla-compose"]
+CONTROL_WEBHOOK = "https://fastapi-sample.albandrieu.com/webhooks/github"
 
 
-def manifest_for(redirect_url: str) -> dict:
-    config = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if (config.get("name") != APP_NAME
+def manifest_for(redirect_url: str, *, control: bool = False) -> dict:
+    config = json.loads((CONTROL_MANIFEST if control else MANIFEST).read_text(encoding="utf-8"))
+    if (config.get("name") != (CONTROL_NAME if control else APP_NAME)
             or config.get("default_permissions") != {"actions": "read"}
             or config.get("default_events") != []
             or config.get("public") is not False
             or config.get("hook_attributes", {}).get("active") is not False):
         raise ValueError("GitHub App manifest violates default-deny policy")
+    if control and config.get("hook_attributes", {}).get("url") != CONTROL_WEBHOOK:
+        raise ValueError("unexpected control-plane webhook destination")
     config["redirect_url"] = redirect_url
     return config
 
@@ -52,7 +58,7 @@ def verify_output(directory: Path) -> None:
         raise ValueError("output must be existing private directory (0700) outside Git")
 
 
-def exchange_code(code: str) -> dict:
+def exchange_code(code: str, *, control: bool = False) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", code):
         raise ValueError("invalid one-time GitHub manifest code")
     req = request.Request(
@@ -73,7 +79,7 @@ def exchange_code(code: str) -> dict:
     if len(payload) > 65536:
         raise ValueError("GitHub manifest conversion too large")
     app = json.loads(payload)
-    if (not isinstance(app, dict) or app.get("name") != APP_NAME
+    if (not isinstance(app, dict) or app.get("name") != (CONTROL_NAME if control else APP_NAME)
             or app.get("permissions", {}).get("actions") != "read"
             or set(app.get("permissions", {})) - {"actions", "metadata"}
             or app.get("events") != []
@@ -92,30 +98,36 @@ def write_private(directory: Path, name: str, contents: bytes) -> None:
         stream.write(contents)
 
 
-def persist_response(directory: Path, app: dict) -> None:
+def persist_response(directory: Path, app: dict, *, control: bool = False) -> None:
     """Fail if target files exist. Import PEM into Vaultwarden, then delete staging."""
     verify_output(directory)
     key = app["pem"].encode("ascii")
     metadata = json.dumps({
         "app_id": app["id"],
         "installation_id": 0,
-        "repositories": REPOSITORIES,
+        "repositories": CONTROL_REPOSITORIES if control else REPOSITORIES,
     }, indent=2).encode() + b"\n"
     # Refuse partial overwrite or symlinks; sensitive material stays untracked.
-    for name in ("github-app-private-key.pem", "github-app.json"):
+    names = ("github-app-private-key.pem", "github-app.json")
+    if control:
+        names += ("github-webhook-secret",)
+    for name in names:
         if (directory / name).exists() or (directory / name).is_symlink():
             raise ValueError("GitHub App output already exists; refusing overwrite")
     write_private(directory, "github-app-private-key.pem", key)
     write_private(directory, "github-app.json", metadata)
+    if control:
+        # Configure this newly generated secret in GitHub before enabling the hook.
+        write_private(directory, "github-webhook-secret", secrets.token_urlsafe(48).encode("ascii"))
 
 
-def serve(directory: Path, port: int) -> None:
+def serve(directory: Path, port: int, *, control: bool = False) -> None:
     verify_output(directory)
     if not 1024 <= port <= 65535:
         raise ValueError("invalid loopback port")
     state = secrets.token_urlsafe(32)
     redirect = f"http://127.0.0.1:{port}/callback"
-    manifest = json.dumps(manifest_for(redirect), separators=(",", ":"))
+    manifest = json.dumps(manifest_for(redirect, control=control), separators=(",", ":"))
     page = (
         "<!doctype html><meta charset='utf-8'><title>Nabla GitHub App</title>"
         "<h3>Create the reviewed Nabla security GitHub App</h3>"
@@ -142,8 +154,8 @@ def serve(directory: Path, port: int) -> None:
                     if (len(code) != 1 or len(got_state) != 1
                             or not compare_digest(got_state[0], state)):
                         raise ValueError("CSRF state mismatch")
-                    app = exchange_code(code[0])
-                    persist_response(directory, app)
+                    app = exchange_code(code[0], control=control)
+                    persist_response(directory, app, control=control)
                     content, status = b"Created. Securely import the PEM into Vaultwarden; then erase staging.", 200
                     completed = True
                 except (ValueError, OSError, UnicodeError):
@@ -151,7 +163,7 @@ def serve(directory: Path, port: int) -> None:
             else:
                 content, status = b"Not found", 404
             self.send_response(status)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Type", "text/html; charset=utf-8" if parsed.path == "/" and status == 200 else "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Security-Policy", "default-src 'none'; form-action https://github.com")
             self.end_headers()
@@ -177,14 +189,16 @@ def main() -> int:
     mode.add_argument("--serve", action="store_true")
     p.add_argument("--output-dir", type=Path)
     p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--profile", choices=("artifacts", "control-plane"), default="artifacts")
     args = p.parse_args()
-    manifest_for("http://127.0.0.1:8765/callback")
+    control = args.profile == "control-plane"
+    manifest_for("http://127.0.0.1:8765/callback", control=control)
     if args.check:
         print("PASS: reviewed GitHub App manifest; no network, credential or mutation")
         return 0
     if args.output_dir is None:
         p.error("--output-dir is required to keep the private PEM outside Git")
-    serve(args.output_dir, args.port)
+    serve(args.output_dir, args.port, control=control)
     return 0
 
 

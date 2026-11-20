@@ -10,6 +10,12 @@ SERVICE_ID="${DEFECTDOJO_SERVICE_ID:-}"
 ENGAGEMENT="${DEFECTDOJO_ENGAGEMENT_ID:-}"
 TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdojo/import-token}"
 API="http://172.17.0.24:31085/api/v2/reimport-scan/"
+TRANSPORT=(--proto '=http')
+# FastAPI native image imports use verified TLS/SNI at the existing LAN ingress.
+if [[ "${SERVICE_ID}" == fastapi-sample-image ]]; then
+  API="https://defectdojo.int.albandrieu.com/api/v2/reimport-scan/"
+  TRANSPORT=(--proto '=https' --resolve 'defectdojo.int.albandrieu.com:443:172.17.0.24')
+fi
 # shellcheck source=../lib/common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in --check|--apply) ;; *) fail "usage: bash $0 [--check|--apply] /absolute/report.json" ;; esac
@@ -55,7 +61,7 @@ trap 'rm -f "$config"' EXIT
 printf 'header = "Authorization: Token %s"\n' "${token}" > "${config}"
 unset token
 http="$(curl --config "${config}" --silent --show-error \
-  --noproxy '*' --proto '=http' --max-redirs 0 \
+  --noproxy '*' "${TRANSPORT[@]}" --max-redirs 0 \
   --connect-timeout 5 --max-time 90 \
   --output /dev/null --write-out '%{http_code}' \
   --request POST "${API}" \
