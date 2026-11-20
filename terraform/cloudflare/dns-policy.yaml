@@ -21,9 +21,9 @@ version: 1
 # Seventh round (20/11/2026): A records to the fixed Free IPv4, dead since
 # pfSense and its HAProxy left on 18/11 (public traffic only enters through the
 # tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
-# and home (Free PTR, dns.tofu). Not yet: hello.int and s3.int, which
-# favonia/cloudflare-ddns republishes (it recreated s3.int on 13/11), and
-# mail2, whose MX would be retired with it (the circuit retires every type).
+# and home (Free PTR, dns.tofu). Not here: hello.int and s3.int, republished
+# every 5 minutes by favonia/cloudflare-ddns and retired with it (PR #425),
+# and mail2, whose MX would go with it (the circuit retires every type).
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com

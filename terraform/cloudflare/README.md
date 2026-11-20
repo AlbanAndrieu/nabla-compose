@@ -221,9 +221,10 @@ explicite ; le script de capture les classe `unmanaged`.
    l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
    (PTR Free, `cloudflare_dns_record.home`), `mail2` (son MX partirait avec
    lui : le circuit retire tous les types d'un nom), `hello.int` et `s3.int`
-   (`favonia/cloudflare-ddns` de l'App Traefik les republie : `s3.int`,
-   supprimé le 12/11 à 21:13 UTC, a été recréé le 13/11 à 08:28 UTC par un
-   jeton de compte depuis l'IP du domicile, selon le journal d'audit).
+   (republiés toutes les 5 minutes par `favonia/cloudflare-ddns` de l'App
+   Traefik, retirés avec lui par la PR #425 ; le journal d'audit montre
+   `s3.int` supprimé le 12/11 à 21:13 UTC puis recréé le 13/11 à 08:28 UTC
+   par un jeton de compte depuis l'IP du domicile).
    Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
    ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
    l'état sous `tunnel[...]` (paragraphe suivant).
