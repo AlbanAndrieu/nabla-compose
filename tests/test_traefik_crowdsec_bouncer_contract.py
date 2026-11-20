@@ -66,7 +66,7 @@ def test_admin_router_has_auth_and_no_waf_loop() -> None:
     labels = " ".join(traefik_service()["labels"])
     assert "crowdsec" not in labels
     assert "traefik.enable=true" in [label.strip() for label in traefik_service()["labels"]]
-    assert "traefik.http.routers.traefik.middlewares=traefik-admin-auth@file" in traefik_service()["labels"]
+    assert "traefik.http.routers.traefik.middlewares=traefik-admin-lan-only,traefik-admin-auth@file" in traefik_service()["labels"]
 
 
 def test_access_log_is_json_file_shared_read_only_with_crowdsec() -> None:

@@ -178,7 +178,9 @@ services:
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=traefik-admin-auth@file"
+      # Source IP is the direct socket peer. Do not trust spoofable XFF.
+      - "traefik.http.routers.traefik.middlewares=traefik-admin-lan-only,traefik-admin-auth@file"
+      - "traefik.http.middlewares.traefik-admin-lan-only.ipallowlist.sourcerange=192.168.1.0/24,172.17.0.0/24"
 
   cloudflare-ddns:
     logging: *nabla-logging
