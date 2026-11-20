@@ -63,6 +63,23 @@ Ni port scan de l'IP résolue d'un CDN, ni extension automatique de la
 liste de cibles, ni mutation de catalogue. Accepter le premier run manuel
 avant d'ajouter une cadence hebdomadaire et un transfert privé.
 
+#### Préflight de conformité déclarative (sans Amass)
+
+Avant un scan ou pour un contrôle PR hors LAN :
+
+```bash
+python3 -m unittest tests.test_ctem_catalog_policy -v
+python3 scripts/security/audit-ctem-catalog-policy.py
+# Option : rapport public agrégé, sans nom, fichier créé exclusivement
+python3 scripts/security/audit-ctem-catalog-policy.py --output /tmp/ctem-policy-counts.json
+# VM de confiance uniquement : détails privés 0600
+# python3 scripts/security/audit-ctem-catalog-policy.py --private-output /chemin-prive/ctem-conflicts.json
+```
+
+Exit code `0` : **aucune contradiction LAN-only dans le périmètre déclaré**, pas une attestation d'absence de route WAN ; `3` : conflit déclaratif ou catalogue/scope invalide. Ce contrôle appelle uniquement la jointure V2 exacte de `run-amass-inventory.py`, sans démarrer Amass, DNS ou HTTP. Le JSON public ne contient ni hostname, ni `entityRef`, ni valeur de secret. Le rapport nominatif est refusé dans GitHub Actions. Les scripts `--output` refusent d'écraser les fichiers existants, choisir un nom neuf pour chaque exécution.
+
+À la révision observée le 21/11, `ollama-gpu.albandrieu.com` est toujours porté par une intention publique dans le généré V2, contraire à `LAN_ONLY_NAMES`. Cela impose une correction du descripteur **source** et une régénération coordonnée, puis une preuve externe négative : ce n'est pas une démonstration de route effectivement ouverte. Ne pas rendre ce contrôle bloquant dans la CI tant que l'écart historique n'est pas corrigé, puis l'ajouter au quality gate.
+
 #### Rapprochement avec Backstage V2
 
 Le job Amass joint les noms découverts **en mémoire** aux hostnames exacts de
