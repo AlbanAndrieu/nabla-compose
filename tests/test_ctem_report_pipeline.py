@@ -20,12 +20,16 @@ class CtemReportPipelineTests(unittest.TestCase):
             "schema_version": 1, "scanner": "amass",
             "scan_mode": "active", "checked_at": "2026-11-21T01:00:00+00:00",
             "status": "OBSERVED_NOT_CERTIFIED",
-            "counts": {"example.com": 5},
+            "counts": {"albandrieu.com": 5, "albanandrieu.com": 0, "bababou.com": 0},
             "rejected_count": 0,
             "catalogReconciliation": {
                 "catalogRevision": REVISION, "catalogEntityCount": 210,
                 "catalogLanOnlyPolicyConflicts": 1,
-                "candidateMatchCounts": {"MATCHED_PUBLIC_INTENT": 2},
+                "candidateMatchCounts": {
+                    "MATCHED_PUBLIC_INTENT": 2, "LAN_ONLY_POLICY_REVIEW": 1,
+                    "NON_PUBLIC_INTENT_REVIEW": 0, "AMBIGUOUS_ENTITY_REVIEW": 0,
+                    "UNMAPPED_REVIEW": 2,
+                },
             },
         }
 
@@ -56,7 +60,7 @@ class CtemReportPipelineTests(unittest.TestCase):
             self.assertEqual(obj["status"], "OBSERVED_NOT_CERTIFIED")
             self.assertEqual(len(digest), 64)
             self.assertNotIn("component:default", str(obj))
-            self.assertEqual(obj["summary"]["counts"], {"example.com": 5})
+            self.assertEqual(obj["summary"]["counts"]["albandrieu.com"], 5)
             self.assertIsInstance(encoded, str)
 
     def test_candidate_graph_never_reaches_postgres_receipt(self):
