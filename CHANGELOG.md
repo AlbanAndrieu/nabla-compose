@@ -1,3 +1,11 @@
+# [0.107.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.106.0...0.107.0) (2026-11-20)
+
+
+### Features
+
+* **ctem:** reconcile passive inventory with Backstage V2 exposure intent [skip ci] ([#422](https://github.com/AlbanAndrieu/nabla-compose/issues/422)) ([bb6801a](https://github.com/AlbanAndrieu/nabla-compose/commit/bb6801a2776be83f8727e4df23e2c00ba0ca9db9))
+* **github:** release App client ID as code, App auth option and hcl fmt fix ([#424](https://github.com/AlbanAndrieu/nabla-compose/issues/424)) ([405df81](https://github.com/AlbanAndrieu/nabla-compose/commit/405df8149211c2c569c7ea5fdd308108f20e7267))
+
 # [0.106.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.105.1...0.106.0) (2026-11-20)
 
 
