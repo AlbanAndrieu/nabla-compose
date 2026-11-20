@@ -1,0 +1,12 @@
+---
+# CrowdSec AppSec WAF for the dedicated FastAPI Traefik canary. The CrowdSec
+# container already mounts the entire acquis.d directory read-only.
+# Docker-only listener: do NOT expose 7422 through host ports or Cloudflare.
+# Requires crowdsecurity/appsec-virtual-patching + appsec-generic-rules.
+source: appsec
+name: fastapi-traefik-appsec
+listen_addr: 0.0.0.0:7422
+appsec_configs:
+  - crowdsecurity/appsec-default
+labels:
+  type: appsec

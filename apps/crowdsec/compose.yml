@@ -106,7 +106,7 @@ services:
       - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
         required: false
     environment:
-      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik
+      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules
       # pfSense evidence on 2026-10-10 showed an internal leaky-bucket spin:
       # 19,899,999 failed sends / 19,900,000 attempts with sigclosed=0.
       # Keep the rest of the pfSense collection while removing only this scenario.
@@ -125,6 +125,8 @@ services:
       - crowdsec_config:/etc/crowdsec
       - crowdsec_data:/var/lib/crowdsec/data
       - ./acquis.d:/etc/crowdsec/acquis.d:ro
+      # AppSec acquis.d/appsec.yaml is mounted by the SAME read-only directory.
+      # AppSec 7422 is Docker-network-only: never list it under `ports`.
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
       - type: bind
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}

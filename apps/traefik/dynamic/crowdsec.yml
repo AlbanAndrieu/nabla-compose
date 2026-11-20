@@ -22,3 +22,29 @@ http:
           # runtime dotenv. Never enable providers.file.debugLogGeneratedTemplate:
           # it would log the rendered key.
           crowdsecLapiKey: '{{ env "CROWDSEC_BOUNCER_LAPI_KEY" }}'
+
+    # Explicit AppSec canary variant. The IP-only crowdsec middleware above
+    # remains unchanged for existing routers. Plugin v1.8.1 allows multiple
+    # middleware instances with aligned shared options and per-router AppSec.
+    crowdsec-appsec:
+      plugin:
+        bouncer:
+          enabled: true
+          crowdsecMode: stream
+          updateIntervalSeconds: 60
+          updateMaxFailure: -1
+          streamStartupBlock: false
+          httpTimeoutSeconds: 5
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: crowdsec:8080
+          crowdsecLapiKey: '{{ env "CROWDSEC_BOUNCER_LAPI_KEY" }}'
+          crowdsecAppsecEnabled: true
+          crowdsecAppsecScheme: http
+          crowdsecAppsecHost: crowdsec:7422
+          crowdsecAppsecPath: "/"
+          # Fail closed *only* on the public FastAPI canary. Before the
+          # Cloudflare cutover, a broken AppSec cannot take the live site down.
+          crowdsecAppsecFailureBlock: true
+          crowdsecAppsecUnreachableBlock: true
+          crowdsecAppsecUnreadableBodyBlock: true
+          crowdsecAppsecBodyLimit: 10485760

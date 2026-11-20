@@ -159,6 +159,18 @@ f=/mnt/cpool/traefik/logs/access.log
 sudo mv "$f" "$f.1" && sudo docker kill -s USR1 traefik
 ```
 
+## WAF AppSec — pilote FastAPI TrueNAS (21/11/2026)
+
+**CODED, NOT_DEPLOYED.** Réutilisation du moteur CrowdSec 1.8.1 et du plugin Traefik épinglé v1.8.1. Les collections `crowdsecurity/appsec-virtual-patching` et `crowdsecurity/appsec-generic-rules` alimentent `crowdsecurity/appsec-default` via `acquis.d/appsec.yaml`. Le moteur écoute `0.0.0.0:7422` **uniquement dans le conteneur**, sans port hôte, sur le réseau Docker existant `traefik_network`. Le répertoire `acquis.d` est monté en lecture seule ; aucun secret n'y est écrit.
+
+Le middleware `crowdsec-appsec@file` est un **deuxième profil du même plugin** et combine le streaming LAPI (bans IP) avec la vérification AppSec. Seuls les deux routeurs canary du hostname `fastapi-sample.albandrieu.com` l'utilisent, incluant le webhook GitHub. Les autres routes restent sur le bouncer IP ou sans middleware, inchangées. L'échec/indisponibilité AppSec entraîne un refus **sur le canary seulement** ; l'ancien chemin direct du tunnel continue de servir la production tant que `fastapi_sample_tunnel_via_traefik=false`. Après la bascule, une panne AppSec rendra FastAPI public indisponible jusqu'au rollback : c'est un choix de sécurité assumé.
+
+**Admission avant bascule** : contrôle `cscli collections list`, `cscli metrics show appsec`, socket local `7422`, plugin actif, test officiel `/crowdsec-test-NtktlJHV4TfBSK3wvlhiOBnl` (déclenche un événement mais **n'est pas un test de blocage HTTP**), véritable test de règle WAF sur cible canary isolée avec requêtes bénignes témoins, et absence de faux positif sur `/api`, `/api/ui/session` et `POST /webhooks/github` signé. Le test de blocage doit comparer route protégée/canary et route LAN non protégée avec métadonnées sans secret. Valider journal/compteurs et capacité mémoire (limite actuelle 384 MiB) pendant charge. **Ne jamais utiliser un exploit réel ni publier les JWT/HMAC dans un rapport**. Aucune exécution réelle de ces contrôles n'a été faite.
+
+**Rollback immédiat** : d'abord laisser/revenir au tunnel direct `:8091`; puis seulement remplacer le middleware du canary par `crowdsec@file`. Retirer `acquis.d/appsec.yaml` et collections seulement après preuve qu'aucun client ne les utilise. Ne jamais ouvrir `7422` en TCP sur TrueNAS ou Internet.
+
+Sources : https://docs.crowdsec.net/docs/appsec/quickstart/traefik/ et https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin .
+
 ## Réception des règles PF chargées — 30 octobre 2026
 
 **Gate ciblé sur la workstation : 100/100 PASS**,

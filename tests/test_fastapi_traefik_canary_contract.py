@@ -9,8 +9,8 @@ class FastapiTraefikCanaryContract(unittest.TestCase):
     def test_public_router_reuses_existing_crowdsec_and_ratelimit(self):
         app = (ROOT / "apps/sample/compose.yml").read_text(encoding="utf-8")
         traefik = (ROOT / "apps/traefik/dynamic/crowdsec.yml").read_text(encoding="utf-8")
-        assert "middlewares=crowdsec@file,fastapi-sample-public-rate" in app
-        assert "middlewares=crowdsec@file,fastapi-sample-hook-rate" in app
+        assert "middlewares=crowdsec-appsec@file,fastapi-sample-public-rate" in app
+        assert "middlewares=crowdsec-appsec@file,fastapi-sample-hook-rate" in app
         assert "ratelimit.average=30" in app
         assert "ratelimit.burst=100" in app
         assert "ratelimit.average=2" in app

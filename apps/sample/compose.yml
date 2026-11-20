@@ -197,13 +197,15 @@ services:
       - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
       # Public canary, with independent budgets for ordinary UI and signed hooks.
+      # crowdsec-appsec@file = existing LAPI streaming + AppSec WAF on these
+      # routes; NOT the IP-only crowdsec@file used elsewhere.
       # Until an approved Tunnel plan changes its origin, this router sees no
       # public traffic. Bouncer belongs to Traefik; AppSec WAF remains separate.
       - "traefik.http.routers.fastapi-sample-public.rule=Host(`fastapi-sample.albandrieu.com`)"
       - "traefik.http.routers.fastapi-sample-public.entrypoints=websecure"
       - "traefik.http.routers.fastapi-sample-public.tls=true"
       - "traefik.http.routers.fastapi-sample-public.service=fastapi-sample"
-      - "traefik.http.routers.fastapi-sample-public.middlewares=crowdsec@file,fastapi-sample-public-rate"
+      - "traefik.http.routers.fastapi-sample-public.middlewares=crowdsec-appsec@file,fastapi-sample-public-rate"
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.average=30"
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.period=1s"
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.burst=100"
@@ -212,7 +214,7 @@ services:
       - "traefik.http.routers.fastapi-sample-hook.tls=true"
       - "traefik.http.routers.fastapi-sample-hook.priority=1000"
       - "traefik.http.routers.fastapi-sample-hook.service=fastapi-sample"
-      - "traefik.http.routers.fastapi-sample-hook.middlewares=crowdsec@file,fastapi-sample-hook-rate"
+      - "traefik.http.routers.fastapi-sample-hook.middlewares=crowdsec-appsec@file,fastapi-sample-hook-rate"
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.average=2"
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.period=1s"
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.burst=10"
