@@ -1,10 +1,10 @@
 provider "github" {
   owner = var.github_owner
 
-  # Optional GitHub App identity instead of a personal GITHUB_TOKEN. The PEM
-  # content comes from TF_VAR_github_app_pem, never from Git or the state.
+  # GitHub App identity when TF_VAR_github_app_pem is exported for the run,
+  # otherwise GITHUB_TOKEN. The PEM never comes from Git or the state.
   dynamic "app_auth" {
-    for_each = var.github_app_installation_id == null ? [] : [var.github_app_installation_id]
+    for_each = var.github_app_installation_id == null || nonsensitive(var.github_app_pem == null) ? [] : [var.github_app_installation_id]
 
     content {
       id              = var.github_app_id

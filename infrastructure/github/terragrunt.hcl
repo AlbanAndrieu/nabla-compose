@@ -54,11 +54,11 @@ inputs = {
     "nabla-site-bababou",
   ]
 
-  # Optional App authentication (installation 155552350 of fastapi-sample-release).
-  # Stays off until that App holds Administration: write, which also widens what
-  # its release-workflow key can mint (infrastructure/github/README.md).
+  # App authentication (installation 155552350 of fastapi-sample-release), used
+  # when TF_VAR_github_app_pem is exported. Temporary: governance and release
+  # share this App until a separate governance App exists (docs/roadmap.md).
   github_app_id              = 4676280
-  github_app_installation_id = null
+  github_app_installation_id = 155552350
 
   # "Protect master" rulesets created through the API on 19/11/2026, adopted by import.
   # The separate "Code quality" ruleset stays outside OpenTofu: provider 6.13 has no

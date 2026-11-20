@@ -91,12 +91,17 @@ The GitHub provider uses the standard provider authentication chain. For the
 initial workstation pilot, export a short-lived `GITHUB_TOKEN` with only the
 permissions required to read/plan the selected repositories.
 
-Optional App authentication: set `github_app_installation_id` (input) and
-export the PEM content as `TF_VAR_github_app_pem` for the run only. It stays
-off: the module needs *Administration: write* and *Variables: write*, which the
-release App does not hold, and granting them would let anyone with its
-release-workflow key mint admin tokens. Prefer a separate governance App whose
-key lives only in Vaultwarden and on the Workstation.
+App authentication: export the PEM content as `TF_VAR_github_app_pem` for the
+run only (installation `155552350`); without it the provider uses
+`GITHUB_TOKEN`. The App needs *Administration: write* and *Variables: write*
+(granted 20/11/2026). Temporary: its key is also a release-workflow secret, so a
+compromised workflow could mint admin tokens; a separate governance App is
+tracked in `docs/roadmap.md`.
+
+```bash
+TF_VAR_github_app_pem="$(bw get attachment github-app-private-key.pem --itemid <id> --raw)" \
+  scripts/infra/terragrunt-safe.sh infrastructure/github plan
+```
 
 Do not commit tokens, private keys, or GitHub App credentials. The target state
 is a dedicated governance GitHub App / short-lived credential path; record only
