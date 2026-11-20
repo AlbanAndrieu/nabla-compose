@@ -49,6 +49,17 @@ case "${mode}" in
       exit 2
     fi
     echo "appsec_waf_request_block=NOT_VERIFIED_REQUIRES_CONTROLLED_CANARY_TEST"
+    # Never infer a secure gateway from AppSec metrics. Current Traefik
+    # :8080 API may expose the plugin-rendered LAPI key, and Prometheus
+    # scrapes that endpoint. Gate the shared tunnel cutover until that
+    # dashboard/metrics migration is independently accepted.
+    if docker inspect traefik --format '{{json .Config.Cmd}}' 2>/dev/null |
+        grep -q -- '--api.insecure=true'; then
+      echo "traefik_dashboard=NO_GO_UNAUTHENTICATED_API"
+      echo "appsec_public_cutover=NO_GO_TRAEFIK_ADMIN_BOUNDARY"
+      exit 3
+    fi
+    echo "traefik_dashboard=NOT_VERIFIED_REQUIRE_AUTH_AND_METRICS_RECEIPT"
     ;;
   *)
     echo "Usage: ${0##*/} --check|--runtime"

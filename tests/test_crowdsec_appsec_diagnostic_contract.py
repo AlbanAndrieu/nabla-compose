@@ -12,6 +12,7 @@ def test_appsec_runtime_diagnostic_is_non_mutating_and_has_clear_limitations():
     assert "docker exec crowdsec cscli metrics show appsec" in script
     assert "docker port crowdsec 7422/tcp" in script
     assert "appsec_waf_request_block=NOT_VERIFIED_REQUIRES_CONTROLLED_CANARY_TEST" in script
+    assert "traefik_dashboard=NO_GO_UNAUTHENTICATED_API" in script
     for unsafe in ("docker run ", "cscli decisions add", "cscli decisions delete",
                    "docker exec crowdsec cscli collections install",
                    "docker compose up", "docker restart", "curl -k"):
