@@ -1,3 +1,10 @@
+## [0.107.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.3...0.107.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **infra:** force path-style S3 in the state backup guard ([#429](https://github.com/AlbanAndrieu/nabla-compose/issues/429)) ([0e20c96](https://github.com/AlbanAndrieu/nabla-compose/commit/0e20c966a9af6b8a551173ae71c84b2d915adfe7))
+
 ## [0.107.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.2...0.107.3) (2026-11-20)
 
 
