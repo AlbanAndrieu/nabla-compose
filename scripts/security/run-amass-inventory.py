@@ -13,6 +13,7 @@ import socket
 import subprocess
 import tempfile
 import time
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = "5.1.3"
@@ -181,7 +182,46 @@ def command(args: list[str], env: dict[str, str], cwd: Path, timeout: int) -> bo
         return False
 
 
-def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
+def postgres_config(env: dict[str, str], work: Path) -> Path | None:
+    """Private verify-full Amass config for the existing PostgreSQL instance."""
+    user, password = env.get("AMASS_DB_USER"), env.get("AMASS_DB_PASSWORD")
+    host, name, ca = env.get("AMASS_DB_HOST"), env.get("AMASS_DB_NAME"), env.get("AMASS_PG_CA")
+    if not any((user, password, host, name, ca)):
+        return None
+    if not all((user, password, host, name, ca)) or name != "assetdb":
+        raise ValueError("incomplete Amass shared PostgreSQL configuration")
+    if not Path(ca).is_file():
+        raise ValueError("Amass PostgreSQL CA missing")
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", user):
+        raise ValueError("invalid PostgreSQL role")
+    if not re.fullmatch(r"[a-zA-Z0-9.-]{1,253}", host):
+        raise ValueError("invalid PostgreSQL host")
+    uri = (f"postgres://{quote(user, safe='')}:{quote(password, safe='')}"
+           f"@{host}:5432/assetdb?sslmode=verify-full&sslrootcert={quote(ca, safe='/')}")
+    config = work / "amass-config.yaml"
+    # JSON-quoted scalar is a YAML-compatible string.
+    config.write_text(
+        "options:\n"
+        f"  database: {json.dumps(uri)}\n"
+        "  bruteforce:\n    enabled: false\n"
+        "  alterations:\n    enabled: false\n"
+        "  rigid_boundaries: true\n",
+        encoding="utf-8",
+    )
+    config.chmod(0o600)
+    return config
+
+
+def enum_arguments(domains: list[str], mode: str) -> list[str]:
+    if mode not in ("passive", "active"):
+        raise ValueError("unknown Amass mode")
+    base = ["enum", "-rigid", "-nocolor", "-timeout", "2", "-d", ",".join(domains)]
+    if mode == "active":
+        base.extend(["-active", "-p", "80,443"])
+    return base
+
+
+def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[list[dict], int, str]:
     # Amass v5 starts a loopback engine on :4000. Do not reuse LiteLLM or
     # another engine. Only run in a dedicated VM / ephemeral hosted runner.
     if port_in_use():
@@ -194,6 +234,14 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
         env = {"HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config"),
                "PATH": os.defpath, "NO_COLOR": "1"}
         scope = ",".join(domains)
+        try:
+            config = postgres_config(os.environ, work)
+            if mode == "active" and config is None:
+                return [], 0, "POSTGRES_CONFIGURATION_REQUIRED"
+            if config is not None:
+                env["AMASS_CONFIG"] = str(config)
+        except (OSError, ValueError):
+            return [], 0, "POSTGRES_CONFIGURATION_INCOMPLETE"
         try:
             version = subprocess.run(
                 [str(binary), "-version"], env=env, cwd=work, timeout=5,
@@ -220,7 +268,7 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
             # Passive is the v5 default. Rigid disables scope expansion;
             # no active/ports/brute/alteration flags. Hard timeout is external.
             completed = command(
-                [str(binary), "enum", "-rigid", "-nocolor", "-timeout", "2", "-d", scope],
+                [str(binary), *enum_arguments(domains, mode)],
                 env, work, 600,
             )
         finally:
@@ -248,13 +296,14 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--amass", required=True, type=Path)
+    parser.add_argument("--mode", choices=("passive", "active"), default="passive")
     parser.add_argument("--output", required=True, type=Path, help="counts only")
     parser.add_argument("--private-output", type=Path, help="dedicated private VM only")
     args = parser.parse_args()
     if args.private_output and os.environ.get("GITHUB_ACTIONS") == "true":
         parser.error("private candidate export is forbidden on GitHub-hosted workflow")
     domains = load_domains()
-    candidates, rejected, status = discover(args.amass, domains)
+    candidates, rejected, status = discover(args.amass, domains, args.mode)
     catalog_summary: dict = {"status": "INCOMPLETE_CATALOG"}
     enriched = candidates
     conflicts = []
@@ -277,6 +326,8 @@ def main() -> int:
         "schema_version": 1,
         "scanner": "amass",
         "scanner_version": VERSION,
+        "scan_mode": args.mode,
+        "asset_database": "shared-postgresql/assetdb" if args.mode == "active" else "unspecified",
         "checked_at": checked_at,
         "source_revision": os.environ.get("GITHUB_SHA"),
         "vantage": "github-hosted" if os.environ.get("GITHUB_ACTIONS") == "true" else "isolated-vm-unverified",
