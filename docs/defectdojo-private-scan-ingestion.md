@@ -79,8 +79,12 @@ est une **preuve de posture**, pas un format de scan DefectDojo.
 
 Le script `scripts/security/store-ctem-summary.py` peut insérer ce
 résumé dans `assetdb.ctem.scan_reports` sur **l'instance PostgreSQL
-partagée** après téléchargement contrôlé et vérification du fichier ;
-ce transfert depuis GitHub n'est pas encore automatique. Les champs DNS
+partagée**. Le collecteur `pull-ctem-mail-artifact.py` utilise la GitHub
+App existante (Actions:read), contrôle la dernière run `master`,
+l'archive unique et la conformité du JSON, puis archive le rapport
+expurgé en privé. Son déclenchement est **CODED**, mais nécessite
+`NABLA_CRON_CTEM_MAIL_ENABLED=true` dans le cron horaire TrueNAS ;
+aucune réception runtime n'a été effectuée. Les champs DNS
 bruts sont refusés, et l'écriture est idempotente (SHA-256).
 
 Seules les anomalies SPF/DMARC **revues** peuvent être projetées en
