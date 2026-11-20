@@ -139,10 +139,13 @@ Contract:
    `NABLA_CRON_FASTAPI_TIMEOUT`, default 50 min, private log under
    `/mnt/cpool/var/nabla/ops-logs/`) only when the FastAPI Sample checkout is
    behind its remote `master` **and** `https://fastapi-sample.fastapicloud.dev`
-   is fully healthy: `/livez` and `/readyz` answer 200 and `/healthz` reports
-   `status: healthy` with every component healthy. A `degraded` cloud (for
-   example one failing `checks.*` integration) skips the update and the mail
-   names the failing checks. `NABLA_CRON_FASTAPI_UPDATE=false` disables it.
+   is fully healthy on its anonymous routes: `/livez` and `/v2/version` answer
+   200 and `/health` reports `status: healthy` with every component healthy,
+   the contract `update-fastapi-sample.sh` also checks locally after the
+   redeploy. `/readyz` and `/healthz` are private diagnostics since
+   fastapi-sample #447 (`X-Diagnostics-Key`), so the cron no longer verifies
+   the cloud dependencies. A `degraded` cloud skips the update and the mail
+   names the failing components. `NABLA_CRON_FASTAPI_UPDATE=false` disables it.
 
 When the operator checks out a feature branch such as
 `refactor/sample-nabla-service-foundation`, cron intentionally becomes a no-op.
