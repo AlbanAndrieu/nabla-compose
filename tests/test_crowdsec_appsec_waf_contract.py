@@ -24,7 +24,7 @@ def test_appsec_acquisition_is_internal_and_versioned_hub():
         "source": "appsec",
         "name": "fastapi-traefik-appsec",
         "listen_addr": "0.0.0.0:7422",
-        "appsec_configs": ["crowdsecurity/appsec-default"],
+        "appsec_configs": ["crowdsecurity/appsec-default", "nabla/fastapi-canary"],
         "labels": {"type": "appsec"},
     }
     # No other process sees an AppSec host port, only Docker traffic.
@@ -33,6 +33,8 @@ def test_appsec_acquisition_is_internal_and_versioned_hub():
     assert crowdsec["image"] == "crowdsecurity/crowdsec:v1.8.1"
     assert crowdsec["mem_limit"] == "384m"  # Monitor before cutover; no blind resource increase
     assert "./acquis.d:/etc/crowdsec/acquis.d:ro" in crowdsec["volumes"]
+    assert "./appsec-rules/nabla:/etc/crowdsec/appsec-rules/nabla:ro" in crowdsec["volumes"]
+    assert "./appsec-configs/nabla:/etc/crowdsec/appsec-configs/nabla:ro" in crowdsec["volumes"]
     assert not any(str(x).startswith("traefik.") for x in crowdsec.get("labels", []))
 
 
@@ -71,3 +73,27 @@ def test_appsec_only_on_public_fastapi_canary_without_tunnel_cutover():
     variables = (ROOT / "terraform/cloudflare/variables.tofu").read_text(encoding="utf-8")
     assert 'variable "fastapi_sample_tunnel_via_traefik"' in variables
     assert "default     = false" in variables.split('variable "fastapi_sample_tunnel_via_traefik"', 1)[1]
+
+
+
+def test_appsec_canary_rule_blocks_only_one_get_path():
+    rule = yaml.safe_load(
+        (ROOT / "apps/crowdsec/appsec-rules/nabla/fastapi-canary.yaml").read_text(encoding="utf-8")
+    )
+    config = yaml.safe_load(
+        (ROOT / "apps/crowdsec/appsec-configs/nabla/fastapi-canary.yaml").read_text(encoding="utf-8")
+    )
+    assert rule["name"] == config["name"] == "nabla/fastapi-canary"
+    assert config["inband_rules"] == ["nabla/fastapi-canary"]
+    assert config["default_remediation"] == "ban"
+    conditions = rule["rules"]
+    assert len(conditions) == 1
+    exact = conditions[0]["and"]
+    assert len(exact) == 2
+    assert exact[0] == {"zones": ["METHOD"], "match": {"type": "equals", "value": "GET"}}
+    assert exact[1] == {
+        "zones": ["URI"],
+        "match": {"type": "equals", "value": "/__nabla_appsec_canary_7de17a3fb1134292"},
+    }
+    assert "HEADERS" not in str(rule)
+    assert "BODY" not in str(rule)

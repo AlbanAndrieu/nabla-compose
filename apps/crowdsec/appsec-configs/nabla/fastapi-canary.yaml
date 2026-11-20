@@ -1,0 +1,7 @@
+---
+# Extend official appsec-default with only one in-band canary matcher.
+# This configuration does not change other official CrowdSec rules.
+name: nabla/fastapi-canary
+default_remediation: ban
+inband_rules:
+  - nabla/fastapi-canary

@@ -125,6 +125,9 @@ services:
       - crowdsec_config:/etc/crowdsec
       - crowdsec_data:/var/lib/crowdsec/data
       - ./acquis.d:/etc/crowdsec/acquis.d:ro
+      # Owned 'nabla' namespaces; never shadow the operator's other Hub rules.
+      - ./appsec-rules/nabla:/etc/crowdsec/appsec-rules/nabla:ro
+      - ./appsec-configs/nabla:/etc/crowdsec/appsec-configs/nabla:ro
       # AppSec acquis.d/appsec.yaml is mounted by the SAME read-only directory.
       # AppSec 7422 is Docker-network-only: never list it under `ports`.
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
