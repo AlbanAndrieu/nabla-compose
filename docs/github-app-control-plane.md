@@ -58,3 +58,7 @@ consumption are future requirements; Redis projection is not that ledger.
 CODED: manifest, bootstrap profile, opt-in path exception. WAF rule,
 Vaultwarden runtime profile, App registration/install, live tests, Terraform
 plan/apply, dispatcher and approval ledger NOT_RUN or NOT_CODED.
+
+## Convergence edge (20/11)
+
+Le rate limiting applicatif appartient à Traefik, le WAF origine à CrowdSec AppSec, le WAF Internet à Cloudflare. Le bouncer seul ne couvre pas AppSec. Ne pas activer l'exception Access tant que le chemin via Traefik, la provenance IP, le WAF et les tests négatifs ne sont pas acceptés. Voir [runbook](runbooks/fastapi-control-plane-convergence.md). F15/H20 (ancien F12 collision corrigée).
