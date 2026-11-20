@@ -63,6 +63,11 @@ def read_scope(file: Path) -> list[dict]:
             raise ValueError("a mail provider implies mail_use=sending")
         if not all(LABEL_RE.fullmatch(x) for x in row.get("mx_subdomains", [])):
             raise ValueError("invalid MX subdomain label")
+        for exception in row.get("mx_exceptions", []):
+            if (exception.get("label") not in row.get("mx_subdomains", [])
+                    or not NAME_RE.fullmatch(exception.get("target", ""))
+                    or not exception.get("reason")):
+                raise ValueError("an MX exception names a listed subdomain, a target and a reason")
         for sel in row.get("dkim_selectors", []):
             if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", sel):
                 raise ValueError("invalid DKIM selector")
@@ -191,7 +196,8 @@ def audit(row: dict) -> dict:
         )
     wanted = {"dmarc_reporting": "OPENCLAW_RUA_AUTHORIZED"}
     if google:
-        checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []))
+        checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []), {
+            f"{x['label']}.{domain}": x["target"] for x in row.get("mx_exceptions", [])})
         checks["mta_sts_policy"] = mta_sts_policy(domain)
         wanted |= GOOGLE_POLICY
     # An unresolved lookup is incomplete evidence, never a violation.
@@ -219,18 +225,20 @@ def dmarc_reporting(domain: str, rua: set[str] | None) -> str:
             else "EXTERNAL_AUTHORIZATION_MISSING")
 
 
-def google_mx(domain: str, labels: list[str]) -> str:
-    """Apex must route to Google; a listed subdomain may have no MX, never another host."""
-    hosts = []
+def google_mx(domain: str, labels: list[str], exceptions: dict[str, str]) -> str:
+    """Apex must route to Google; a listed subdomain may have no MX, never another
+    host, except the exact target declared for that exact name (mx_exceptions)."""
+    pairs = []
     for name in [domain, *(f"{label}.{domain}" for label in labels)]:
         state, values = lookup(name, "MX")
         if state == "UNVERIFIED":
             return "UNVERIFIED"
         if name == domain and not values:
             return "MISSING_APEX_MX"
-        hosts += [value.split()[-1].rstrip(".").lower() for value in values]
-    return ("GOOGLE_ONLY" if all(h == "google.com" or h.endswith(".google.com") for h in hosts)
-            else "NON_GOOGLE_MX")
+        pairs += [(name, value.split()[-1].rstrip(".").lower()) for value in values]
+    return ("GOOGLE_ONLY" if all(
+        host == "google.com" or host.endswith(".google.com") or exceptions.get(name) == host
+        for name, host in pairs) else "NON_GOOGLE_MX")
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):

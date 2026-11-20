@@ -24,9 +24,10 @@ version: 1
 # and home (Free PTR, dns.tofu); hello.int and s3.int, published by
 # cloudflare-ddns (owner decision, 20/11/2026).
 # Eighth round (20/11/2026): index, a proxied CNAME to the apex answering 403
-# 1050 (owner decision). mail2 (A, MX to mx3.mtahosting.com) awaits the owner:
-# created by the owner on 27/12/2025 with the comment "projecthoneypot", most
-# likely an MX donated to Project Honey Pot, against the Google-only policy.
+# 1050 (owner decision). Kept: mail2 (A, MX to mx3.mtahosting.com), a
+# receive-only Project Honey Pot MX donation created by the owner on 27/12/2025
+# (Cloudflare audit log); the only declared exception of the Google-only mail
+# scan (config/security/public-mail-domains.json, mx_exceptions).
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com

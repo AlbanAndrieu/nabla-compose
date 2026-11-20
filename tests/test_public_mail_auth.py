@@ -78,7 +78,11 @@ class ExternalPostureTest(unittest.TestCase):
         self.assertNotIn("mail_provider", rows["bababou.com"])  # regime unchanged
         with tempfile.TemporaryDirectory() as folder:
             for bad in ({"mail_provider": "mtahosting"}, {"mx_subdomains": ["a.b"]},
-                        {"mail_use": "no-mail"}):
+                        {"mail_use": "no-mail"},
+                        {"mx_exceptions": [{"label": "mail2", "target": "mx.example.net",
+                                            "reason": "not a listed subdomain"}]},
+                        {"mx_subdomains": ["mail2"], "mx_exceptions": [
+                            {"label": "mail2", "target": "mx.example.net"}]}):
                 file = Path(folder) / "bad.json"
                 file.write_text(json.dumps({"version": 1, "domains": [{
                     "name": "albandrieu.com", "mail_use": "sending",
@@ -137,6 +141,25 @@ class ExternalPostureTest(unittest.TestCase):
         lookalike = self.google_dns({("albandrieu.com", "MX"): (
             "NOERROR", ["1 aspmx.l.google.com.evil.example."])})
         self.assertEqual(self.google_audit(lookalike)["checks"]["mx_provider"], "NON_GOOGLE_MX")
+
+    def test_mail2_project_honey_pot_mx_is_the_only_declared_exception(self):
+        rows = mail.read_scope(ROOT / "config/security/public-mail-domains.json")
+        exceptions = [(r["name"], x["label"], x["target"])
+                      for r in rows for x in r.get("mx_exceptions", [])]
+        self.assertEqual(exceptions, [("albandrieu.com", "mail2", "mx3.mtahosting.com")])
+        row = {**self.GOOGLE_ROW, "mx_exceptions": [
+            {"label": "mail2", "target": "mx3.mtahosting.com", "reason": "honeypot"}]}
+
+        def mx(overrides):
+            with patch.object(mail, "lookup", side_effect=self.google_dns(overrides)), \
+                    patch.object(mail, "fetch_policy", return_value=("OK", self.GOOGLE_STS)):
+                return mail.audit(row)["checks"]["mx_provider"]
+        kept = ("NOERROR", ["10 mx3.mtahosting.com."])
+        self.assertEqual(mx({("mail2.albandrieu.com", "MX"): kept}), "GOOGLE_ONLY")
+        # Any other non-Google MX still fails: another target, or the apex.
+        self.assertEqual(mx({("mail2.albandrieu.com", "MX"): (
+            "NOERROR", ["10 mx3.mtahosting.com.", "20 mx4.mtahosting.com."])}), "NON_GOOGLE_MX")
+        self.assertEqual(mx({("albandrieu.com", "MX"): kept}), "NON_GOOGLE_MX")
 
     def test_mta_sts_testing_policy_must_list_exactly_the_published_mx(self):
         def policy(text):

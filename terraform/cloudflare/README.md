@@ -226,15 +226,10 @@ le TLS-RPT et MTA-STS des deux domaines personnels (section « Messagerie »).
    propriétaire du 20/11).
    Huitième tour (20/11/2026) : `index`, CNAME proxifié vers l'apex qui
    répondait 403 1050 (retiré, décision du propriétaire du 20/11).
-   **`mail2` : décision du propriétaire en attente.**
-   - Son A et son MX `mx3.mtahosting.com` ont été créés depuis le dashboard
-     par le compte du propriétaire le 27/12/2025, le MX avec le commentaire
-     « projecthoneypot ».
-   - C'est très probablement un MX donné à Project Honey Pot. Ce n'est pas le
-     honeypot TrueNAS, mais c'est bien un usage « honeypot ».
-   - Il contredit la règle « Google seulement » : le scan externe le signale
-     (`mx_provider`) tant qu'il existe. S'il est gardé, il faut une
-     exception explicite ; s'il est retiré, il passe par ce circuit.
+   **`mail2` : conservé**, don de MX Project Honey Pot créé par le
+   propriétaire le 27/12/2025 (journal d'audit Cloudflare), en réception
+   seulement : son A et son MX `mx3.mtahosting.com` restent tels quels
+   (décision du propriétaire du 20/11). Ce n'est pas le honeypot TrueNAS.
    Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
    ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
    l'état sous `tunnel[...]` (paragraphe suivant).
@@ -296,7 +291,11 @@ ressources.
 Le scan externe ([`check-public-mail-auth.py`](../../scripts/security/check-public-mail-auth.py),
 `config/security/public-mail-domains.json`) applique la même politique et sort
 en **code 4** (`PROVIDER_POLICY_VIOLATION`) sur :
-- un MX hors `google.com`, à l'apex ou sur `mail2` ;
+- un MX hors `google.com`, à l'apex ou sur `mail2`. Seule exception,
+  explicite et documentée (`mx_exceptions`) : `mail2.albandrieu.com` →
+  `mx3.mtahosting.com`, don de MX Project Honey Pot. Elle vaut pour ce nom
+  exact et cette cible exacte ; toute autre cible, ou ce MX à l'apex,
+  échoue ;
 - un SPF autre que `include:_spf.google.com -all` ;
 - un DMARC non strict ;
 - une DKIM `google` absente ;
@@ -309,10 +308,10 @@ en **code 4** (`PROVIDER_POLICY_VIOLATION`) sur :
   ou dont les MX diffèrent des MX publiés de l'apex.
 
 Une résolution DNS ratée reste `UNVERIFIED` et n'est jamais comptée comme
-violation. Le relevé du 20/11 depuis la workstation signale `mx_provider`
-(`mail2`), `spf_provider` et `tls_rpt` sur `albandrieu.com`, et
-`spf_provider` sur `albanandrieu.com` : c'est l'état attendu tant que les
-applies n'ont pas eu lieu.
+violation. Le relevé du 20/11 depuis la workstation signale notamment
+`spf_provider` et `tls_rpt` sur `albandrieu.com`, et `spf_provider` sur
+`albanandrieu.com` : c'est l'état attendu tant que les applies n'ont pas eu
+lieu.
 
 Étape suivante : passer MTA-STS à `enforce` après quelques semaines de
 rapports TLS-RPT propres (`mode`, `mta_sts_id` et la valeur attendue
