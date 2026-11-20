@@ -129,8 +129,7 @@ resource "github_repository_ruleset" "default_branch" {
       for_each = length(each.value.required_checks) == 0 ? [] : [each.value.required_checks]
 
       content {
-        # Intentionally mirrors "Require branches to be up to date before merging" = OFF.
-        strict_required_status_checks_policy = false
+        strict_required_status_checks_policy = each.value.strict_required_status_checks
         do_not_enforce_on_create             = true
 
         dynamic "required_check" {

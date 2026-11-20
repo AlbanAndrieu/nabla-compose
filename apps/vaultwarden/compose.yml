@@ -15,7 +15,7 @@ x-logging: &nabla-logging
 services:
   vaultwarden:
     logging: *nabla-logging
-    image: vaultwarden/server:1.37.3
+    image: vaultwarden/server:1.37.5
     container_name: vaultwarden
     labels:
       com.albandrieu.nabla.entity-ref: component:default/vaultwarden

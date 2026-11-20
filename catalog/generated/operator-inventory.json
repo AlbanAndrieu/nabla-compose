@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:70313b0968fd2278cc4b0bede2fc188e01f12c8a09af87dbd46550c2fe9271c6",
+  "catalogRevision": "sha256:942d4dd20aff2ac0321ec7d4638ef0289e2c7be93d38b666610c2972d9520b7a",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -612,7 +612,7 @@
     {
       "category": "network",
       "criticality": "medium",
-      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "description": "Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.",
       "id": "ddns-updater",
       "kind": "dns-automation",
       "monitoring": {
@@ -627,7 +627,8 @@
         "containerService": "ddns-updater",
         "provider": "truenas-app"
       },
-      "sourcePath": "apps/ddns-updater/compose.yml"
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "security",
@@ -2299,7 +2300,8 @@
         "protect",
         "respond"
       ],
-      "sourcePath": "apps/crowdsec/compose.yml"
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -3547,7 +3549,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:e5ff23086a8d7b76fb51a6aa386834635f82475ff3965750aeb65cea3ad56a93",
+  "operatorRevision": "sha256:5c4bd0a8670a7b72dd4a4ad49ea0bbc8f7542678e1f488ca537b8e25cbbc6aec",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -7519,7 +7521,7 @@
       "category": "network",
       "composeService": "ddns-updater",
       "criticality": "medium",
-      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "description": "Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.",
       "id": "ddns-updater",
       "kind": "dns-automation",
       "monitoring": {
@@ -7534,7 +7536,8 @@
         "containerService": "ddns-updater",
         "provider": "truenas-app"
       },
-      "sourcePath": "apps/ddns-updater/compose.yml"
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "status": "disabled"
     },
     {
       "category": "security",

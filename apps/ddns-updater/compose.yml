@@ -19,7 +19,8 @@ services:
       category: network
       presentationRole: support
       criticality: medium
-      description: Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.
+      status: disabled
+      description: Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.
       runtime:
         provider: truenas-app
         appId: ddns-updater

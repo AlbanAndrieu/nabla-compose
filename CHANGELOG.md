@@ -1,3 +1,10 @@
+# [0.106.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.105.1...0.106.0) (2026-11-20)
+
+
+### Features
+
+* **ctem:** add isolated passive Amass asset discovery and private inventory [skip ci] ([#421](https://github.com/AlbanAndrieu/nabla-compose/issues/421)) ([37f35e4](https://github.com/AlbanAndrieu/nabla-compose/commit/37f35e46adf6f4771ecf5adbca6d3bfb22903175))
+
 ## [0.105.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.105.0...0.105.1) (2026-11-19)
 
 

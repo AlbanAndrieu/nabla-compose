@@ -8,6 +8,8 @@
 > qui ne conserve que CrowdSec/Traefik, Dozzle et les MCP sécurité. Les priorités
 > courantes restent indexées dans [`roadmap.md`](roadmap.md).
 >
+> **20/11/2026 :** pfSense est retiré depuis le 18/11. Là où ce document cite pfSense ou Unbound, lire : la Freebox route, le Netgear R7000 sert le LAN `172.17.0.1/24` (DHCP et DNS distribué), et Pi-hole `172.17.0.24` ne répond qu'aux clients réglés à la main. Les schémas restent à redessiner. Renovate n'est pas encore actif (App GitHub à installer).
+>
 > Ce document **n'autorise aucune mutation**. Chaque phase exige une sauvegarde,
 > un plan en lecture seule, l'accord de l'opérateur et une preuve de retour
 > arrière (voir les règles de `roadmap.md`).

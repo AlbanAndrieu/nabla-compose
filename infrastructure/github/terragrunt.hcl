@@ -173,9 +173,17 @@ inputs = {
         "Test dependencies and optionally build Python package" = 15368
       }
     }
-    "nabla-andromda"                       = {}
-    "nabla-build-tools"                    = {}
-    "nabla-compose"                        = {}
+    "nabla-andromda"    = {}
+    "nabla-build-tools" = {}
+    # Only repository whose PRs run a pre-commit job (inventory of 20/11/2026); #416 + #418
+    # passed alone and broke master together, hence the up-to-date branch requirement.
+    "nabla-compose" = {
+      required_checks = {
+        "GitGuardian Security Checks" = 46505
+        "pre-commit"                  = 15368
+      }
+      strict_required_status_checks = true
+    }
     "nabla-cpp"                            = {}
     "nabla-databases"                      = {}
     "nabla-hooks"                          = {}

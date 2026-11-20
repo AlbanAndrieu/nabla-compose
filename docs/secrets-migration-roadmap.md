@@ -14,6 +14,7 @@
 > (`HOMARR_API_KEY`, `SECRET_ENCRYPTION_KEY`) au fichier TrueNAS :
 > `homarr-sync` utilisait `HOMARR_API_TOKEN` (ancienne identité).
 > Ne pas émettre de nouveau jeton tant que la provenance n'est pas établie.
+> Suivi unique : H03 de la roadmap principale. Homarr redéployé le 20/11, comparaison toujours à faire.
 > **P1 :** OpenRAG, LiteLLM, OpenSearch, puis la couverture des autres
 > applications actives ; ne pas forcer une rotation des identités partagées.
 > Les anciennes étapes ci-dessous décrivent une **méthode**, pas un état
