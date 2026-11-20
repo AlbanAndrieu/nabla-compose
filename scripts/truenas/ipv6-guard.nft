@@ -1,0 +1,58 @@
+#!/usr/sbin/nft -f
+# TrueNAS IPv6 guard: no NAT in IPv6, and neither the R7000 nor TrueNAS filters it.
+# New IPv6 connections reach TrueNAS and its published containers only from the homelab
+# LAN prefix and link-local; replies and ICMPv6 (NDP, PMTU) pass. IPv4 is untouched.
+# A drop here wins over Docker's accepts in its own tables. Loaded at boot by a POSTINIT
+# init script (docs/pfsense/runbooks/freebox-router-mode.md). Rollback:
+#   nft delete table ip6 nabla_ipv6_guard; nft delete table bridge nabla_ipv6_guard
+table ip6 nabla_ipv6_guard
+delete table ip6 nabla_ipv6_guard
+table bridge nabla_ipv6_guard
+delete table bridge nabla_ipv6_guard
+
+table ip6 nabla_ipv6_guard {
+	set lan {
+		type ipv6_addr
+		flags interval
+		elements = { fe80::/10, 2a01:e0a:a17:3c01::/64 }
+	}
+
+	chain input {
+		type filter hook input priority filter - 10; policy accept;
+		iifname != "br0" accept
+		ct state established,related accept
+		meta l4proto ipv6-icmp accept
+		ip6 saddr @lan accept
+		counter drop
+	}
+
+	# Routed traffic entering through br0, e.g. Docker DNAT to published ports.
+	chain forward {
+		type filter hook forward priority filter - 10; policy accept;
+		iifname != "br0" accept
+		ct state established,related accept
+		meta l4proto ipv6-icmp accept
+		ip6 saddr @lan accept
+		counter drop
+	}
+}
+
+# The Talos VMs (vnet*) are bridged on br0 without br_netfilter: guard the frames that come
+# in from the physical uplink before they reach them.
+table bridge nabla_ipv6_guard {
+	set lan {
+		type ipv6_addr
+		flags interval
+		elements = { fe80::/10, 2a01:e0a:a17:3c01::/64 }
+	}
+
+	chain forward {
+		type filter hook forward priority filter - 10; policy accept;
+		iifname != "enp10s0" accept
+		ether type != ip6 accept
+		ct state established,related accept
+		meta l4proto ipv6-icmp accept
+		ip6 saddr @lan accept
+		counter drop
+	}
+}

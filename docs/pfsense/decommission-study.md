@@ -1,6 +1,6 @@
 # Décommissionner pfSense : étude avant la bascule de la Freebox
 
-**17/11/2026, étude seulement (`NOT_RUN`).** Les relevés ci-dessous sont faits en lecture seule sur pfSense (21:45–22:50) et sur la Freebox Ultra par son API (22:52). Rien n'est changé. La décision revient à l'opérateur ; la feuille de route est dans la [roadmap pfSense](roadmap.md#décommissionnement-de-pfsense-étude-du-1711).
+**17/11/2026, étude seulement (`NOT_RUN`).** Les relevés ci-dessous sont faits en lecture seule sur pfSense (21:45–22:50) et sur la Freebox Pop par son API (22:52). Rien n'est changé. La décision revient à l'opérateur ; la feuille de route est dans la [roadmap pfSense](roadmap.md#décommissionnement-de-pfsense-étude-du-1711).
 
 ## Ce que pfSense assure aujourd'hui
 
@@ -16,7 +16,7 @@
 | Observabilité | syslog vers Loki, softflowd vers Akvorado, ntopng, agent Zabbix |
 | Divers | DynDNS Cloudflare, NTP sur OPT, 17 tâches cron, RESTAPI, Nexus |
 
-## Ce que la Freebox Ultra peut reprendre
+## Ce que la Freebox Pop peut reprendre
 
 Relevé Freebox : firmware 4.13.6, mode bridge, Wi-Fi actif, IPv6 actif avec 8 délégations (dont 2 avec next hop). Le DHCP, les baux, les redirections, la DMZ et le VPN ne sont lisibles **qu'en mode routeur** : on ne peut rien préparer côté Freebox avant la bascule.
 

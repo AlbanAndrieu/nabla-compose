@@ -82,7 +82,7 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
 
 ## Décommissionnement de pfSense (étude du 17/11)
 
-[Étude](decommission-study.md) : rôles relevés sur pfSense, ce que la Freebox Ultra peut reprendre, scénarios A (décommissionner), B (Freebox en routeur avec pfSense derrière) et C (statu quo). Chaque étape est réversible, et pfSense reste en place jusqu'à la phase 2.
+[Étude](decommission-study.md) : rôles relevés sur pfSense, ce que la Freebox Pop peut reprendre, scénarios A (décommissionner), B (Freebox en routeur avec pfSense derrière) et C (statu quo). Chaque étape est réversible, et pfSense reste en place jusqu'à la phase 2.
 
 **Phase 0, utile dans les trois scénarios** (Freebox en bridge, pfSense inchangé) :
 
@@ -91,7 +91,7 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
 - [x] **0.3 Ingress hors de pfSense**, de fait le 18/11 : HAProxy est parti avec le 1100, le tunnel Cloudflare va directement aux services, et le 20/11 rien n'écoute en 443 sur l'IP publique. Plan d'origine : les 2 frontends HAProxy actifs (`Web_HTTPS` 443 et `freenas` 7000) vont vers le tunnel Cloudflare et Traefik sur TrueNAS, avec les certificats en DNS-01 ; les 5 désactivés sont supprimés. Réception : plus rien n'écoute sur le WAN de pfSense.
 - [ ] **0.4 DNS par Pi-hole** (20/11 : c'est désormais au DHCP du R7000 de distribuer Pi-hole, et il ne le fait pas ; seuls les clients réglés à la main, comme la workstation, résolvent `*.int`. Décision ouverte, [runbook du 20/11](../runbooks/2026-11-20-roadmap-pass-blockers.md)) : le DHCP de pfSense distribue Pi-hole (`172.17.0.24`) en principal et un secondaire hors TrueNAS ; DNSSEC activé dans Pi-hole. TrueNAS garde un résolveur qui n'est pas Pi-hole. Réception : `int.albandrieu.com` et les noms publics résolus par Pi-hole ; Pi-hole arrêté, les noms publics résolus quand même.
 - [ ] **0.5 Services annexes** : DynDNS sans objet (IP Free fixe, `ddns-updater` retiré le 20/11) ; WireGuard vers Tailscale ou le WireGuard de la Freebox ; bouncer CrowdSec dans Traefik.
-- [ ] **0.6 App Freebox au moindre privilège** : décocher les droits par défaut (Explorateur, VM, Appels, Contacts, Téléchargements, TV, PVR). « Modification des réglages » seulement pour la bascule.
+- [ ] **0.6 App Freebox au moindre privilège** (services inutiles coupés le 19-20/11, droits de l'app encore complets) : décocher les droits par défaut (Explorateur, VM, Appels, Contacts, Téléchargements, TV, PVR). « Modification des réglages » seulement pour la bascule.
 
 **Phase 1, décision de l'opérateur** :
 
@@ -120,7 +120,12 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
 ## Autres suivis pfSense
 
 - [x] **Freebox en mode routeur** ([procédure](runbooks/freebox-router-mode.md)) : en service depuis le 18/11, sans pfSense ; le R7000 route le LAN `172.17.0.1/24` derrière elle (double NAT). Plan du 17/11, avec pfSense : Le WAN de pfSense passe en DHCP, la Freebox en routeur par son API, puis le WAN est épinglé avec la DMZ. Gains : fin de l'IP publique distribuée pendant les démarrages à froid du 1100, et secours Wi-Fi possible. Préparation faite le 17/11 (voir la procédure) : app enregistrée, inventaire, DynDNS prêt, alias et redirections sans impact. Reste le jour J : permission `settings`, MAC du WAN, adresse du WAN. Réception : `check` des deux outils à 0 changement, entrées 443 et 7000 vues de l'extérieur, DynDNS à jour.
-- [ ] **IPv6 sur le LAN** (20/11 : à refaire sur la Freebox et le R7000, pfSense parti ; publication du préfixe : Q6 du [runbook](../runbooks/2026-11-20-roadmap-pass-blockers.md)) : la Freebox route déjà 2 préfixes `/64` vers le WAN de pfSense, mais le LAN est en `track6` (il attend du DHCPv6-PD) et n'a aucun préfixe. Passer le LAN en IPv6 statique sur l'une des délégations, avec RA, par script versionné. Indépendant de la bascule.
+- [ ] **IPv6 derrière le R7000** (20/11, Q6 du [runbook](../runbooks/2026-11-20-roadmap-pass-blockers.md)) : Freebox, R7000 (`Fixed`, passerelle `…:3c00::1`) et workstation en IPv6 le 20/11 ; restent la décision pour TrueNAS (aucun pare-feu hôte, ~60 ports en `[::]`) et le test d'exposition depuis la 4G. [Procédure](runbooks/freebox-router-mode.md#ipv6-sur-le-homelab-sans-exposition-20112026).
+- [ ] **Freebox Pop, fonctions à exploiter** :
+  - **métriques** : débit WAN, températures, Wi-Fi et ports du switch (`/rrd/`, `/system/`, `/switch/status/`) dans Prometheus, seule vue du WAN depuis la perte d'Akvorado. Prochaine étape : un exporter en App TrueNAS, avec son propre jeton d'app en lecture seule (rouvrir `allow_token_request` le temps de l'enregistrer) ;
+  - **nouvel appareil** sur le segment IoT `192.168.1.x` (`/lan/browser/pub/`) : alerte Alertmanager ;
+  - **Wi-Fi invité** à clé dédiée et durée limitée, créé dans l'app Freebox Connect (la clé ne passe ni par le dépôt ni par un agent) ;
+  - les notifications de sécurité Freebox Connect restent actives.
 - [ ] **Clé USB du 1100** : relue le 17/11. C'est la clé d'installation de pfSense (SanDisk Cruzer 16 Go en USB 2.0, 21,6 Mo/s en lecture contre 27,4 Mo/s pour l'eMMC). On la garde comme clé de réinstallation, pas comme stockage : voir « Gels userland » de H07b.
 
 - pfSense / CrowdSec : sans objet depuis le 18/11, CrowdSec passe sur les journaux de Traefik (roadmap principale). Texte d'origine : conserver la preuve que PF charge les règles, puis démontrer le rattachement WAN exact sans bloquer une IP d'administration ; ne pas prendre une ancre chargée pour une preuve de filtrage effectif.

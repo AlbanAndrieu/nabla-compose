@@ -27,7 +27,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn('protocol               = "udp"', alloy)
         self.assertIn('syslog_format          = "rfc5424"', alloy)
         self.assertIn('use_incoming_timestamp = true', alloy)
-        self.assertIn('job         = "pfsense"', alloy)
+        # Other senders (the workstation) land as job="syslog"; only 172.17.0.1 is relabelled pfsense.
+        self.assertIn('job         = "syslog"', alloy)
+        rule = alloy.split('target_label  = "job"')[0].rsplit("rule {", 1)[1]
+        self.assertIn('regex         = "172\\\\.17\\\\.0\\\\.1"', rule)
 
     def test_pfsense_file_fallback_is_dormant_by_default(self) -> None:
         compose = (GRAFANA / "compose.yml").read_text(encoding="utf-8")

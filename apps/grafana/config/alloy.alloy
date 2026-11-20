@@ -31,6 +31,15 @@ loki.relabel "pfsense_syslog" {
     target_label  = "device"
     replacement   = "pfsense"
   }
+
+  // The listener also takes the workstation (since 20/11/2026): only pfSense keeps job="pfsense",
+  // which CrowdSec reads (apps/crowdsec/acquis.d/security.yaml).
+  rule {
+    source_labels = ["__syslog_connection_ip_address"]
+    regex         = "172\\.17\\.0\\.1"
+    target_label  = "job"
+    replacement   = "pfsense"
+  }
 }
 
 loki.source.syslog "pfsense" {
@@ -43,7 +52,7 @@ loki.source.syslog "pfsense" {
 
     labels = {
       environment = "homelab",
-      job         = "pfsense",
+      job         = "syslog",
       source      = "remote-syslog",
     }
   }
