@@ -16,6 +16,7 @@ LOG_TAG="doco-cd-update"
 RECENT_MINUTES="${NABLA_CRON_RECENT_MINUTES:-65}"
 DOCO_CD_PROJECTS="${NABLA_CRON_DOCO_CD_PROJECTS:-vaultwarden garage}"
 FASTAPI_UPDATE="${NABLA_CRON_FASTAPI_UPDATE:-true}"
+CTEM_AMASS_ENABLED="${NABLA_CRON_CTEM_AMASS_ENABLED:-false}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
 FASTAPI_SUBMODULE="${FASTAPI_SAMPLE_SUBMODULE:-apps/fastapi-sample}"
@@ -252,6 +253,34 @@ update_fastapi_sample() {
   return 1
 }
 
+# Reuse this installed TrueNAS hourly Cron rather than creating a second job.
+# Sunday 05:00 appliance local time only; the scan runner has its own flock.
+# Failures are reported in the existing Cron mail but do not suppress Git sync.
+run_weekly_ctem_amass() {
+  local weekday hour rc=0
+  if [[ "${CTEM_AMASS_ENABLED}" != true ]]; then
+    return 0
+  fi
+  weekday="$(date +%u)"
+  hour="$(date +%H)"
+  if [[ "${weekday}" != 7 || "${hour}" != 05 ]]; then
+    return 0
+  fi
+  if [[ ! -f "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" ]]; then
+    log_error "CTEM: runner not installed in checkout"
+    return 1
+  fi
+  log_info "CTEM: running approved bounded active weekly Amass; private candidates stay on TrueNAS."
+  sudo -n env CTEM_AMASS_ACTIVE_APPROVED=YES \
+    bash "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" --run || rc=$?
+  if ((rc == 0)); then
+    log_info "CTEM: completed, private artifact retained; only counts may be published."
+  else
+    log_error "CTEM: incomplete, exit=${rc}; no finding promotion."
+  fi
+  return "${rc}"
+}
+
 status=0
 synced=true
 sync_checkout || {
@@ -262,5 +291,6 @@ report_apps
 report_recent_containers
 if [[ "${synced}" == true ]]; then
   update_fastapi_sample || status=1
+  run_weekly_ctem_amass || status=1
 fi
 exit "${status}"
