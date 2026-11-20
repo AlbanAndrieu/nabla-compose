@@ -1,3 +1,10 @@
+## [0.107.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.0...0.107.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **defectdojo:** complete approved FastAPI image scan ingestion ([#423](https://github.com/AlbanAndrieu/nabla-compose/issues/423)) ([53271ae](https://github.com/AlbanAndrieu/nabla-compose/commit/53271ae438444bbc5b7d5bfec9d88fa664925565))
+
 # [0.107.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.106.0...0.107.0) (2026-11-20)
 
 
