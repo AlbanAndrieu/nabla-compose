@@ -43,6 +43,7 @@ class CloudflareContract(unittest.TestCase):
             for name in (
                 "keycloak_oidc", "joplin", "vaultwarden_admin",
                 "affine", "freshrss", "plumber_api", "immich", "ha", "famp_albandrieu",
+                "fastapi_github_webhook",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())

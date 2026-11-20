@@ -40,13 +40,19 @@ dns_tunnel_record_ids = {
 }
 
 dns_retired_record_ids = {
+  "account.albandrieu.com/A"                    = "8a93d0c92b7fb231d677c441233dac7c" # gitleaks:allow
   "anythingllm-albandrieu.albandrieu.com/CNAME" = "4a60743c04450f8d140ab2a2999bf825" # gitleaks:allow
+  "apache.albandrieu.com/A"                     = "89d912b463250ca66e7c0e2254a6ff0b" # gitleaks:allow
+  "api.albandrieu.com/A"                        = "623d51a649666f46c84b93157319912f" # gitleaks:allow
   "autoxpose.albandrieu.com/CNAME"              = "a985a5d4613a56fa5113f3f3414304ab" # gitleaks:allow
   "drawio.albandrieu.com/CNAME"                 = "7616336e922c64a36dbe4a68165736f6" # gitleaks:allow
   "honeypot-albandrieu.albandrieu.com/CNAME"    = "540b56a73212391c40a02c4d3011e480" # gitleaks:allow
   "localai-gpu-albandrieu.albandrieu.com/CNAME" = "2b177cf0756a42d70d0e603b27706218" # gitleaks:allow
+  "login.albandrieu.com/A"                      = "0de26421b4dc699abd3aa441f47d6fcd" # gitleaks:allow
+  "manager.albandrieu.com/A"                    = "057d9b4307a764a41736985fa5c1878e" # gitleaks:allow
   "motion-albandrieu.albandrieu.com/CNAME"      = "ec82654fc5cecc4483172dd9f282665d" # gitleaks:allow
   "netalertx-albandrieu.albandrieu.com/CNAME"   = "616d38e25b70d278767d7f54b15444b0" # gitleaks:allow
+  "nexus-albanandrieu.albandrieu.com/A"         = "c6fa03bc0921782c1f4fd90179b7362f" # gitleaks:allow
   "nexus-albandrieu.albandrieu.com/CNAME"       = "203b50850e1a8ec46d4c18f82ee6756e" # gitleaks:allow
   "ntopng-albandrieu.albandrieu.com/CNAME"      = "6ac55a50ad82e4e75c84779e9cd5b14a" # gitleaks:allow
   "ollama-gpu-albandrieu.albandrieu.com/CNAME"  = "b4e13dc6e4beff7ac140081560c43c02" # gitleaks:allow
@@ -54,6 +60,10 @@ dns_retired_record_ids = {
   "plumber-albandrieu.albandrieu.com/CNAME"     = "0a74288976b211dca7bfe16f59a2bca3" # gitleaks:allow
   "portracker-albandrieu.albandrieu.com/CNAME"  = "e6d882f5d4e8aad3673b03e071ccef39" # gitleaks:allow
   "sentry.albandrieu.com/CNAME"                 = "83f4e05b1097fe12a43be811e8763987" # gitleaks:allow
+  "toto.albandrieu.com/A"                       = "3ab56fe2a2a0bb734ac7cd64d22ab15d" # gitleaks:allow
   "traefik.albandrieu.com/CNAME"                = "0774b3a20e29b4232f58e545fd0a7008" # gitleaks:allow
+  "truenas.albandrieu.com/A"                    = "303405abdc1d54bfc0c396151db318ab" # gitleaks:allow
   "vaultwarden-albandrieu.albandrieu.com/CNAME" = "7509f987a27512ed1aecb0da5e448729" # gitleaks:allow
+  "warp.albandrieu.com/A"                       = "34cc0535fe5e8f0547f0269190cb810e" # gitleaks:allow
+  "www.toto.albandrieu.com/A"                   = "fb8cfbb0f0e98f6b7587ad624d9c7490" # gitleaks:allow
 }

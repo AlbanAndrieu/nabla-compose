@@ -212,6 +212,21 @@ explicite ; le script de capture les classe `unmanaged`.
    liste vidée (historique Git). Second tour fait le 11/11/2026 : `postgres`
    (PR #345), détruit en un seul apply, `dig @1.1.1.1` vide.
 
+   Septième tour (20/11/2026) : dix A vers l'IP Free fixe `82.66.4.247`,
+   morts depuis le retrait de pfSense et de son HAProxy le 18/11 (port 443
+   fermé, ou 403 `error code: 1050` au bord pour les proxifiés) : `account`,
+   `apache`, `api`, `login`, `manager`, `nexus-albanandrieu`, `toto`,
+   `www.toto`, `truenas`, `warp`. Les consommateurs internes de `truenas`
+   (Sample, CSI) épinglent déjà `172.17.0.24`. Restent hors circuit :
+   l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
+   (PTR Free, `cloudflare_dns_record.home`), `mail2` (son MX partirait avec
+   lui : le circuit retire tous les types d'un nom), `hello.int` et `s3.int`
+   (conservés, publiés par `cloudflare-ddns` de l'App Traefik : décision du
+   propriétaire du 20/11).
+   Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
+   ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
+   l'état sous `tunnel[...]` (paragraphe suivant).
+
    Un nom dont le CNAME est déjà dans l'état (`tunnel[...]`) n'a pas besoin
    de ce circuit : retirer sa route suffit, le plan détruit l'enregistrement.
    Le lister aussi dans `dns_retired_record_ids` l'importe une seconde fois

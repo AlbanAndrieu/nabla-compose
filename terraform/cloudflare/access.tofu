@@ -396,4 +396,8 @@ resource "cloudflare_zero_trust_access_application" "fastapi_github_webhook" {
     precedence = 1
   }]
   type = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
