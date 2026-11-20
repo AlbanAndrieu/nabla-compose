@@ -17,6 +17,7 @@ RECENT_MINUTES="${NABLA_CRON_RECENT_MINUTES:-65}"
 DOCO_CD_PROJECTS="${NABLA_CRON_DOCO_CD_PROJECTS:-vaultwarden garage}"
 FASTAPI_UPDATE="${NABLA_CRON_FASTAPI_UPDATE:-true}"
 CTEM_AMASS_ENABLED="${NABLA_CRON_CTEM_AMASS_ENABLED:-false}"
+CTEM_MAIL_ENABLED="${NABLA_CRON_CTEM_MAIL_ENABLED:-false}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
 FASTAPI_SUBMODULE="${FASTAPI_SAMPLE_SUBMODULE:-apps/fastapi-sample}"
@@ -281,6 +282,34 @@ run_weekly_ctem_amass() {
   return "${rc}"
 }
 
+# The existing GitHub App artifact collector already has Actions:read on
+# nabla-compose. Fetch only the latest successful master mail-deep artifact;
+# no API token is forwarded to artifact storage, no DefectDojo import here.
+run_weekly_ctem_mail() {
+  local weekday hour rc=0
+  if [[ "${CTEM_MAIL_ENABLED}" != true ]]; then
+    return 0
+  fi
+  weekday="$(date +%u)"
+  hour="$(date +%H)"
+  if [[ "${weekday}" != 1 || "${hour}" != 06 ]]; then
+    return 0
+  fi
+  if [[ ! -f "${SCRIPT_DIR}/security/pull-ctem-mail-artifact.py" ]]; then
+    log_error "CTEM mail: GitHub artifact puller not installed"
+    return 1
+  fi
+  log_info "CTEM mail: collecting reviewed master JSON posture via GitHub App Actions:read."
+  sudo -n env CTEM_MAIL_PULL_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+    python3 "${SCRIPT_DIR}/security/pull-ctem-mail-artifact.py" --store || rc=$?
+  if ((rc == 0)); then
+    log_info "CTEM mail: sanitized checkdmarc receipt stored in shared PostgreSQL."
+  else
+    log_error "CTEM mail: incomplete, exit=${rc}; no DefectDojo auto import."
+  fi
+  return "${rc}"
+}
+
 status=0
 synced=true
 sync_checkout || {
@@ -291,6 +320,7 @@ report_apps
 report_recent_containers
 if [[ "${synced}" == true ]]; then
   run_weekly_ctem_amass || status=1
+  run_weekly_ctem_mail || status=1
   update_fastapi_sample || status=1
 fi
 exit "${status}"
