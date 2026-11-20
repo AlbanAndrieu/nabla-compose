@@ -68,6 +68,40 @@ puis seulement planification éventuelle sous contrôle et alertes.
 > à l'import ; vérifier son ACL réelle. Aucun tunnel, DNS ou API publique
 > n'est créé par ce runbook.
 
+## CTEM — checkdmarc JSON normalisé et import contrôlé (21/11/2026)
+
+Le workflow GitHub `external-attack-surface.yml` exécute
+`checkdmarc==6.0.3` avec `-f json` et produit un fichier natif
+**temporaire** ; `scripts/security/run-public-mail-deep.py`
+réduit ensuite SPF/DMARC/MTA-STS/TLS-RPT/DNSSEC dans
+`public-mail-deep.json` (artifact GitHub 7 jours). Ce JSON minimisé
+est une **preuve de posture**, pas un format de scan DefectDojo.
+
+Le script `scripts/security/store-ctem-summary.py` peut insérer ce
+résumé dans `assetdb.ctem.scan_reports` sur **l'instance PostgreSQL
+partagée** après téléchargement contrôlé et vérification du fichier ;
+ce transfert depuis GitHub n'est pas encore automatique. Les champs DNS
+bruts sont refusés, et l'écriture est idempotente (SHA-256).
+
+Seules les anomalies SPF/DMARC **revues** peuvent être projetées en
+`Generic Findings Import` (identifiants stables, sévérité Medium,
+`verified=false`) par
+`scripts/security/project-ctem-mail-findings.py --reviewed`.
+L'allowlist de `validate-defectdojo-report.py` n'autorise ce format
+que pour le producteur `ctem-mail` et les trois apices possédés.
+Un résultat incomplet, périmé, ambigu ou sans anomalie n'est pas
+importé. `import-scan-defectdojo.sh` réutilise le **TLS/SNI privé**
+existant pour ce profil, `close_old_findings=false`, et exige
+l'approbation `DEFECTDOJO_IMPORT_APPROVED=YES` pour `--apply`.
+L'engagement `ctem-mail` et ses permissions doivent être vérifiés
+dans DefectDojo avant tout import ; rien n'a été envoyé au runtime.
+
+Un inventaire Amass, des compteurs d'erreur et des changements de
+résolution DNS ne sont jamais convertis en vulnérabilités. Des findings
+Nuclei confirmés peuvent suivre le parser `Nuclei Scan` et une
+allowlist dédiée, indépendamment de cette filière mail.
+[Runbook CTEM](runbooks/ctem-external-exposure.md).
+
 ## Architecture
 
 ```text
