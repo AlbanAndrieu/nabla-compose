@@ -271,7 +271,7 @@ run_weekly_ctem_amass() {
     return 1
   fi
   log_info "CTEM: running approved bounded active weekly Amass; private candidates stay on TrueNAS."
-  sudo -n env CTEM_AMASS_ACTIVE_APPROVED=YES \
+  sudo -n env CTEM_AMASS_ACTIVE_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
     bash "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" --run || rc=$?
   if ((rc == 0)); then
     log_info "CTEM: completed, private artifact retained; only counts may be published."
