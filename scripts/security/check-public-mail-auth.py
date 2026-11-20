@@ -7,8 +7,12 @@ import json
 from pathlib import Path
 import re
 import shlex
+import socket
+import ssl
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 OWNED = ("albandrieu.com", "albanandrieu.com", "bababou.com")
@@ -24,6 +28,9 @@ GOOGLE_POLICY = {
     "dmarc_alignment": "STRICT",
     "dkim": "PUBLISHED_CONFIGURED",
     "tls_rpt": "DNS_PRESENT_POLICY_UNVERIFIED",
+    "mta_sts": "DNS_PRESENT_POLICY_UNVERIFIED",
+    # Testing first; ENFORCE_MX_MATCH after weeks of clean TLS-RPT reports.
+    "mta_sts_policy": "TESTING_MX_MATCH",
 }
 GOOGLE_SPF = ["v=spf1", "include:_spf.google.com", "-all"]
 
@@ -170,6 +177,7 @@ def audit(row: dict) -> dict:
     result = {"domain": domain, "mail_use": row["mail_use"], "checks": checks}
     if google:
         checks["mx_provider"] = google_mx(domain, row.get("mx_subdomains", []))
+        checks["mta_sts_policy"] = mta_sts_policy(domain)
         # An unresolved lookup is incomplete evidence, never a violation.
         result["violations"] = sorted(
             key for key, want in GOOGLE_POLICY.items()
@@ -190,6 +198,65 @@ def google_mx(domain: str, labels: list[str]) -> str:
         hosts += [value.split()[-1].rstrip(".").lower() for value in values]
     return ("GOOGLE_ONLY" if all(h == "google.com" or h.endswith(".google.com") for h in hosts)
             else "NON_GOOGLE_MX")
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):  # RFC 8461 3.3: never follow
+        return None
+
+
+def fetch_policy(domain: str) -> tuple[str, str]:
+    """GET the MTA-STS policy over verified HTTPS, without redirect, 64 KiB at most."""
+    url = f"https://mta-sts.{domain}/.well-known/mta-sts.txt"
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(url, timeout=5) as response:
+            return "OK", response.read(65536).decode("utf-8", "replace")
+    except urllib.error.HTTPError as error:
+        return ("MISSING" if error.code == 404 else "HTTP_ERROR"), ""
+    except urllib.error.URLError as error:
+        if isinstance(error.reason, ssl.SSLCertVerificationError):
+            return "INVALID_CERTIFICATE", ""
+        if isinstance(error.reason, socket.gaierror) and error.reason.errno == socket.EAI_NONAME:
+            return "MISSING", ""
+        return "UNVERIFIED", ""
+    except (OSError, ValueError):
+        return "UNVERIFIED", ""
+
+
+def mx_matches(pattern: str, host: str) -> bool:
+    """RFC 8461 4.1: a leading "*." stands for exactly one label."""
+    if pattern.startswith("*."):
+        label, _, rest = host.partition(".")
+        return bool(label) and rest == pattern[2:]
+    return host == pattern
+
+
+def mta_sts_policy(domain: str) -> str:
+    """The served policy must list exactly the published apex MX; status only."""
+    state, text = fetch_policy(domain)
+    if state != "OK":
+        return state
+    fields, patterns = {}, []
+    for line in text.splitlines():
+        key, sep, value = line.partition(":")
+        if sep:
+            key, value = key.strip().lower(), value.strip().lower()
+            if key == "mx":
+                patterns.append(value)
+            else:
+                fields[key] = value
+    max_age = fields.get("max_age", "")
+    if (fields.get("version") != "stsv1" or not patterns
+            or fields.get("mode") not in {"testing", "enforce", "none"}
+            or not max_age.isdigit() or int(max_age) > 31557600):
+        return "INVALID_POLICY"
+    mx_state, values = lookup(domain, "MX")
+    if mx_state == "UNVERIFIED":
+        return "UNVERIFIED"
+    hosts = {value.split()[-1].rstrip(".").lower() for value in values}
+    exact = (all(any(mx_matches(p, h) for p in patterns) for h in hosts)
+             and all(any(mx_matches(p, h) for h in hosts) for p in patterns))
+    return f"{fields['mode'].upper()}_MX_{'MATCH' if exact else 'MISMATCH'}"
 
 
 def main() -> int:

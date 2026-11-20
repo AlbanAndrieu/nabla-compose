@@ -85,6 +85,9 @@ class ExternalPostureTest(unittest.TestCase):
 
     GOOGLE_ROW = {"name": "albandrieu.com", "mail_use": "sending", "mail_provider": "google",
                   "dkim_selectors": ["google"], "mx_subdomains": ["mail2"]}
+    # What the mta-sts Worker of terraform/cloudflare/mail.tofu serves for albandrieu.com.
+    GOOGLE_STS = ("version: STSv1\r\nmode: testing\r\nmx: aspmx.l.google.com\r\n"
+                  "mx: *.aspmx.l.google.com\r\nmx: smtp.google.com\r\nmax_age: 86400\r\n")
 
     @staticmethod
     def google_dns(overrides=None):
@@ -93,22 +96,27 @@ class ExternalPostureTest(unittest.TestCase):
             ("_dmarc.albandrieu.com", "TXT"): ("NOERROR", [
                 "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s"]),
             ("google._domainkey.albandrieu.com", "TXT"): ("NOERROR", ["v=DKIM1;k=rsa;p=MIIB"]),
-            ("_mta-sts.albandrieu.com", "TXT"): ("NXDOMAIN", []),
+            ("_mta-sts.albandrieu.com", "TXT"): ("NOERROR", ["v=STSv1; id=20261120000000"]),
             ("_smtp._tls.albandrieu.com", "TXT"): ("NOERROR", [
                 "v=TLSRPTv1; rua=mailto:technical@albandrieu.com"]),
-            ("albandrieu.com", "MX"): ("NOERROR", ["1 smtp.google.com.",
+            ("albandrieu.com", "MX"): ("NOERROR", ["1 smtp.google.com.", "1 aspmx.l.google.com.",
                                                    "5 alt1.aspmx.l.google.com."]),
             ("mail2.albandrieu.com", "MX"): ("NXDOMAIN", []),
         }
         dns.update(overrides or {})
         return lambda name, rrtype="TXT": dns[(name, rrtype)]
 
+    def google_audit(self, dns=None, policy=None):
+        with patch.object(mail, "lookup", side_effect=dns or self.google_dns()), \
+                patch.object(mail, "fetch_policy", return_value=policy or ("OK", self.GOOGLE_STS)):
+            return mail.audit(self.GOOGLE_ROW)
+
     def test_google_only_policy_holds_without_violation(self):
-        with patch.object(mail, "lookup", side_effect=self.google_dns()):
-            result = mail.audit(self.GOOGLE_ROW)
+        result = self.google_audit()
         self.assertEqual(result["violations"], [])
         self.assertEqual(result["checks"]["mx_provider"], "GOOGLE_ONLY")
         self.assertEqual(result["checks"]["spf_provider"], "GOOGLE_ONLY_HARD_FAIL")
+        self.assertEqual(result["checks"]["mta_sts_policy"], "TESTING_MX_MATCH")
 
     def test_soft_fail_third_party_mx_and_missing_tls_rpt_are_violations(self):
         drift = self.google_dns({
@@ -117,21 +125,41 @@ class ExternalPostureTest(unittest.TestCase):
             ("_smtp._tls.albandrieu.com", "TXT"): ("NXDOMAIN", []),
             ("mail2.albandrieu.com", "MX"): ("NOERROR", ["10 mx3.mtahosting.com."]),
         })
-        with patch.object(mail, "lookup", side_effect=drift):
-            result = mail.audit(self.GOOGLE_ROW)
+        result = self.google_audit(drift)
         self.assertEqual(result["violations"], [
             "dmarc_alignment", "mx_provider", "spf_provider", "tls_rpt"])
         self.assertEqual(result["checks"]["mx_provider"], "NON_GOOGLE_MX")
         # A look-alike host is not Google.
         lookalike = self.google_dns({("albandrieu.com", "MX"): (
             "NOERROR", ["1 aspmx.l.google.com.evil.example."])})
-        with patch.object(mail, "lookup", side_effect=lookalike):
-            self.assertEqual(mail.audit(self.GOOGLE_ROW)["checks"]["mx_provider"],
-                             "NON_GOOGLE_MX")
+        self.assertEqual(self.google_audit(lookalike)["checks"]["mx_provider"], "NON_GOOGLE_MX")
+
+    def test_mta_sts_testing_policy_must_list_exactly_the_published_mx(self):
+        def policy(text):
+            return self.google_audit(policy=("OK", text))["checks"]["mta_sts_policy"]
+        self.assertEqual(policy(self.GOOGLE_STS.replace("mx: smtp.google.com\r\n", "")),
+                         "TESTING_MX_MISMATCH")  # a published MX is not covered
+        self.assertEqual(policy(self.GOOGLE_STS + "mx: mx3.mtahosting.com\r\n"),
+                         "TESTING_MX_MISMATCH")  # the policy lists an unpublished MX
+        self.assertEqual(policy(self.GOOGLE_STS.replace("testing", "enforce")),
+                         "ENFORCE_MX_MATCH")
+        self.assertEqual(policy(self.GOOGLE_STS.replace("STSv1", "STSv2")), "INVALID_POLICY")
+        self.assertEqual(policy("mode: testing\nmx: smtp.google.com\n"), "INVALID_POLICY")
+        self.assertIn("mta_sts_policy", self.google_audit(
+            policy=("OK", self.GOOGLE_STS.replace("testing", "enforce")))["violations"])
+        # No policy host or no _mta-sts record is a violation; a failed fetch is not.
+        self.assertEqual(self.google_audit(policy=("MISSING", ""))["violations"],
+                         ["mta_sts_policy"])
+        self.assertEqual(self.google_audit(self.google_dns({
+            ("_mta-sts.albandrieu.com", "TXT"): ("NXDOMAIN", [])}))["violations"], ["mta_sts"])
+        self.assertEqual(self.google_audit(policy=("UNVERIFIED", ""))["violations"], [])
+        self.assertTrue(mail.mx_matches("*.aspmx.l.google.com", "alt1.aspmx.l.google.com"))
+        self.assertFalse(mail.mx_matches("*.aspmx.l.google.com", "a.b.aspmx.l.google.com"))
+        self.assertFalse(mail.mx_matches("*.aspmx.l.google.com", "aspmx.l.google.com"))
 
     def test_unresolved_google_checks_are_incomplete_not_violations(self):
-        with patch.object(mail, "lookup", return_value=("UNVERIFIED", [])):
-            result = mail.audit(self.GOOGLE_ROW)
+        result = self.google_audit(lambda name, rrtype="TXT": ("UNVERIFIED", []),
+                                   ("UNVERIFIED", ""))
         self.assertEqual(result["violations"], [])
         self.assertEqual(result["checks"]["mx_provider"], "UNVERIFIED")
 
@@ -143,11 +171,13 @@ class ExternalPostureTest(unittest.TestCase):
                 "NOERROR", ["10 mx3.mtahosting.com."])})
             argv = ["check", "--config", str(config), "--output", str(output)]
             with patch.object(mail, "lookup", side_effect=drift), \
+                    patch.object(mail, "fetch_policy", return_value=("OK", self.GOOGLE_STS)), \
                     patch.object(mail.sys, "argv", argv):
                 self.assertEqual(mail.main(), 4)
             report = json.loads(output.read_text())
         self.assertEqual(report["result"], "PROVIDER_POLICY_VIOLATION")
         self.assertNotIn("mtahosting", json.dumps(report))  # value-blind report
+        self.assertNotIn("aspmx", json.dumps(report))
 
     def test_dns_failure_never_claimed_missing(self):
         with patch.object(mail, "lookup", return_value=("UNVERIFIED", [])):
