@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:942d4dd20aff2ac0321ec7d4638ef0289e2c7be93d38b666610c2972d9520b7a",
+  "catalogRevision": "sha256:f3d7803ef64e6dec6bc0adf0b7c9d74414e929d3b6793b30fba4178fe82fd7d9",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3363,6 +3363,33 @@
             "protocol": "HTTP",
             "source": "apps/honeypot/compose.yml#services/honeypot",
             "visibility": "lan"
+          },
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31090
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "login.albandrieu.com"
+            ],
+            "name": "public",
+            "probePath": "/healthz",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "isolated-read-only-trap-no-data",
+              "id": "honeypot-login-public-trap",
+              "reason": "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script and /healthz answer, every other path is 404.",
+              "reviewAfter": null,
+              "status": "accepted"
+            },
+            "source": "apps/honeypot/compose.yml#services/honeypot",
+            "visibility": "public"
           }
         ],
         "runtime": {
