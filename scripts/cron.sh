@@ -290,7 +290,7 @@ sync_checkout || {
 report_apps
 report_recent_containers
 if [[ "${synced}" == true ]]; then
-  update_fastapi_sample || status=1
   run_weekly_ctem_amass || status=1
+  update_fastapi_sample || status=1
 fi
 exit "${status}"
