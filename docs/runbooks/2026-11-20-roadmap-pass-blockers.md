@@ -46,4 +46,4 @@ pas touchés ici.
 | Q3 | Installer l'App Renovate sur tous les dépôts : https://github.com/apps/renovate, « All repositories ». Une PR d'onboarding arrivera par dépôt sans configuration. |
 | Q4 | J'approuve la bascule scrutiny après avoir relu snapshot, historique et token ? |
 | Q5 | Tu ranges `talosconfig` et kubeconfig dans Vaultwarden (pièces jointes d'un élément `nabla/prod/talos-operator`) ? |
-| Q6 | Restent de la passe du 18/11 : DNS distribué par le DHCP de la Freebox (Pi-hole d'abord ?) et le préfixe IPv6 publié dans `docs/pfsense/roadmap.md`. |
+| Q6 | Restent de la passe du 18/11 : DNS distribué par le DHCP du R7000, routeur du LAN (Pi-hole seul, ou Pi-hole puis un secours hors TrueNAS ?) et le préfixe IPv6 publié dans `docs/pfsense/roadmap.md`. |
