@@ -209,6 +209,16 @@ locals {
       origin_request = {}
       service        = "http://172.17.0.24:3909"
     },
+    # Honeypot (owner decision, 20/11/2026): a public trap behind an "Everyone
+    # bypass" Access app, with no WAF challenge nor Bot Fight rule, which would
+    # hide it. No honeypot App runs on TrueNAS yet: refuse at the edge until it
+    # does, then set http://172.17.0.24:31090 (the App's published port).
+    # honeypot-albandrieu.albandrieu.com stays retired.
+    {
+      hostname       = "login.albandrieu.com"
+      origin_request = {}
+      service        = "http_status:404"
+    },
     # Joplin Server (10/11): sync clients cannot complete an interactive
     # Access login, so this route relies on Joplin's own authentication, behind
     # an "Everyone bypass" Access app. No Joplin App runs yet (H08): until it
@@ -237,6 +247,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
   depends_on = [
     cloudflare_zero_trust_access_application.fastapi_sample,
     cloudflare_zero_trust_access_application.fastapi_sample_api,
+    cloudflare_zero_trust_access_application.honeypot_login,
   ]
 
   lifecycle {

@@ -44,7 +44,7 @@ class CloudflareContract(unittest.TestCase):
             for name in (
                 "keycloak_oidc", "joplin", "vaultwarden_admin",
                 "affine", "freshrss", "plumber_api", "immich", "ha", "famp_albandrieu",
-                "fastapi_github_webhook",
+                "fastapi_github_webhook", "honeypot_login",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
              "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
@@ -116,6 +116,24 @@ class CloudflareContract(unittest.TestCase):
         )
         self.assertIsNotNone(route)
         self.assertEqual(route.group(1), "http_status:404")
+
+    def test_bypassed_honeypot_route_is_refused_until_its_app_runs(self):
+        # Same precedent as joplin: "Everyone bypass" with nothing listening would
+        # publish any future listener on :31090. Set the App's port only once the
+        # honeypot App runs on TrueNAS (owner decision, 20/11/2026).
+        tunnel = (TF / "tunnel.tofu").read_text(encoding="utf-8")
+        route = re.search(
+            r'hostname\s*=\s*"login\.albandrieu\.com".*?service\s*=\s*"([^"]*)"',
+            tunnel, re.S,
+        )
+        self.assertIsNotNone(route)
+        self.assertEqual(route.group(1), "http_status:404")
+        self.assertNotIn('"honeypot-albandrieu.albandrieu.com"', tunnel)
+        access = (TF / "access.tofu").read_text(encoding="utf-8")
+        block = access.split('"honeypot_login"', 1)[1].split("\nresource ", 1)[0]
+        self.assertIn("access_policy_everyone_bypass_id", block)
+        self.assertIn("app_launcher_visible = false", block)
+        self.assertIn("cloudflare_zero_trust_access_application.honeypot_login", tunnel)
 
     def test_free_ptr_forward_a_requires_safe_import_or_verified_creation(self):
         dns = (TF / "dns.tofu").read_text(encoding="utf-8")

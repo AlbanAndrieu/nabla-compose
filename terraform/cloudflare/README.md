@@ -23,6 +23,7 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `fastapi-sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
 | `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. Depuis le 16/11, la route Tunnel des chemins publics répond aussi 404 tant qu'aucune App Keycloak n'écoute sur :30238 (H01). |
 | `cloudflare_zero_trust_access_application.vaultwarden_admin` | Application Access `vaultwardenadmin` (chemin `/admin`) | **Créée**. Politique `nabla` : l'application `vaultwarden` du dashboard laisse passer tout le hostname pour les clients Bitwarden ; ce chemin plus précis garde `/admin` derrière Access. |
+| `cloudflare_zero_trust_access_application.honeypot_login` | Application Access `honeypot-login` (tout `login.albandrieu.com`) | **Créée**. `Everyone bypass` : le piège doit être joignable par tous, collecteurs compris (décision du propriétaire du 20/11). Ni challenge WAF ni règle Bot Fight sur ce nom. La route Tunnel répond 404 tant que l'App honeypot ne tourne pas sur TrueNAS, puis vise `http://172.17.0.24:31090`. |
 | `cloudflare_zero_trust_access_application.joplin` | Application Access `joplin` (tout le hostname) | **Créée**. `Everyone bypass` : les clients de synchronisation ne savent pas passer un login Access ; l'authentification Joplin protège le serveur. |
 
 Les politiques réutilisables ne contiennent aucun hostname et `nabla` est
@@ -220,7 +221,9 @@ enregistrements mail des 20 zones (section « Messagerie »).
    `apache`, `api`, `login`, `manager`, `nexus-albanandrieu`, `toto`,
    `www.toto`, `truenas`, `warp`. `login` : son A mort part d'abord, puis le
    honeypot reprend le nom par le Tunnel, dans un second plan (décision du
-   propriétaire du 20/11 ; un A et un CNAME ne peuvent pas coexister). Les consommateurs internes de `truenas`
+   propriétaire du 20/11 ; un A et un CNAME ne peuvent pas coexister) :
+   `new_tunnel_hostnames`, route `login.albandrieu.com` (404 jusqu'à l'App
+   honeypot, puis `:31090`) et application Access `honeypot_login`. Les consommateurs internes de `truenas`
    (Sample, CSI) épinglent déjà `172.17.0.24`. Restent hors circuit :
    l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
    (PTR Free, `cloudflare_dns_record.home`), `hello.int` et `s3.int`
