@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
@@ -117,6 +119,48 @@ def validate(service: str, scanner: str, data: bytes) -> None:
     report = json.loads(data)
     if not isinstance(report, dict):
         raise ValueError("report must be a JSON object")
+    if scanner == "Generic Findings Import":
+        if service != "ctem-mail":
+            raise ValueError("Generic Findings Import only approved for CTEM mail")
+        if set(report) != {"name", "type", "findings"} or (
+            report["name"] != "Nabla CTEM mail authentication"
+            or report["type"] != "CTEM Mail Policy"
+            or not isinstance(report["findings"], list)
+            or not 0 < len(report["findings"]) <= 12
+        ):
+            raise ValueError("invalid CTEM mail Generic Findings envelope")
+        controls = {
+            "Invalid SPF configuration": "spf_valid",
+            "Invalid DMARC configuration": "dmarc_valid",
+            "DMARC policy does not enforce rejection": "dmarc_p",
+        }
+        seen = set()
+        for row in report["findings"]:
+            if not isinstance(row, dict) or set(row) != {
+                "title", "severity", "description", "unique_id_from_tool", "active", "verified"
+            }:
+                raise ValueError("unapproved CTEM mail finding fields")
+            match = re.fullmatch(r"(.+) \\(([a-z0-9.-]+)\\)", row["title"])
+            if not match or match[1] not in controls or match[2] not in spec["hosts"]:
+                raise ValueError("CTEM mail finding out of approved scope")
+            key = controls[match[1]]
+            expected_id = "ctem-mail-" + hashlib.sha256(
+                f"ctem-mail|{match[2]}|{key}".encode()
+            ).hexdigest()
+            expected_description = (
+                "Reviewed checkdmarc policy anomaly: " + key
+                + " for the authorized domain " + match[2]
+                + ". Verify DNS and sending services before remediation."
+            )
+            if (row["unique_id_from_tool"] != expected_id
+                    or row["description"] != expected_description
+                    or row["severity"] != "Medium"
+                    or row["active"] is not True
+                    or row["verified"] is not False
+                    or expected_id in seen):
+                raise ValueError("unapproved CTEM mail finding or duplicate")
+            seen.add(expected_id)
+        return
     if scanner == "Trivy Scan":
         if service == "fastapi-sample-image":
             validate_fastapi_image(report)
