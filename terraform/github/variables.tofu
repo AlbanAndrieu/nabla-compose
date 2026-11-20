@@ -74,7 +74,9 @@ variable "repositories" {
   description = "Explicit repository policy allow-list. Repositories are never auto-enrolled from inventory."
   type = map(object({
     # Check context => GitHub App ID that reports it (46505 GitGuardian, 15368 GitHub Actions).
-    required_checks                   = optional(map(number), { "GitGuardian Security Checks" = 46505 })
+    required_checks = optional(map(number), { "GitGuardian Security Checks" = 46505 })
+    # "Require branches to be up to date before merging": catches merges that pass alone but break together.
+    strict_required_status_checks     = optional(bool, false)
     required_approving_review_count   = optional(number, 0)
     required_review_thread_resolution = optional(bool, true)
     allowed_merge_methods             = optional(set(string), ["squash"])

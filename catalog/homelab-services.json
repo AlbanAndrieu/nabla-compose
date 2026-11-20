@@ -670,10 +670,8 @@
       "internalHost": "172.17.0.24",
       "internalPort": 30068,
       "internalSecure": false,
-      "tunnelUrl": "https://ollama.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/ollama.png",
-      "external": true
+      "external": false
     },
     {
       "id": "ollama-gpu",

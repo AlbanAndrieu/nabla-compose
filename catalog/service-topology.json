@@ -474,9 +474,10 @@
       "kind": "dns-automation",
       "category": "network",
       "sourcePath": "apps/ddns-updater/compose.yml",
-      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "description": "Retired on 2026-11-20, the Free public IP is fixed; kept for its data and rollback.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "appId": "ddns-updater",

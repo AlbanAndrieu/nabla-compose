@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 62 ; planifiées : 26.
+Apps : 91 ; actives : 61 ; planifiées : 26.
 
 ## Écarts par type
 
@@ -36,7 +36,7 @@ Apps : 91 ; actives : 62 ; planifiées : 26.
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
 | `crowdsec` | active | custom-apps.yml | `cpool/traefik` (app-state) | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
 | `cyberbro` | active | custom-apps.yml | `cpool/cyberbro` (app-state) | manifest | ✅ | — | — | diagnose-cyberbro.sh | bootstrap-cyberbro-env.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `ddns-updater` | active | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `ddns-updater` | disabled | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `dependency-track` | planned | ❌ | `cpool/dependency-track` (app-state) | manifest | ✅ | dependency-track-api | ✅ dependencytrack | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `docker-socket-proxy` | active | custom-apps.yml | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
