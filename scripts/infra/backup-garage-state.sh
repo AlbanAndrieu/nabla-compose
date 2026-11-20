@@ -52,6 +52,10 @@ case "${backup_root}" in
     ;;
 esac
 
+# AWS CLI v2 rejects an empty AWS_PROFILE ("config profile () could not be found").
+if [[ -v AWS_PROFILE && -z "${AWS_PROFILE}" ]]; then
+  unset AWS_PROFILE
+fi
 export AWS_EC2_METADATA_DISABLED=true
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 
