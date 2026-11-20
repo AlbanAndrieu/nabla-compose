@@ -1,16 +1,13 @@
-"""Offline CTEM TrueNAS job and Cron contract tests (no Docker or middleware)."""
+"""Offline CTEM TrueNAS integration contracts; no Docker or live middleware."""
 from pathlib import Path
 import re
-import runpy
-import sys
 import unittest
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-CRON = ROOT / "scripts/truenas/reconcile-ctem-amass-cron.py"
 RUNNER = ROOT / "scripts/security/run-ctem-amass-truenas.sh"
 COMPOSE = ROOT / "config/security/ctem/amass-job.compose.yml"
-MODULE = runpy.run_path(str(CRON))
+CRON = ROOT / "scripts/cron.sh"
+BOOTSTRAP = ROOT / "scripts/truenas/bootstrap-ctem-amass-db.sh"
 
 
 class AmassTrueNASContractTests(unittest.TestCase):
@@ -22,56 +19,46 @@ class AmassTrueNASContractTests(unittest.TestCase):
         self.assertIn("read_only: true", source)
         self.assertIn("no-new-privileges:true", source)
         self.assertIn("cap_drop:", source)
-        self.assertIn("restart: \"no\"", source)
-        self.assertIsNone(re.search(r"^\\s*ports\\s*:", source, flags=re.MULTILINE))
+        self.assertIn('restart: "no"', source)
+        self.assertIsNone(re.search(r"^\s*ports\s*:", source, flags=re.MULTILINE))
         self.assertNotIn("network_mode: host", source)
         self.assertNotIn("/var/run/docker.sock", source)
         self.assertNotIn("privileged: true", source)
 
-    def test_cron_is_disabled_by_default_and_weekly(self):
-        job = MODULE["JOB"]
-        self.assertFalse(job["enabled"])
-        self.assertEqual(job["user"], "root")
-        self.assertEqual(job["schedule"]["dow"], "0")
-        self.assertIn("run-ctem-amass-truenas.sh --run", job["command"])
-        self.assertNotIn("docker ", job["command"])
+    def test_compose_reuses_shared_pg_and_private_ca(self):
+        source = COMPOSE.read_text(encoding="utf-8")
+        self.assertIn("ctem-amass/.env.secrets", source)
+        self.assertIn("postgres/tls/ca.crt", source)
+        self.assertIn("AMASS_PG_CA:", source)
+        self.assertIn("active", source)
+        self.assertNotIn("image: postgres", source)
 
-    def test_cron_detects_existing_contract_drift(self):
-        same = MODULE["same_contract"]
-        spec = MODULE["JOB"].copy()
-        self.assertTrue(same(spec))
-        self.assertFalse(same({**spec, "command": "curl -k http://localhost"}))
-        self.assertFalse(same({**spec, "schedule": {"minute": "0"}}))
-
-    def test_check_is_offline_no_middleware(self):
-        main = MODULE["main"]
-        with patch.object(sys, "argv", [str(CRON), "--check"]):
-            with patch.dict(main.__globals__, {"middleware":
-                            lambda *args: self.fail("middleware called")}):
-                self.assertEqual(main(), 0)
-
-    def test_enable_requires_approval_and_installed_binary(self):
-        main = MODULE["main"]
-        original = main.__globals__
-        previous = {**MODULE["JOB"], "id": 7, "enabled": False}
-        with patch.object(sys, "argv", [str(CRON), "--enable"]):
-            with patch.dict(original, {
-                "require_root_checkout": lambda: None,
-                "existing_job": lambda: previous,
-                "require_execution_ready": lambda: self.fail("should reject before probing"),
-                "middleware": lambda *args: self.fail("should not mutate"),
-            }):
-                with patch.dict("os.environ", {"CTEM_AMASS_CRON_APPROVED": ""}):
-                    with self.assertRaisesRegex(RuntimeError, "APPROVED"):
-                        main()
+    def test_cron_reuses_existing_hourly_task(self):
+        source = CRON.read_text(encoding="utf-8")
+        self.assertIn("NABLA_CRON_CTEM_AMASS_ENABLED:-false", source)
+        self.assertIn('"${weekday}" != 7', source)
+        self.assertIn('"${hour}" != 05', source)
+        self.assertIn("run_weekly_ctem_amass || status=1", source)
+        self.assertIn("CTEM_AMASS_ACTIVE_APPROVED=YES", source)
+        self.assertNotIn("cronjob.create", source)
 
     def test_runner_has_lock_and_private_export(self):
         source = RUNNER.read_text(encoding="utf-8")
         for expected in ("flock -n", "umask 077", "--no-deps", "--pull never",
-                         "--private-output", "stat -c '%u:%a'", "--check"):
+                         "--private-output", "stat -c '%u:%a'", "--check",
+                         "--mode active", "CTEM_AMASS_ACTIVE_APPROVED"):
             self.assertIn(expected, source)
-        self.assertNotIn("--active", source)
         self.assertNotIn("git pull", source)
+        self.assertNotIn("docker compose up", source)
+        self.assertIn("timeout 14m docker compose", source)
+
+    def test_bootstrap_uses_shared_postgresql_and_no_new_database_container(self):
+        source = BOOTSTRAP.read_text(encoding="utf-8")
+        for expected in ("postgres_shared_container", "postgres_ensure_role_database",
+                         "assetdb", "pg_trgm", "CTEM_AMASS_DB_APPROVED",
+                         "NABLA_DB_PASSWORD", "secrets_assert_file"):
+            self.assertIn(expected, source)
+        self.assertNotIn("docker run", source)
         self.assertNotIn("docker compose up", source)
 
 
