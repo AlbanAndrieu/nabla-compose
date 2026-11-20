@@ -52,10 +52,15 @@ case "${backup_root}" in
     ;;
 esac
 
-# AWS CLI v2 rejects an empty AWS_PROFILE ("config profile () could not be found").
-if [[ -v AWS_PROFILE && -z "${AWS_PROFILE}" ]]; then
-  unset AWS_PROFILE
-fi
+# Garage needs path-style addressing (like use_path_style in root.hcl); a personal
+# ~/.aws config or credentials file may force virtual-host (<bucket>.s3...), which does
+# not resolve. Keys come from the environment, so both files are isolated here.
+aws_config="$(mktemp)"
+trap 'rm -f "${aws_config}" "${head_err:-}" "${tmp_state:-}"' EXIT INT TERM
+printf '[default]\ns3 =\n  addressing_style = path\n' >"${aws_config}"
+export AWS_CONFIG_FILE="${aws_config}"
+export AWS_SHARED_CREDENTIALS_FILE=/dev/null
+unset AWS_PROFILE AWS_SESSION_TOKEN
 export AWS_EC2_METADATA_DISABLED=true
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 
@@ -63,7 +68,6 @@ mkdir -p "${backup_dir}"
 chmod 0700 "${backup_root}" "${backup_dir}" 2>/dev/null || true
 
 head_err="$(mktemp)"
-trap 'rm -f "${head_err}" "${tmp_state:-}"' EXIT INT TERM
 
 set +e
 aws --endpoint-url "${endpoint}" s3api head-object \
