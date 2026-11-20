@@ -21,3 +21,29 @@ Réutiliser GReader FreshRSS, identité privée séparée de securitypublic, id�
 Réutiliser `apps/grafana/config/grafana-dashboards.yml`, dossiers provisionnés, `apps/prometheus/rules/traefik.rules.yml`, séries Traefik Prometheus déjà activées, cAdvisor et exporter PostgreSQL/Redis si réellement présents; Home Operations + health board + heatmap FastAPI existants. GitHub Actions et DefectDojo natifs pour détails. Avant design: dresser matrice question -> métrique exacte/labels/recording rule -> UID/panel -> fraîcheur/absence -> réutiliser/lien/écart. N'ajouter un panel/série qu'après vérification live des séries, coûts, cardinalité et accès OWNER. Aucune mesure ou disponibilité affirmée depuis Git.
 
 References: https://docs.crowdsec.net/docs/appsec/quickstart/traefik/ ; https://developers.cloudflare.com/terraform/additional-configurations/waf-custom-rules/ ; https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.28.1/docs/data-sources/rulesets.md .
+
+## Public Traefik canary CODED (21/11/2026)
+
+`apps/sample/compose.yml` now has a dedicated public-host router with
+`crowdsec@file` (existing bouncer, not AppSec WAF) plus native Traefik
+rateLimit. Ordinary UI: **30/s, burst 100**; GitHub signed POST path has a
+separate precedence router: **2/s, burst 10**. These are provisional shared
+source-IP budgets, not measured deployment capacity; confirm actual
+Cloudflare/Traefik IP provenance and traffic before applying. Neither route
+changes the existing `sample.int.albandrieu.com` router.
+
+`terraform/cloudflare/tunnel.tofu` has an explicit boolean switch
+`fastapi_sample_tunnel_via_traefik=false` by default. The reviewed canary
+target is `https://172.17.0.24:443`, `origin_server_name =
+sample.int.albandrieu.com` and `http_host_header =
+fastapi-sample.albandrieu.com` with TLS verification. It must not silently
+set `no_tls_verify=true`. **Shared tunnel state:** confirm the *entire* plan
+does not reconfigure unrelated hostnames and review any changes from null
+`origin_request` attributes before an apply; if default plan is nonzero,
+do NOT apply or claim a zero-impact default. Run local Traefik Host+SNI canary,
+MFA OWNER, signed and unsigned webhook, rate limit, 403, 404, headers, LAPI
+and plugin health first. CrowdSec AppSec is still not enabled. Observe
+Cloudflare WAF/rulesets (import-first), never replace an existing phase.
+After canary, separately turn on the switch with approved plan/rollback,
+and only then review direct :8091 restriction for non-probe clients.
+Provider init/plan, Docker compose validation and live acceptance NOT_RUN.
