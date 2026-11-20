@@ -143,19 +143,26 @@ Appliqué par l'API avec l'app « Nabla edge », chaque réglage relu après éc
 
 ## IPv6 sur le homelab, sans exposition (20/11/2026)
 
-Cible : la workstation et TrueNAS en IPv6 global derrière le R7000, sans aucune entrée depuis Internet. Trois barrières : le pare-feu IPv6 de la Freebox (global et par préfixe délégué), le filtrage IPv6 « Secured » du R7000, et ufw sur la workstation.
+**État : `DEPLOYED` pour le R7000 et la workstation, en attente pour TrueNAS.** En IPv6, il n'y a pas de NAT : chaque machine a une adresse publique. Ce sont les pare-feu, et non le NAT, qui empêchent les entrées depuis Internet.
 
-1. **Freebox, fait le 20/11** : `ipv6_firewall` et `ipv6_prefix_firewall` à `true` ; délégation `2a01:e0a:a17:3c01::/64` routée vers `fe80::120c:6bff:fe62:128f`. Ce link-local est déduit de la MAC du WAN du R7000 (EUI-64) : à confirmer quand le R7000 aura l'IPv6 (Freebox OS, périphériques, R7000).
-2. **R7000, à faire dans `https://172.17.0.1/start.htm`** (ADVANCED > Advanced Setup > IPv6) :
-   - type de connexion `Fixed` ;
-   - WAN : `2a01:e0a:a17:3c00::2/64`, passerelle `fe80::8e97:eaff:fe39:b37b` (link-local de la Freebox) ;
-   - LAN : `2a01:e0a:a17:3c01::1/64`, attribution `Auto Config` (SLAAC) ;
-   - IPv6 Filtering : `Secured`.
+Plan d'adressage (Free attribue 8 préfixes `/64`, de `2a01:e0a:a17:3c00::/64` à `…:3c07::/64`) :
 
-   Si le R7000 refuse une passerelle link-local, essayer `Auto Config` côté WAN.
-3. **Workstation** : rien à changer (NetworkManager en `auto`, `IPV6=yes` dans ufw, politique d'entrée `deny`). Contrôle : `ip -6 addr show eno1 scope global` montre une adresse en `…:3c01:`, puis `curl -6 -sI https://ipv6.google.com`.
-4. **TrueNAS**, après accord de l'opérateur (écriture réseau, avec le délai de retour automatique de `interface.checkin`) : `ipv6_auto` sur `br0` (`midclt call interface.update br0 '{"ipv6_auto": true}'`, puis `interface.commit` et `interface.checkin`). TrueNAS n'a pas de pare-feu hôte : il ne compte que sur la Freebox et le R7000.
-5. **Réception de la non-exposition** : depuis un téléphone en 4G (hors LAN), tenter `22`, `443`, `9922` et `3100` sur les adresses `…:3c01:` de la workstation et de TrueNAS. Attendu : aucune réponse. Tant que ce test n'est pas fait, l'état reste `NOT_VERIFIED`.
+| Préfixe | Usage |
+| --- | --- |
+| `…:3c00::/64` | réseau de la Freebox (`192.168.1.x`) ; la Freebox y est `…:3c00::1`, le WAN du R7000 `…:3c00::2` |
+| `…:3c01::/64` | délégué au R7000, distribué en SLAAC sur le LAN homelab `172.17.0.0/24` |
+| `…:3c02` à `…:3c07` | libres (un réseau IoT séparé, par exemple) |
+
+1. **Freebox, fait le 20/11** : `ipv6_firewall` et `ipv6_prefix_firewall` à `true` (les entrées depuis Internet sont refusées, y compris vers les préfixes délégués) ; délégation `…:3c01::/64` avec next hop `fe80::120c:6bff:fe62:128f`, le link-local du WAN du R7000 (EUI-64 de sa MAC `…:8F`, confirmé par la Freebox).
+2. **R7000, fait le 20/11** (`https://172.17.0.1/start.htm`, ADVANCED > Advanced Setup > IPv6), type `Fixed` :
+   - WAN : `2a01:e0a:a17:3c00::2/64` ;
+   - passerelle : **`2a01:e0a:a17:3c00::1`**. Le R7000 refuse une passerelle link-local (« il doit s'agir d'une adresse de monodiffusion globale »), et `…:3c00:8e97:eaff:fe39:b37b` (EUI-64 de la Freebox) ne répond pas ;
+   - LAN : `2a01:e0a:a17:3c01::1/64`, `Auto Config` (SLAAC).
+
+   Pièges rencontrés : dans les champs à 8 cases, `fe80::8e97:…` s'écrit `FE80:0000:0000:0000:8E97:…` (les zéros de `::` sont au milieu, pas à la fin). Le firmware V1.0.12.216 n'a pas d'option « IPv6 Filtering ». Son tableau de bord peut afficher « Internet non connecté » alors que l'IPv4 et l'IPv6 passent ; on se fie aux contrôles ci-dessous.
+3. **Workstation, vérifié le 20/11** : adresses `…:3c01:` en SLAAC (stable et temporaire), route par défaut vers `fe80::120c:6bff:fe62:128e` (LAN du R7000), `curl -6 https://ipv6.google.com` → 200, `tracepath -6` : R7000, puis `…:3c00::1`, puis le réseau de Free. ufw filtre aussi l'IPv6 (`IPV6=yes`, entrée refusée par défaut).
+4. **TrueNAS, en attente** : `ipv6_auto` coché sur `br0` dans l'interface, mais non enregistré (`interface.has_pending_changes` vrai, `accept_ra=0`). TrueNAS écoute sur une soixantaine de ports en `[::]` (NFS, rpcbind, iSCSI, PostgreSQL, Loki…) et n'a pas de pare-feu hôte ; le R7000 ne filtre pas l'IPv6. Une fois enregistré, seul le pare-feu de la Freebox le protège des entrées depuis Internet. Note : avec `forwarding=1` (Docker), le noyau ignore les annonces de routeur si `accept_ra` vaut 1 ; il faut `2`.
+5. **Réception de la non-exposition (`NOT_VERIFIED`)** : depuis un téléphone en 4G, hors du Wi-Fi, tenter `22`, `443`, `9922` et `3100` sur l'adresse `…:3c01:` stable de la workstation (et de TrueNAS si activé). Attendu : aucune réponse.
 
 Retour arrière : vider le `next_hop` de la délégation et repasser le R7000 en IPv6 désactivé.
 
