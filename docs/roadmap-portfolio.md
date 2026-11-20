@@ -1,6 +1,6 @@
 # Portefeuille Homelab — arbitrage inter-dépôts
 
-> Synthèse réconciliée le **14 novembre 2026**, établie à partir des deux roadmaps versionnées. **Ordre approuvé le 14 novembre : H01 → H02 → H04 → H05 → H12 → H13 → H16 ; autres chantiers conservés au backlog.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
+> Synthèse réconciliée le **21 novembre 2026**, établie à partir des deux roadmaps versionnées. **Ordre approuvé le 14 novembre : H01 → H02 → H04 → H05 → H12 → H13 → H16 ; autres chantiers conservés au backlog.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
 
 ## Autorités et règles
 
@@ -35,6 +35,14 @@
 | H19 | P1 | nabla-compose | CODED | NOT_VERIFIED | Home Assistant : migration de l'App native vers Compose et recorder PostgreSQL avec rollback et validation des intégrations — [Runbook Apps](runbooks/2026-11-06-catalog-apps-to-compose.md) |
 | H20 | P1 | fastapi-sample + nabla-compose + nabla-openclaw | PARTIAL | NOT_VERIFIED | F15/F18 control plane GitHub et approbations YubiKey, pending-only PostgreSQL, cache Redis, outbox et Slack existant ; H04/H02/H16 avant write/dispatch. [Convergence](runbooks/fastapi-control-plane-convergence.md) |
 | H21 | P1 | fastapi-sample + nabla-compose | CODED | NOT_VERIFIED | F16 FreshRSS privé + catalogue V2 + Langfuse + LiteLLM TrueNAS ; tests contractuels pytest, publication et adapters à faire après H17/H12/H03. [Convergence](runbooks/fastapi-control-plane-convergence.md) |
+
+### CTEM H04/H05 — jalons transverses, 21 novembre 2026
+
+- Amass passif [#421](https://github.com/AlbanAndrieu/nabla-compose/pull/421) et rapprochement exact Backstage V2 [#422](https://github.com/AlbanAndrieu/nabla-compose/pull/422) : **CODED / merged**, réception sur environnement autorisé **NOT_VERIFIED**.
+- `audit-ctem-catalog-policy.py` : contrôle statique indépendant de la découverte, associé aux tests unitaires ; à intégrer à la quality gate obligatoire **après correction des déclarations LAN-only**. La politique `LAN_ONLY_NAMES` et l'identité `catalogRevision` ne prouvent pas une absence d'exposition réelle.
+- Le `master` observé le 21/11 porte encore une déclaration publique pour Ollama GPU ; revue de la source, régénération reproductible V2 et preuve Cloudflare/Traefik nécessaires avant clôture H04/H17.
+- DefectDojo #423 fusionnée : importer des **findings vérifiés** uniquement ; Amass fournit des candidats, non des vulnérabilités. Le contrôle de parser, de l'authentification, de la déduplication et de l'isolation WAN est encore **NOT_VERIFIED**.
+- Référence d'exécution : [roadmap active](roadmap.md#ctem--réconciliation-du-21-novembre-2026-h04h05h13h17), [runbook CTEM](runbooks/ctem-external-exposure.md), [ADR 0004](adr/0004-ctem.md). Aucune troisième roadmap à entretenir.
 
 ## Jalons déjà réceptionnés ou retirés du backlog
 
