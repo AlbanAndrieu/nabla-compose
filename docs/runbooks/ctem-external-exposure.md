@@ -153,7 +153,7 @@ sudo env CTEM_MAIL_PULL_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
 ```
 
 Le cron horaire **déjà existant** déclenche ce collecteur seulement le
-**lundi à 06:00**, si `NABLA_CRON_CTEM_MAIL_ENABLED=true` est activé
+**lundi à 08:00**, si `NABLA_CRON_CTEM_MAIL_ENABLED=true` est activé
 dans sa propre configuration, après vérification du secret GitHub App,
 des ACL root et du connecteur SQL. Le fichier GitHub reste soumis à
 sa rétention de 7 jours ; la copie privée et le reçu PostgreSQL
