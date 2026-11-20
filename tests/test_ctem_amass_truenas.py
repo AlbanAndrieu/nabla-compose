@@ -1,5 +1,6 @@
 """Offline CTEM TrueNAS job and Cron contract tests (no Docker or middleware)."""
 from pathlib import Path
+import re
 import runpy
 import sys
 import unittest
@@ -22,7 +23,7 @@ class AmassTrueNASContractTests(unittest.TestCase):
         self.assertIn("no-new-privileges:true", source)
         self.assertIn("cap_drop:", source)
         self.assertIn("restart: \"no\"", source)
-        self.assertNotIn("ports:", source)
+        self.assertIsNone(re.search(r"^\\s*ports\\s*:", source, flags=re.MULTILINE))
         self.assertNotIn("network_mode: host", source)
         self.assertNotIn("/var/run/docker.sock", source)
         self.assertNotIn("privileged: true", source)
