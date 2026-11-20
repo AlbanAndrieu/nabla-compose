@@ -214,11 +214,13 @@ le TLS-RPT et MTA-STS des deux domaines personnels (section « Messagerie »).
    liste vidée (historique Git). Second tour fait le 11/11/2026 : `postgres`
    (PR #345), détruit en un seul apply, `dig @1.1.1.1` vide.
 
-   Septième tour (20/11/2026) : dix A vers l'IP Free fixe `82.66.4.247`,
+   Septième tour (20/11/2026) : neuf A vers l'IP Free fixe `82.66.4.247`,
    morts depuis le retrait de pfSense et de son HAProxy le 18/11 (port 443
    fermé, ou 403 `error code: 1050` au bord pour les proxifiés) : `account`,
-   `apache`, `api`, `login`, `manager`, `nexus-albanandrieu`, `toto`,
-   `www.toto`, `truenas`, `warp`. Les consommateurs internes de `truenas`
+   `apache`, `api`, `manager`, `nexus-albanandrieu`, `toto`, `www.toto`,
+   `truenas`, `warp`. **Gelé** le 20/11 : `login`, sorti du circuit le temps
+   de vérifier si le honeypot doit y être exposé (avec `home`, déjà hors
+   circuit). Les consommateurs internes de `truenas`
    (Sample, CSI) épinglent déjà `172.17.0.24`. Restent hors circuit :
    l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
    (PTR Free, `cloudflare_dns_record.home`), `hello.int` et `s3.int`

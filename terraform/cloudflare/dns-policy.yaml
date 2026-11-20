@@ -22,7 +22,8 @@ version: 1
 # pfSense and its HAProxy left on 18/11 (public traffic only enters through the
 # tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
 # and home (Free PTR, dns.tofu); hello.int and s3.int, published by
-# cloudflare-ddns (owner decision, 20/11/2026).
+# cloudflare-ddns (owner decision, 20/11/2026). Frozen (20/11/2026): login,
+# until the owner decides whether the honeypot must be exposed there.
 # Eighth round (20/11/2026): index, a proxied CNAME to the apex answering 403
 # 1050 (owner decision). Kept: mail2 (A, MX to mx3.mtahosting.com), a
 # receive-only Project Honey Pot MX donation created by the owner on 27/12/2025
@@ -38,7 +39,6 @@ retired_hostnames:
   - honeypot-albandrieu.albandrieu.com
   - index.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
-  - login.albandrieu.com
   - manager.albandrieu.com
   - motion-albandrieu.albandrieu.com
   - netalertx-albandrieu.albandrieu.com
