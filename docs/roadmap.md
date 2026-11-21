@@ -215,7 +215,7 @@ Migration de dépôt **historiquement réceptionnée**. Les futurs travaux Gatew
 - **H05** : suivi unique dans « P0 — Réception du catalogue et des sondes » ; `pg_up` = 1 le 16/11 (`postgres_exporter`, 172.17.0.24:9187).
 - **Mimir et Tempo** : déployés dans l'App `grafana` (`/ready` à 200 le 20/11), avec Loki et Alloy. Prometheus écrit dans Mimir (`remote_write`) ; Alloy reçoit l'OTLP (`4319` gRPC, `4320` HTTP) et l'envoie à Tempo. Restent :
   - [ ] instrumenter les Apps en OTLP (FastAPI Sample, LiteLLM, n8n) vers Alloy, et vérifier les traces dans Grafana ;
-  - [ ] fixer la rétention de Mimir et de Tempo selon l'espace de `cpool`, et suivre leurs OOM après la pose des `mem_limit`.
+  - [x] fixer la rétention de Mimir et de Tempo selon l'espace de `cpool`, et suivre leurs OOM après la pose des `mem_limit`. 21/11 : Mimir n'avait aucune rétention (4,4 Gio, 60 blocs) : `compactor_blocks_retention_period: 90d` ; Tempo garde le défaut de 14 jours (8,5 Kio, aucune App instrumentée) ; aucun OOM de Mimir, Tempo ou Loki depuis le 18/11.
 - **Syslog** : la workstation envoie à Alloy (`job="syslog"`, `host="albandrieu"`) depuis le 20/11 ; seul `172.17.0.1` reste relabellisé `job="pfsense"` pour CrowdSec. Graylog (arrêté) n'est plus nécessaire.
 - États de livraison des assistants, clés LiteLLM, Slack et exporters : [archive datée](archive/2026-11-13-roadmap-before-compaction.md).
 
