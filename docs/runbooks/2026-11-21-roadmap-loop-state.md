@@ -42,7 +42,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | `opensearch-security` hors du démarrage par défaut (profil `security`) | DEPLOYED | ef00ccc9, `app.redeploy opensearch` ; ~1,6 Gio libérés |
 | Scrape de l'exporter HAProxy (pfSense retiré) supprimé | DEPLOYED | ae39fc9a, Prometheus rechargé : 38 cibles, `haproxy` absent |
 | Falco sur Talos | DEPLOYED (constaté) | DaemonSet `falco` 3/3 |
-| Sample : `build_revision` = commit déployé sur TrueNAS | CODED | c7ce1981, effectif au prochain `update-fastapi-sample.sh` |
+| Sample : `build_revision` = commit déployé sur TrueNAS | DEPLOYED | c7ce1981 ; `BUILD_REVISION=da6ef747…` dans le conteneur |
 | Checkout TrueNAS avancé | fait | 1bd9200e |
 | ntopng : séries RRD en tmpfs (`/var/lib/ntopng/0` et `-1`, chown par l'entrypoint) | DEPLOYED | 6ad96b8c, e6c64afa, `app.redeploy ntopng` ; RRD écrits sans `Permission denied` |
 | Sondes TrueNAS de LiteLLM : `172.17.0.24:4000` au lieu de la boucle locale (faux `BLOCKED`) | DEPLOYED (checkout) | 25b78deb ; `/health/readiness` `healthy` |
@@ -60,6 +60,9 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Mimir : rétention de 90 jours | DEPLOYED | 1a029c66 ; `docker restart mimir` ; `/config` → `compactor_blocks_retention_period: 90d`, `/ready`, erreurs « empty ring » éteintes en 15 s |
 | Passe 4 : re-test | fait (03:25) | Gatus 68/68 ; Prometheus 38 cibles, aucune cible non `planned` en panne ; seule alerte `TrueNASHostIOPressureHigh` (test SMART de la nuit et build FastAPI) ; Vaultwarden `locked` |
 | Route Tunnel `login` → `http://172.17.0.24:31090` (honeypot) | CODED | c4fc9da0 (245df0af de la session « DNS Cloudflare morts », gate vert là-bas puis ici) ; recette LAN `/` 200, `/wp-login.php` 404 ; plan attendu du second plan : 2 ajouts, 1 modification, 0 destruction ; apply `NOT_RUN` (V1), après le retrait de l'A mort `82.66.4.247` du 7ᵉ tour |
+| FastAPI Sample 1.39.0 (master da6ef747) sur TrueNAS | DEPLOYED | `update-fastapi-sample.sh` (`systemd-run`, `HOME=/root`), `Result=success`, observateur et Prometheus/Gatus OK ; build de 1 h, ralenti par le test SMART de la nuit |
+| Readiness TrueNAS stricte | ACCEPTED | `diagnose-service-readiness.py --check --strict` : HEALTHY=8, WARN=0, BLOCKED=0 (LiteLLM 25b78deb, Sample attesté) |
+| Smoke RBAC pfSense retiré de `update-fastapi-sample.sh` (pfSense retiré le 18/11) | CODED | il ne pouvait plus que lever un WARN |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
