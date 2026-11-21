@@ -1106,6 +1106,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/hello-nginx",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "hello-nginx-traefik",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/homarr",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "homarr",
@@ -1115,6 +1121,12 @@
       "entityRef": "component:default/homeassistant",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "homeassistant",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/honeypot",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "honeypot",
       "sourceType": "gatus"
     },
     {
