@@ -30,6 +30,7 @@ class AmassTrueNASContractTests(unittest.TestCase):
         self.assertIn("ctem-amass/.env.secrets", source)
         self.assertIn("postgres/tls/ca.crt", source)
         self.assertIn("AMASS_PG_CA:", source)
+        self.assertIn("CTEM_RUNTIME: truenas", source)
         self.assertIn("active", source)
         self.assertNotIn("image: postgres", source)
 
