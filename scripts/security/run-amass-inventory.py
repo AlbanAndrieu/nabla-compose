@@ -13,7 +13,6 @@ import socket
 import subprocess
 import tempfile
 import time
-from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = "5.1.3"
@@ -182,34 +181,54 @@ def command(args: list[str], env: dict[str, str], cwd: Path, timeout: int) -> bo
         return False
 
 
-def postgres_config(env: dict[str, str], work: Path) -> Path | None:
-    """Private verify-full Amass config for the existing PostgreSQL instance."""
-    user, password = env.get("AMASS_DB_USER"), env.get("AMASS_DB_PASSWORD")
-    host, name, ca = env.get("AMASS_DB_HOST"), env.get("AMASS_DB_NAME"), env.get("AMASS_PG_CA")
+def postgres_config(source: dict[str, str], work: Path) -> Path | None:
+    """Write nonsecret Amass options; keep DB credentials only in process env.
+
+    Amass v5 recognizes AMASS_DB_* directly when options.database is absent.
+    The previous URI-based YAML stored the password (even in a 0600 file).
+    """
+    user, password = source.get("AMASS_DB_USER"), source.get("AMASS_DB_PASSWORD")
+    host, name, ca = (
+        source.get("AMASS_DB_HOST"), source.get("AMASS_DB_NAME"), source.get("AMASS_PG_CA")
+    )
+    port = source.get("AMASS_DB_PORT", "5432")
     if not any((user, password, host, name, ca)):
         return None
     if not all((user, password, host, name, ca)) or name != "assetdb":
         raise ValueError("incomplete Amass shared PostgreSQL configuration")
+    if port != "5432":
+        raise ValueError("Amass must use the approved shared PostgreSQL port")
     if not Path(ca).is_file():
         raise ValueError("Amass PostgreSQL CA missing")
     if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", user):
         raise ValueError("invalid PostgreSQL role")
     if not re.fullmatch(r"[a-zA-Z0-9.-]{1,253}", host):
         raise ValueError("invalid PostgreSQL host")
-    uri = (f"postgres://{quote(user, safe='')}:{quote(password, safe='')}"
-           f"@{host}:5432/assetdb?sslmode=verify-full&sslrootcert={quote(ca, safe='/')}")
+    if source.get("PGSSLMODE", "verify-full") != "verify-full":
+        raise ValueError("PostgreSQL TLS verification must not be downgraded")
+    if source.get("PGSSLROOTCERT", ca) != ca:
+        raise ValueError("PostgreSQL trusted CA must match the mounted certificate")
     config = work / "amass-config.yaml"
-    # JSON-quoted scalar is a YAML-compatible string.
     config.write_text(
-        "options:\n"
-        f"  database: {json.dumps(uri)}\n"
-        "  bruteforce:\n    enabled: false\n"
-        "  alterations:\n    enabled: false\n"
-        "  rigid_boundaries: true\n",
+        "options:\\n"
+        "  bruteforce:\\n    enabled: false\\n"
+        "  alterations:\\n    enabled: false\\n"
+        "  rigid_boundaries: true\\n",
         encoding="utf-8",
     )
     config.chmod(0o600)
     return config
+
+
+def postgres_runtime_env(source: dict[str, str]) -> dict[str, str]:
+    """Pass Amass DB connection parameters directly to its child processes."""
+    return {
+        **{key: source[key] for key in
+           ("AMASS_DB_USER", "AMASS_DB_PASSWORD", "AMASS_DB_HOST", "AMASS_DB_NAME")},
+        "AMASS_DB_PORT": "5432",
+        "PGSSLMODE": "verify-full",
+        "PGSSLROOTCERT": source["AMASS_PG_CA"],
+    }
 
 
 def enum_arguments(domains: list[str], mode: str) -> list[str]:
@@ -245,6 +264,7 @@ def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[l
             # It MUST NOT be permitted to access the TrueNAS PostgreSQL server.
             if config is not None:
                 env["AMASS_CONFIG"] = str(config)
+                env.update(postgres_runtime_env(os.environ))
         except (OSError, ValueError):
             return [], 0, "POSTGRES_CONFIGURATION_INCOMPLETE"
         try:
