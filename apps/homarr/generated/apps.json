@@ -1725,7 +1725,7 @@
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "traefik",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:80",
+      "href": "https://traefik.int.albandrieu.com",
       "syncEligible": true,
       "description": "Internal reverse proxy for repository-managed homelab services."
     },

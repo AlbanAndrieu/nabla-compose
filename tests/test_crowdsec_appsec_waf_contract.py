@@ -69,7 +69,9 @@ def test_appsec_only_on_public_fastapi_canary_without_tunnel_cutover():
     assert labels["traefik.http.routers.fastapi-sample.rule"] == "Host(`sample.int.albandrieu.com`)"
     tunnel = TUNNEL.read_text(encoding="utf-8")
     assert 'service = var.fastapi_sample_tunnel_via_traefik ? "https://172.17.0.24:443" : "http://172.17.0.24:8091"' in tunnel
-    assert 'origin_request = var.fastapi_sample_tunnel_via_traefik ? {' in tunnel
+    # Per-field ternaries: the direct :8091 route keeps null TLS name and Host header.
+    assert 'origin_server_name = var.fastapi_sample_tunnel_via_traefik ? "sample.int.albandrieu.com" : null' in tunnel
+    assert 'http_host_header   = var.fastapi_sample_tunnel_via_traefik ? "fastapi-sample.albandrieu.com" : null' in tunnel
     variables = (ROOT / "terraform/cloudflare/variables.tofu").read_text(encoding="utf-8")
     assert 'variable "fastapi_sample_tunnel_via_traefik"' in variables
     assert "default     = false" in variables.split('variable "fastapi_sample_tunnel_via_traefik"', 1)[1]
