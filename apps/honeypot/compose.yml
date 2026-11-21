@@ -52,7 +52,7 @@ services:
           riskAcceptance:
             id: honeypot-login-public-trap
             status: accepted
-            reason: "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script and /healthz answer, every other path is 404."
+            reason: "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script, /healthz and credential-free /login decoy answer; POST /login returns 403 without PHP processing; other paths remain 404."
             control: isolated-read-only-trap-no-data
             reviewAfter: null
     labels:
