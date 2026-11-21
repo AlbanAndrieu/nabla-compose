@@ -34,7 +34,8 @@ Agents must never commit, push or write files directly on `master` (Git CLI, Git
 On a connected workstation, read FastAPI Sample on **TrueNAS first**:
 `http://172.17.0.24:8091/api/homelab/status` and
 `/api/homelab/health` (internal API/probe privileges: both answer 401
-without a credential since fastapi-sample #447, which is `DENIED`). Then query
+without a credential since fastapi-sample #447, which is `DENIED`; read them
+with `sudo bash scripts/truenas/read-sample-observer.sh [path]` on the host). Then query
 `https://fastapi-sample.fastapicloud.dev/sickz`: this is an **independent
 outside-in probe executed in FastAPI Cloud**, not a test from the LAN.
 Cloud HTTP 200 alone never proves the target service exposed or healthy;
