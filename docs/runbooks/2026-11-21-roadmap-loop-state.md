@@ -29,7 +29,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Keycloak : Custom App créée à l'arrêt (manifeste `stopped`) | fait | même apply |
 | OpenClaw : heartbeat appliqué au Gateway (B1 du dépôt nabla-openclaw) | DEPLOYED | collecteur `0f52f1ea…` sur TrueNAS = `master` ; scratch révision 8 |
 | nabla-openclaw passe 1 (docs, état, blocages) | CODED | PR #26, 400a644, gate vert |
-| H01 : NetworkPolicy appliquée par Cilium | TESTED | `smoke-networkpolicy-enforcement.sh` et `smoke-kubernetes-network.sh` verts |
+| H01 : NetworkPolicy appliquée par Cilium ; reclaim CSI prouvé le 21/11 | TESTED | `smoke-networkpolicy-enforcement.sh` et `smoke-kubernetes-network.sh` verts |
 | scrutiny : bascule déjà faite, Q4 close | constaté | `deploy-scrutiny.sh --check` : convergé |
 | Gatus | constaté | 68/68 verts à 01:40 |
 | H02 / G1 : sauvegarde des 9 bases, restauration isolée vérifiée 3 fois, reçu écrit, cron quotidien `nabla-postgresbackup` activé | DEPLOYED (hors rotation `postgres_exporter`, V1) | fbe1d0ce (`pg_restore --list` lisait `-`), 1bd9200e (attente du serveur final après `initdb`) ; `ISOLATED_RESTORE_VERIFIED` ; `reconcile-postgresbackup-cron.py --enable --job daily` |
@@ -43,7 +43,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | ntopng : séries RRD en tmpfs (`/var/lib/ntopng/0` et `-1`, chown par l'entrypoint) | DEPLOYED | 6ad96b8c, e6c64afa, `app.redeploy ntopng` ; RRD écrits sans `Permission denied` |
 | Sondes TrueNAS de LiteLLM : `172.17.0.24:4000` au lieu de la boucle locale (faux `BLOCKED`) | DEPLOYED (checkout) | 25b78deb ; `/health/readiness` `healthy` |
 | Tempête IO : `usermod` de `paperless-ngx` (copy-up overlay, une synchro txg par fichier) | App arrêtée | pool de 1 070 à 269 écritures/s, txg revenus à 5 s ; suite au point 12 du plan de performance |
-| H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; MCP `truenas-readonly` « Connection closed » dans cette session |
+| H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; smoke CSI `--apply` vert depuis TrueNAS (provision, RWX entre deux workers, reclaim ZFS/NFS prouvé) ; MCP `truenas-readonly` « Connection closed » dans cette session |
 | Keycloak et Joplin : activation | bloqué (V1) | aucun fichier de secrets runtime (`/mnt/cpool/keycloak/.env.secrets`, `/mnt/cpool/secrets/runtime/joplin/`) ; source Vaultwarden verrouillée |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
