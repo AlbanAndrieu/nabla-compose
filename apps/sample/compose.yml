@@ -84,9 +84,9 @@ services:
         - target: traefik
           type: exposedBy
           strength: optional
-          description: Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.
+          description: Traefik hosts the optional public FastAPI canary; no private sample.int router is registered.
           evidence:
-            - apps/sample/compose.yml:traefik.http.routers.fastapi-sample
+            - apps/sample/compose.yml:traefik.http.routers.fastapi-sample-public
         - target: cloudflared
           type: exposedBy
           strength: optional
@@ -189,15 +189,11 @@ services:
 
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/fastapi-sample"
-      # Internal DNS is synchronized from Traefik routers into Pi-hole.
-      # Public canary router is registered here but Tunnel still targets :8091
-      # until fastapi_sample_tunnel_via_traefik is explicitly enabled in OpenTofu.
+      # The obsolete sample.int.albandrieu.com Traefik router is removed.
+      # Public canary routers stay opt-in: Tunnel still targets :8091 until
+      # fastapi_sample_tunnel_via_traefik is explicitly enabled and accepted.
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"
-      - "traefik.http.routers.fastapi-sample.rule=Host(`sample.int.albandrieu.com`)"
-      - "traefik.http.routers.fastapi-sample.entrypoints=websecure"
-      - "traefik.http.routers.fastapi-sample.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.fastapi-sample.service=fastapi-sample"
       - "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080"
       # Public canary, with independent budgets for ordinary UI and signed hooks.
       # crowdsec-appsec@file = existing LAPI streaming + AppSec WAF on these
