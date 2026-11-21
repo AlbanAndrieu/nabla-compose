@@ -87,6 +87,14 @@ jobs:
           path: ${{ runner.temp }}/ctem-catalog-v2/*.json
           retention-days: 1
           if-no-files-found: error
+      - name: Format honeypot declarative files with pinned Prettier
+        # Formatting must happen before the source-branch commit, not by
+        # bypassing the repository's canonical Pre-commit gate.
+        run: |
+          npm exec --yes --package=prettier@3.4.2 -- prettier --write \
+            apps/honeypot/apache/static/login.html \
+            apps/honeypot/compose.yml \
+            apps/crowdsec/scenarios/nabla/honeypot-login-burst.yaml
       - name: Apply V2 generated artifacts to the source PR branch
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -110,7 +118,9 @@ jobs:
           git add -- catalog/service-topology.json catalog/services.json \
             catalog/generated/*.json apps/homarr/generated/apps.json \
             apps/gatus/config/config.yml apps/autokuma/static/generated-monitors.json \
-            catalog/homelab-services.json config/security/defectdojo-allowed-imports.json
+            catalog/homelab-services.json config/security/defectdojo-allowed-imports.json \
+            apps/honeypot/apache/static/login.html apps/honeypot/compose.yml \
+            apps/crowdsec/scenarios/nabla/honeypot-login-burst.yaml
           if git diff --cached --quiet; then
             echo "Canonical V2 artifacts already synchronized"
             exit 0
