@@ -57,9 +57,35 @@ services:
             reviewAfter: null
     labels:
       com.albandrieu.nabla.entity-ref: component:default/honeypot
+      # Prepared public hostname, INACTIVE until the Cloudflare Tunnel opt-in.
+      # Socket-peer allowlist intentionally denies direct LAN/WAN and spoofed
+      # Cf-Connecting-Ip forwarded headers; cloudflared currently sits on this /24.
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.honeypot-public.rule: 'Host(`login.albandrieu.com`)'
+      traefik.http.routers.honeypot-public.entrypoints: websecure
+      traefik.http.routers.honeypot-public.tls: "true"
+      traefik.http.routers.honeypot-public.service: honeypot
+      traefik.http.routers.honeypot-public.middlewares: honeypot-tunnel-peer,crowdsec-appsec@file,honeypot-public-rate
+      traefik.http.services.honeypot.loadbalancer.server.port: "8080"
+      traefik.http.middlewares.honeypot-tunnel-peer.ipallowlist.sourcerange: 10.200.2.0/24
+      traefik.http.middlewares.honeypot-public-rate.ratelimit.average: "10"
+      traefik.http.middlewares.honeypot-public-rate.ratelimit.period: 1s
+      traefik.http.middlewares.honeypot-public-rate.ratelimit.burst: "20"
+      traefik.http.middlewares.honeypot-public-rate.ratelimit.sourcecriterion.ipstrategy.depth: "1"
+      # Distinct POST budget; no credentials are accepted or retained by Apache.
+      traefik.http.routers.honeypot-login-attempt.rule: 'Host(`login.albandrieu.com`) && Path(`/login`) && Method(`POST`)'
+      traefik.http.routers.honeypot-login-attempt.entrypoints: websecure
+      traefik.http.routers.honeypot-login-attempt.tls: "true"
+      traefik.http.routers.honeypot-login-attempt.priority: "1000"
+      traefik.http.routers.honeypot-login-attempt.service: honeypot
+      traefik.http.routers.honeypot-login-attempt.middlewares: honeypot-tunnel-peer,crowdsec-appsec@file,honeypot-login-rate
+      traefik.http.middlewares.honeypot-login-rate.ratelimit.average: "2"
+      traefik.http.middlewares.honeypot-login-rate.ratelimit.period: 1s
+      traefik.http.middlewares.honeypot-login-rate.ratelimit.burst: "10"
+      traefik.http.middlewares.honeypot-login-rate.ratelimit.sourcecriterion.ipstrategy.depth: "1"
     restart: unless-stopped
-    # Not deployed yet, so no memory.peak to scale from: 256m is the plan's smallest step.
-    # Revisit with memory.peak x 1.5 once the App runs on TrueNAS.
+    # Pinned minimum memory budget; reevaluate only after runtime evidence.
     mem_limit: 256m
     user: "33:33"
     read_only: true
@@ -84,12 +110,16 @@ services:
     volumes:
       - ./apache/ports.conf:/etc/apache2/ports.conf:ro
       - ./apache/honeypot.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+      - ./apache/static:/opt/honeypot/static:ro
     ports:
       - name: web
         target: 8080
         published: "31090"
         protocol: tcp
         app_protocol: http
+    networks:
+      - default
+      - traefik_network
     healthcheck:
       test:
         - CMD
@@ -102,3 +132,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+networks:
+  default: {}
+  traefik_network:
+    external: true
+    name: traefik_network
