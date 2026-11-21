@@ -32,6 +32,20 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H01 : NetworkPolicy appliquée par Cilium | TESTED | `smoke-networkpolicy-enforcement.sh` et `smoke-kubernetes-network.sh` verts |
 | scrutiny : bascule déjà faite, Q4 close | constaté | `deploy-scrutiny.sh --check` : convergé |
 | Gatus | constaté | 68/68 verts à 01:40 |
+| H02 / G1 : sauvegarde des 9 bases, restauration isolée vérifiée 3 fois, reçu écrit, cron quotidien `nabla-postgresbackup` activé | DEPLOYED (hors rotation `postgres_exporter`, V1) | fbe1d0ce (`pg_restore --list` lisait `-`), 1bd9200e (attente du serveur final après `initdb`) ; `ISOLATED_RESTORE_VERIFIED` ; `reconcile-postgresbackup-cron.py --enable --job daily` |
+| Redéploiements : redis, crowdsec, traefik (limites mémoire), clamav, scanopy, ntopng (zombies) | DEPLOYED | `redeploy-impacted-apps.py --apply` / `app.redeploy`, conteneurs `healthy` |
+| ntopng : `recordsize=16K` et réécriture unique des RRD | DEPLOYED | `rewrite-ntopng-records.sh --apply` : 595 fichiers |
+| `opensearch-security` hors du démarrage par défaut (profil `security`) | DEPLOYED | ef00ccc9, `app.redeploy opensearch` ; ~1,6 Gio libérés |
+| Scrape de l'exporter HAProxy (pfSense retiré) supprimé | DEPLOYED | ae39fc9a, Prometheus rechargé : 38 cibles, `haproxy` absent |
+| Falco sur Talos | DEPLOYED (constaté) | DaemonSet `falco` 3/3 |
+| Sample : `build_revision` = commit déployé sur TrueNAS | CODED | c7ce1981, effectif au prochain `update-fastapi-sample.sh` |
+| Checkout TrueNAS avancé | fait | 1bd9200e |
+
+Leçons (à reporter dans le skill au cycle de réconciliation) :
+
+- Ne jamais modifier le clone pendant que le gate tourne : il échoue sur « Working tree is not clean ».
+- Toutes les sous-parties d'une même App TrueNAS déclarent le même `status` x-nabla ; un service optionnel passe par un profil Compose (précédent `dsomm-baseline`).
+- `docker logs` doit montrer `init process complete` avant `pg_isready` : l'entrypoint PostgreSQL répond depuis un serveur `initdb` temporaire puis redémarre.
 
 Leçon : `systemd-run` en root fait refuser à git un checkout appartenant à `albandrieu` (« dubious ownership »). Passer `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory` et `GIT_CONFIG_VALUE_0=<checkout>`.
 
