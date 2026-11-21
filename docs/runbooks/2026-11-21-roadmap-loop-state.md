@@ -46,7 +46,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | ntopng : séries RRD en tmpfs (`/var/lib/ntopng/0` et `-1`, chown par l'entrypoint) | DEPLOYED | 6ad96b8c, e6c64afa, `app.redeploy ntopng` ; RRD écrits sans `Permission denied` |
 | Sondes TrueNAS de LiteLLM : `172.17.0.24:4000` au lieu de la boucle locale (faux `BLOCKED`) | DEPLOYED (checkout) | 25b78deb ; `/health/readiness` `healthy` |
 | Tempête IO : `usermod` de `paperless-ngx` (copy-up overlay, une synchro txg par fichier) | App arrêtée | pool de 1 070 à 269 écritures/s, txg revenus à 5 s ; suite au point 12 du plan de performance |
-| H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; smoke CSI `--apply` vert depuis TrueNAS (provision, RWX entre deux workers, reclaim ZFS/NFS prouvé) ; MCP `truenas-readonly` « Connection closed » dans cette session |
+| H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; smoke CSI `--apply` vert depuis TrueNAS (provision, RWX entre deux workers, reclaim ZFS/NFS prouvé) ; MCP `truenas-readonly` « Connection closed » : `TRUENAS_MCP_HOST` et la clé API ne sont pas exportés dans la session (`.mcp.json` les lit dans l'environnement), donc secret absent (V1) et non régression de TrueNAS 27 |
 | Keycloak et Joplin : activation | bloqué (V1) | aucun fichier de secrets runtime (`/mnt/cpool/keycloak/.env.secrets`, `/mnt/cpool/secrets/runtime/joplin/`) ; source Vaultwarden verrouillée |
 | H09 : TLS PostgreSQL côté serveur | constaté | `pg_hba_file_rules` : seul `hostssl`/`scram-sha-256` pour le réseau ; TLSv1.3 minimum ; `pg_stat_ssl` : 8 clients réseau tous en TLSv1.3 |
 | H17 : réception du catalogue V2 dans Sample | ACCEPTED (critère du 16/11) | sonde à clé 6fb919e4 : un seul `binding_conflict` (`sentry-edge`), aucune App arrêtée en `declared_only` |
@@ -55,6 +55,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | nabla-openclaw passe 2 : x-nabla `active` pour le Gateway et la devbox, affirmations périmées retirées | TESTED | PR #26, 2d41c45 (`just test` vert, rapport du sous-agent vérifié sur GitHub) |
 | H19 : migration Home Assistant vers Compose | bloqué (V1) | `migrate-homeassistant-to-compose.sh --check` : secret `/mnt/cpool/secrets/runtime/homeassistant/.env.secrets` absent, rôle PostgreSQL `homeassistant` non prêt, recorder sur une autre base, `http.trusted_proxies` vide ; 0 mutation |
 | H17 suite : profils Compose dans le catalogue | reporté (passe 3) | `DeclaredService` de Sample est en `extra="forbid"` : Sample doit d'abord accepter `composeProfiles` et être déployé, nabla-compose le génère ensuite |
+| Passe 3 : re-test des blocages | fait | Vaultwarden toujours `locked` (`bw status`) ; nabla-openclaw : note de l'étape 10 (8f4c935) ; fastapi-sample : acceptation de `composeProfiles` demandée à la passe en cours de #452, la génération côté nabla-compose attend son déploiement |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
