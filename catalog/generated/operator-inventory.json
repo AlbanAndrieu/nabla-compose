@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:4c78cf73d4623b53b8e30309b5dc96fb832b46644bccf53763d5b6cad3731519",
+  "catalogRevision": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
