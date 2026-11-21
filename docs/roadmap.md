@@ -55,6 +55,37 @@
   sans POST d'identifiants ni cross-origin credential forwarding.
   [Runbook](../apps/honeypot/README.md).
 
+### H04/H05 — Réception Traefik/CrowdSec, Hello et validation de la CI
+
+- **Traefik Hello** : `apps/nginx/compose.yml` porte **déjà** le
+  routeur TLS `Host(hello.int.albandrieu.com)` sur `websecure`,
+  backend Nginx `:80` et réseau `traefik_network`.
+  Healthcheck Docker ajouté ; smoke HTTPS/SNI documenté dans
+  [Hello](../apps/nginx/README.md).
+  **Attention** : la déclaration historique d'exposition
+  `gatewayRef=pfsense-haproxy` n'est pas une preuve WAN,
+  pfSense étant retiré. Pas de nouvelle route Tunnel/NAT ;
+  réception LAN puis revue du DNS public avant correction H04.
+- **Gatus** : sondes existantes CrowdSec LAPI :8084/health,
+  Traefik TCP (désormais :443) et backend Hello 8099.
+  Nouvelle sonde `Hello Nginx via Traefik` HTTPS 200 et sonde
+  honeypot `:31090/healthz` sans visite Project Honey Pot.
+  La config générée est recalculée par le job CTEM, aucune
+  preuve de chargement Gatus runtime à ce stade.
+- **Prometheus** : scrapes déjà déclarés pour Traefik :8082
+  et CrowdSec :6060. Règles de cibles DOWN/ABSENT ajoutées ;
+  `TraefikServiceDown` corrigée (`sum by(service)` au lieu de
+  `count(...) == 0`). Les alertes CrowdSec dédiées remplacent
+  ce job dans la règle générique pour éviter une double alerte.
+  Syntaxe `promtool`, reload Prometheus, réception Alertmanager
+  et véritable blocage AppSec **NOT_VERIFIED**.
+- **Agents** : suppression explicite de
+  `config/quality/reviewed-large-deletions.tsv` et des contrôles
+  `QG_LARGE_DELETION` / `QUALITY_ALLOW_LARGE_DELETION`.
+  Le gate garde le contrôle des branches, bases fraîches, secrets,
+  permissions exécutables et tests. Les suppressions importantes
+  restent visibles dans la PR Git, sans refus selon le nombre de lignes.
+
 ## CTEM — réconciliation du 21 novembre 2026 (H04/H05/H13/H17)
 
 Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-external-exposure.md), sans roadmap parallèle : **H04** = exposition et contrôles de frontière ; **H05** = inventaire Amass (GitHub passif ou actif externe sur approbation, TrueNAS actif via le PostgreSQL partagé) et rapprochement Backstage V2 ; **H13** = findings qualifiés dans DefectDojo ; **H17** = fiabilité des entités et révisions. Priorité au contrôle déclaratif sans accès LAN ; les campagnes actives sont séparées, bornées et autorisées. L'ordre général H01 → H02 → H04 → H05 → H12 → H13 → H16 n'est pas modifié.
