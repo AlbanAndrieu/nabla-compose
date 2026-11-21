@@ -95,89 +95,50 @@ sont locaux et distincts. Pas de mise à disposition publique via
 Cloudflare Access sans vérification cryptographique des assertions et recette
 indépendante de l'absence d'accès WAN.
 
-## 2. Honeypot `login.albandrieu.com` : pourquoi LAN OK ≠ WAN OK
+## 2. Honeypot public — NFS et ingress indépendants
 
-**Observé côté utilisateur :** `http://172.17.0.24:31090/` répond ;
-la publication `http://login.albandrieu.com/` échoue. Une requête web
-automatisée externe n'a pas permis de confirmer le code HTTP réel de ce
-nom : le diagnostic public reste `NOT_VERIFIED`.
+Le honeypot **ne lit aucun rapport** sur le partage NFS workstation.
+Il est un conteneur Apache/PHP isolé sur TrueNAS, port LAN `:31090`.
 
-**Déclaré dans Git :** `apps/honeypot/compose.yml` sert un script
-**Project Honey Pot** Apache/PHP, ce n'est **pas** un service de connexion.
-`/` exécute le script de collecte ; `/healthz` est statique et réservé
-aux sondes ; les autres chemins, notamment `/wp-login.php`, renvoient 404.
-Il n'y a **ni page /login ni CAPTCHA du formulaire** aujourd'hui.
+**Nouveau relevé opérateur du 21/11 :** l'enregistrement A historique
+`login.albandrieu.com → 82.66.4.247` a été supprimé dans Cloudflare.
+`dig @1.1.1.1 login.albandrieu.com A +short` ne renvoie rien ;
+`curl https://login.albandrieu.com/healthz` échoue par résolution DNS ;
+`curl http://172.17.0.24:31090/healthz` renvoie `ok`.
+Il manque donc une **publication CNAME/Access/Tunnel reçue**, et non
+une preuve de panne de l'App.
 
-`terraform/cloudflare/tunnel.tofu` vise directement
-`http://172.17.0.24:31090` : **Traefik n'est pas traversé**.
-Le record DNS historique A de `login` pointait vers l'ancien WAN
-`82.66.4.247` le 21/11 ; `dns-policy.yaml` prépare un CNAME
-vers le tunnel après retrait/adoption de ce A. L'Access app
-`honeypot-login` est préparée avec la politique `Everyone bypass`
-afin que le piège soit atteignable sans identité ; ni l'état DNS **live**
-ni le `tofu apply` ne sont attestés ici.
+Le nouveau [runbook canonique du honeypot](../../apps/honeypot/README.md)
+prépare **sans apply** :
 
-**Publication ordonnée** (après contrôle de l'état Cloudflare réel) :
+- `login.albandrieu.com` CNAME proxifié
+  `1d98bede-6fa0-42a8-971c-cd390d74d7f6.cfargotunnel.com`
+  dans le module OpenTofu déjà propriétaire du Tunnel.
+- Un switch `honeypot_tunnel_via_traefik=false` initialement :
+  voie directe 31090 conservée ; passage éventuel à
+  `https://traefik:443` seulement après recette.
+- Routeurs Traefik `honeypot-public` et
+  `honeypot-login-attempt` avec source TCP `cloudflared`
+  strictement autorisée, AppSec CrowdSec, quotas distincts.
+- Page `/login` HTML statique **sans envoi de credentials**,
+  refus Apache POST `403`, journal d'accès sans query string.
+  La racine `/` reste le script Project Honey Pot, et
+  `/healthz` ne déclenche pas d'alerte.
+- Un scénario CrowdSec `nabla/honeypot-login-burst` **non monté**,
+  à évaluer en simulation avant autorisation de bannissement.
+- Une synthèse CTEM de logs Traefik
+  `scripts/security/summarize-honeypot-traefik.py` sans IP,
+  en complément de la consultation privée des alertes et décisions.
 
-1. `dig +short @1.1.1.1 login.albandrieu.com A`, puis vérifier dans
-   Cloudflare la nature, la cible et l'ID de l'enregistrement ; un A et un
-   CNAME sur le même nom ne peuvent coexister. Ne pas déduire du seul A
-   renvoyé par Cloudflare si le record sous-jacent est CNAME (flattening).
-2. Lancer le plan `scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan`
-   avec **état Garage privé disponible**, imports d'abord. L'ingress de
-   ce tunnel est une liste partagée : vérifier chaque route, chaque
-   retrait et chaque `origin_request`. Refuser tout changement annexe.
-3. Appliquer seulement le plan approuvé depuis un contexte autorisé ;
-   valider Access `Everyone bypass`, CNAME proxied et
-   `cloudflared → 172.17.0.24:31090`, sans NAT WAN ni exposition 31090.
-4. Depuis une connexion **réellement extérieure**, `curl -sSI
-   https://login.albandrieu.com/healthz` attendu 200 ; vérifier ensuite
-   `/` avec parcimonie, car chaque appel déclenche un rapport
-   Project Honey Pot. `/wp-login.php` doit conserver 404.
-   Les réponses 1016/403/404 indiquent des frontières différentes.
-
-## 3. Évolution proposée : tentative de login leurre vers CrowdSec
-
-La *page* de connexion leurre devrait être **`/login` sur le même nom
-`login.albandrieu.com`**, en préservant `/` comme piège à collecteurs
-d'adresses et `/healthz` comme sonde silencieuse.
-
-**Pas de formulaire/login applicatif ni de stockage des identifiants
-présentés :** afficher une page statique de leurre (si approuvée), refuser
-tout POST avec 401/403 et jeter le corps sans l'écrire dans les logs.
-Les journaux contiennent uniquement métadonnées minimisées (date,
-IP vérifiée, méthode, chemin, code HTTP), avec rétention et contrôle d'accès.
-Ne pas émettre de bannissement CrowdSec sur un simple GET ni sur la santé.
-
-Le chemin souhaitable **après un pilote spécifique** serait :
-
-```text
-HTTPS public login.albandrieu.com
-   → Cloudflare Tunnel/Access Everyone bypass
-       → Traefik host+chemin /login (opt-in)
-           → CrowdSec LAPI bouncer + AppSec + rate limit
-               → honeypot /login (leurre)
-```
-
-Cette architecture **n'est pas activée** : ni label Traefik
-`login`, ni routage Tunnel vers Traefik, ni scénario CrowdSec
-de tentative POST n'existent dans cette contribution. Le retrait de
-l'ancien nom interne FastAPI ne déploie rien sur le honeypot.
-Le port direct `:31090` et le piège Project Honey Pot doivent rester
-fonctionnels pendant la recette. Revoir l'IP réelle Cloudflare depuis le
-seul peer `cloudflared`, la confiance des headers sur Apache et
-les faux positifs avant tout bannissement. Pour limiter la surface d'erreur,
-évaluer d'abord un **router canary à chemin limité** plutôt qu'une
-bascule de `/` et `/healthz`.
-
-**Cloudflare Turnstile :** le bouncer Worker CrowdSec versionné contient
-`actions: [ban, captcha]` et `turnstile.enabled: true`, mais son
-profil reste opt-in et doit être déployé/recetté. Un challenge sur
-**toutes** les visites du honeypot masquerait les robots recherchés ;
-Turnstile est pertinent comme remédiation *sélective* après une décision,
-pas comme préalable systématique au leurre. Si un formulaire légitime
-devait être créé ailleurs, la validation du token Turnstile doit se faire
-côté serveur via Siteverify, pas seulement dans le navigateur.
+Il ne faut pas confondre une IP source avec l'identité d'une personne,
+ni le `PASS_INSTALLED` des collections AppSec avec un blocage HTTP
+réel. Le premier test 403 contrôlé et le dashboard Traefik restent
+`NOT_VERIFIED` jusqu'à preuve runtime. Le site
+`nabla-site-alban` possède **déjà** une démo Turnstile sous
+`app/[locale]/login/LoginClient.tsx` ; sa future connexion éventuelle
+au honeypot doit se limiter à un **GET explicite sans identifiants,
+cookies, JWT ou redirection POST**, jamais une collecte d'identifiants
+des lecteurs du site.
 
 ## 4. Garde-fous avant activation
 
