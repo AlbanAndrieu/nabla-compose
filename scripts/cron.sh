@@ -16,6 +16,8 @@ LOG_TAG="doco-cd-update"
 RECENT_MINUTES="${NABLA_CRON_RECENT_MINUTES:-65}"
 DOCO_CD_PROJECTS="${NABLA_CRON_DOCO_CD_PROJECTS:-vaultwarden garage}"
 FASTAPI_UPDATE="${NABLA_CRON_FASTAPI_UPDATE:-true}"
+CTEM_AMASS_ENABLED="${NABLA_CRON_CTEM_AMASS_ENABLED:-false}"
+CTEM_MAIL_ENABLED="${NABLA_CRON_CTEM_MAIL_ENABLED:-false}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
 FASTAPI_SUBMODULE="${FASTAPI_SAMPLE_SUBMODULE:-apps/fastapi-sample}"
@@ -175,25 +177,27 @@ report_recent_containers() {
 }
 
 # Prints why FastAPI Cloud is not fully healthy; succeeds silently when it is.
+# Anonymous routes only: /readyz and /healthz need X-Diagnostics-Key since
+# fastapi-sample #447, and the cron holds no FastAPI secret.
 fastapi_cloud_unhealthy_reason() {
   local path code payload
 
-  for path in livez readyz; do
+  for path in livez v2/version; do
     code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${FASTAPI_CLOUD_URL}/${path}" 2>/dev/null || true)"
     if [[ "${code}" != 200 ]]; then
       printf '/%s answered HTTP %s' "${path}" "${code:-none}"
       return 0
     fi
   done
-  if ! payload="$(curl -fsS --max-time 20 "${FASTAPI_CLOUD_URL}/healthz" 2>/dev/null)"; then
-    printf '/healthz unreachable'
+  if ! payload="$(curl -fsS --max-time 20 "${FASTAPI_CLOUD_URL}/health" 2>/dev/null)"; then
+    printf '/health unreachable'
     return 0
   fi
   if jq -e "${FASTAPI_HEALTHY_FILTER}" <<<"${payload}" >/dev/null 2>&1; then
     return 0
   fi
-  jq -r '"status=\(.status // "unknown"), failing: " + ([(.components // {} | to_entries[] | select(.value.status != "healthy") | .key), (.checks // {} | to_entries[] | select(.value.reachable == false) | .key)] | join(", "))' <<<"${payload}" 2>/dev/null ||
-    printf '/healthz payload is not JSON'
+  jq -r '"status=\(.status // "unknown"), failing: " + ([.components // {} | to_entries[] | select(.value.status != "healthy") | .key] | join(", "))' <<<"${payload}" 2>/dev/null ||
+    printf '/health payload is not JSON'
 }
 
 update_fastapi_sample() {
@@ -252,6 +256,62 @@ update_fastapi_sample() {
   return 1
 }
 
+# Reuse this installed TrueNAS hourly Cron rather than creating a second job.
+# Sunday 05:00 appliance local time only; the scan runner has its own flock.
+# Failures are reported in the existing Cron mail but do not suppress Git sync.
+run_weekly_ctem_amass() {
+  local weekday hour rc=0
+  if [[ "${CTEM_AMASS_ENABLED}" != true ]]; then
+    return 0
+  fi
+  weekday="$(date +%u)"
+  hour="$(date +%H)"
+  if [[ "${weekday}" != 7 || "${hour}" != 05 ]]; then
+    return 0
+  fi
+  if [[ ! -f "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" ]]; then
+    log_error "CTEM: runner not installed in checkout"
+    return 1
+  fi
+  log_info "CTEM: running approved bounded active weekly Amass; private candidates stay on TrueNAS."
+  sudo -n env CTEM_AMASS_ACTIVE_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+    bash "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" --run || rc=$?
+  if ((rc == 0)); then
+    log_info "CTEM: completed, private artifact retained; only counts may be published."
+  else
+    log_error "CTEM: incomplete, exit=${rc}; no finding promotion."
+  fi
+  return "${rc}"
+}
+
+# The existing GitHub App artifact collector already has Actions:read on
+# nabla-compose. Fetch only the latest successful master mail-deep artifact;
+# no API token is forwarded to artifact storage, no DefectDojo import here.
+run_weekly_ctem_mail() {
+  local weekday hour rc=0
+  if [[ "${CTEM_MAIL_ENABLED}" != true ]]; then
+    return 0
+  fi
+  weekday="$(date +%u)"
+  hour="$(date +%H)"
+  if [[ "${weekday}" != 1 || "${hour}" != 08 ]]; then
+    return 0
+  fi
+  if [[ ! -f "${SCRIPT_DIR}/security/pull-ctem-mail-artifact.py" ]]; then
+    log_error "CTEM mail: GitHub artifact puller not installed"
+    return 1
+  fi
+  log_info "CTEM mail: collecting reviewed master JSON posture via GitHub App Actions:read."
+  sudo -n env CTEM_MAIL_PULL_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+    python3 "${SCRIPT_DIR}/security/pull-ctem-mail-artifact.py" --store || rc=$?
+  if ((rc == 0)); then
+    log_info "CTEM mail: sanitized checkdmarc receipt stored in shared PostgreSQL."
+  else
+    log_error "CTEM mail: incomplete, exit=${rc}; no DefectDojo auto import."
+  fi
+  return "${rc}"
+}
+
 status=0
 synced=true
 sync_checkout || {
@@ -261,6 +321,8 @@ sync_checkout || {
 report_apps
 report_recent_containers
 if [[ "${synced}" == true ]]; then
+  run_weekly_ctem_amass || status=1
+  run_weekly_ctem_mail || status=1
   update_fastapi_sample || status=1
 fi
 exit "${status}"

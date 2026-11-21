@@ -1,3 +1,24 @@
+# [0.109.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.108.0...0.109.0) (2026-11-21)
+
+
+### Features
+
+* **vercel-waf:** enforce SQLi/XSS/RCE and public rate limiting via Terraform ([#433](https://github.com/AlbanAndrieu/nabla-compose/issues/433)) ([a5e5f99](https://github.com/AlbanAndrieu/nabla-compose/commit/a5e5f99f906ec8315de2e103c187f6fa2d001fe0))
+
+# [0.108.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.5...0.108.0) (2026-11-21)
+
+
+### Features
+
+* **ctem:** active Amass with shared PostgreSQL, existing TrueNAS Cron and private findings ([#431](https://github.com/AlbanAndrieu/nabla-compose/issues/431)) ([130bf81](https://github.com/AlbanAndrieu/nabla-compose/commit/130bf81787ffd0dfded8ceb36e7cab0d085f9d35))
+
+## [0.107.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.4...0.107.5) (2026-11-21)
+
+
+### Bug Fixes
+
+* **cron:** gate the FastAPI Sample update on public FastAPI Cloud routes ([#430](https://github.com/AlbanAndrieu/nabla-compose/issues/430)) ([5b34ef8](https://github.com/AlbanAndrieu/nabla-compose/commit/5b34ef8ffffe82630838717f8bc4edbab28f9978)), closes [#447](https://github.com/AlbanAndrieu/nabla-compose/issues/447) [#447](https://github.com/AlbanAndrieu/nabla-compose/issues/447) [#38](https://github.com/AlbanAndrieu/nabla-compose/issues/38) [#452](https://github.com/AlbanAndrieu/nabla-compose/issues/452) [#336](https://github.com/AlbanAndrieu/nabla-compose/issues/336)
+
 ## [0.107.4](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.3...0.107.4) (2026-11-20)
 
 

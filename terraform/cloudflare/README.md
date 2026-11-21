@@ -23,6 +23,7 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `fastapi-sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
 | `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. Depuis le 16/11, la route Tunnel des chemins publics répond aussi 404 tant qu'aucune App Keycloak n'écoute sur :30238 (H01). |
 | `cloudflare_zero_trust_access_application.vaultwarden_admin` | Application Access `vaultwardenadmin` (chemin `/admin`) | **Créée**. Politique `nabla` : l'application `vaultwarden` du dashboard laisse passer tout le hostname pour les clients Bitwarden ; ce chemin plus précis garde `/admin` derrière Access. |
+| `cloudflare_zero_trust_access_application.honeypot_login` | Application Access `honeypot-login` (tout `login.albandrieu.com`) | **Créée**. `Everyone bypass` : le piège doit être joignable par tous, collecteurs compris (décision du propriétaire du 20/11). Ni challenge WAF ni règle Bot Fight sur ce nom. La route Tunnel vise `http://172.17.0.24:31090`, le port publié de l'App honeypot (en service sur TrueNAS depuis le 21/11). |
 | `cloudflare_zero_trust_access_application.joplin` | Application Access `joplin` (tout le hostname) | **Créée**. `Everyone bypass` : les clients de synchronisation ne savent pas passer un login Access ; l'authentification Joplin protège le serveur. |
 
 Les politiques réutilisables ne contiennent aucun hostname et `nabla` est
@@ -38,7 +39,8 @@ serait écrasée au prochain apply. Le module voisin
 `CLOUDFLARE_API_TOKEN` vient de Vaultwarden, n'est jamais écrit dans un
 fichier du dépôt ni affiché (vérifier avec `[ -n "${CLOUDFLARE_API_TOKEN:-}" ]`).
 Deux jetons distincts, limités au compte `bdfe00ee…` et à la zone
-`albandrieu.com`, idéalement avec filtrage d'IP client et date d'expiration :
+`albandrieu.com` (plus `albanandrieu.com` pour [`mail.tofu`](mail.tofu)),
+idéalement avec filtrage d'IP client et date d'expiration :
 
 | Usage | Type | Élément | Permission |
 | --- | --- | --- | --- |
@@ -174,7 +176,8 @@ interdit (`.int.albandrieu.com`, contrôlé par un bloc `check`).
 Propriété : ce module possède les CNAME du tunnel et le retrait des noms
 décommissionnés. Les enregistrements d'AutoXpose, de l'ancien companion Traefik,
 de DDNS, de la messagerie et de l'apex restent hors module jusqu'à leur adoption
-explicite ; le script de capture les classe `unmanaged`.
+explicite ; le script de capture les classe `unmanaged`. Exception : les
+enregistrements mail des 20 zones (section « Messagerie »).
 
 1. **Inventaire et identifiants (lecture seule)** :
 
@@ -216,13 +219,22 @@ explicite ; le script de capture les classe `unmanaged`.
    morts depuis le retrait de pfSense et de son HAProxy le 18/11 (port 443
    fermé, ou 403 `error code: 1050` au bord pour les proxifiés) : `account`,
    `apache`, `api`, `login`, `manager`, `nexus-albanandrieu`, `toto`,
-   `www.toto`, `truenas`, `warp`. Les consommateurs internes de `truenas`
+   `www.toto`, `truenas`, `warp`. `login` : son A mort part d'abord, puis le
+   honeypot reprend le nom par le Tunnel, dans un second plan (décision du
+   propriétaire du 20/11 ; un A et un CNAME ne peuvent pas coexister) :
+   `new_tunnel_hostnames`, route `login.albandrieu.com` vers l'App honeypot
+   (`:31090`) et application Access `honeypot_login`. Les consommateurs internes de `truenas`
    (Sample, CSI) épinglent déjà `172.17.0.24`. Restent hors circuit :
    l'apex et `www` (la Redirect Rule répond avant toute origine), `home`
-   (PTR Free, `cloudflare_dns_record.home`), `mail2` (son MX partirait avec
-   lui : le circuit retire tous les types d'un nom), `hello.int` et `s3.int`
+   (PTR Free, `cloudflare_dns_record.home`), `hello.int` et `s3.int`
    (conservés, publiés par `cloudflare-ddns` de l'App Traefik : décision du
    propriétaire du 20/11).
+   Huitième tour (20/11/2026) : `index`, CNAME proxifié vers l'apex qui
+   répondait 403 1050 (retiré, décision du propriétaire du 20/11).
+   **`mail2` : conservé**, don de MX Project Honey Pot créé par le
+   propriétaire le 27/12/2025 (journal d'audit Cloudflare), en réception
+   seulement : son A et son MX `mx3.mtahosting.com` restent tels quels
+   (décision du propriétaire du 20/11). Ce n'est pas le honeypot TrueNAS.
    Ne pas lancer `capture-dns-records.py --write` sans relire son diff : il
    ajouterait `ollama` et `ollama-gpu`, dont le CNAME est peut-être déjà dans
    l'état sous `tunnel[...]` (paragraphe suivant).
@@ -232,6 +244,91 @@ explicite ; le script de capture les classe `unmanaged`.
    Le lister aussi dans `dns_retired_record_ids` l'importe une seconde fois
    sous le même identifiant ; après l'apply, le plan `adopt` voudrait alors
    recréer un `retired[...]` vide.
+
+## Messagerie des 20 zones (`mail.tofu`)
+
+Décisions du propriétaire (20/11/2026) : durcir les 20 zones du compte par
+OpenTofu. Google Workspace est le seul fournisseur autorisé à envoyer et à
+recevoir pour `albandrieu.com` et `albanandrieu.com`. Les rapports DMARC et
+TLS-RPT de toutes les zones vont à `openclaw@albandrieu.com` : cette boîte ou
+cet alias doit exister dans Google Workspace. Les MX et les DKIM restent gérés
+dans le dashboard. [`mail.tofu`](mail.tofu) gère, avec les identifiants de
+`mail-record-ids.auto.tfvars` (zones et enregistrements, lus en `GET` le
+20/11) :
+
+| Enregistrements | Zones | Action |
+| --- | --- | --- |
+| SPF de l'apex `~all` → `-all` | `albandrieu.com`, `albanandrieu.com` | 2 imports, 2 mises à jour du seul `content` |
+| `_dmarc` : seuls `rua`/`ruf` passent à `openclaw@albandrieu.com`, la politique ne bouge pas | `albandrieu.com`, `albanandrieu.com` (`p=reject` strict) ; `bababou.com`, `dr-alban.com` (`p=none`, l'adresse DMARC Management de Cloudflare reste à côté) | 4 imports, 4 mises à jour |
+| `_dmarc` `p=none` avec `rua`/`ruf` | `heoko.com`, `papapou.com` (MX et DKIM Google, sans SPF) | 2 créations |
+| `_dmarc` `p=reject`, `sp=reject`, alignement strict ; MX nul `0 .` (RFC 7505) ; SPF `v=spf1 -all` | les 14 zones sans mail (`no_mail_domains`) | 42 créations |
+| `<domaine>._report._dmarc.albandrieu.com` (`v=DMARC1`, RFC 7489 §7.1) | les 19 autres zones | 19 créations dans `albandrieu.com` |
+| TLS-RPT `_smtp._tls` ; MTA-STS `testing` : domaine personnalisé `mta-sts.<domaine>` et TXT `_mta-sts` | les 6 zones qui reçoivent par Google (`mta_sts_mx`) | 18 créations |
+| Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)) | compte | 1 création |
+
+Une précondition refuse de créer un second `_dmarc` sur une zone qui en publie
+déjà un : deux enregistrements annuleraient la politique.
+
+Le Worker est statique, sans origine ni binding. Il sert
+`https://mta-sts.<domaine>/.well-known/mta-sts.txt` et répond 404 ailleurs.
+Chaque politique contient `version: STSv1`, `mode: testing`,
+`max_age: 86400` et exactement les MX publiés de la zone (`mta_sts_mx`).
+Le TXT `_mta-sts` est créé après les domaines (`depends_on`). Toute
+modification d'une politique change aussi `mta_sts_id`.
+
+Prérequis : le jeton `nabla-opentofu` doit couvrir les 20 zones
+(`DNS Write`, `Workers Routes Write`) et porter `Workers Scripts Write`
+(compte). Appliquer d'abord l'unité [`cloudflaretokens`](../cloudflaretokens/README.md)
+(1 mise à jour de la politique du jeton), sinon le plan échoue sur ces zones.
+Le MX nul s'écrit `.` en priorité 0 ; si Cloudflare refuse ce contenu, le
+plan ou l'apply le dira.
+
+Le scan externe ([`check-public-mail-auth.py`](../../scripts/security/check-public-mail-auth.py),
+`config/security/public-mail-domains.json`, 20 zones avec leur `mail_use`)
+applique la même politique et sort en **code 4** (`PROVIDER_POLICY_VIOLATION`)
+dans ces cas :
+
+- **Toutes les zones** : un `rua` DMARC sans `openclaw@albandrieu.com`, ou,
+  hors `albandrieu.com`, sans autorisation
+  `<domaine>._report._dmarc.albandrieu.com`.
+- **Zones sans mail** : MX nul absent, SPF autre que `v=spf1 -all`, ou DMARC
+  non `reject`.
+- **Zones qui reçoivent** :
+  - TLS-RPT ou TXT `_mta-sts` absent ;
+  - politique MTA-STS absente ou invalide ;
+  - certificat invalide ou redirection ;
+  - mode autre que `testing` ;
+  - MX de la politique différents des MX publiés de l'apex.
+- **Domaines Google** :
+  - un MX hors `google.com`, à l'apex ou sur `mail2` ;
+  - un SPF autre que `include:_spf.google.com -all` ;
+  - un DMARC non strict ;
+  - une DKIM `google` absente.
+
+  Seule exception, explicite et documentée (`mx_exceptions`) :
+  `mail2.albandrieu.com` → `mx3.mtahosting.com`, don de MX Project Honey
+  Pot. Elle vaut pour ce nom exact et cette cible exacte : toute autre cible,
+  ou ce MX à l'apex, échoue.
+
+Une résolution DNS ratée reste `UNVERIFIED` et n'est jamais comptée comme
+violation. Le résolveur local de la workstation renvoie SERVFAIL sur les
+réponses NXDOMAIN de ces zones, alors que 1.1.1.1 répond bien : depuis le LAN,
+beaucoup de contrôles restent donc `UNVERIFIED`.
+
+Étape suivante : passer MTA-STS à `enforce` après quelques semaines de
+rapports TLS-RPT propres. `mode`, `mta_sts_id` et la valeur attendue
+`ENFORCE_MX_MATCH` du scan changent ensemble.
+
+Proposé, **non appliqué** :
+
+- **CAA** : à n'ajouter qu'après inventaire des émetteurs réellement
+  utilisés : Let's Encrypt (Traefik en DNS-01, Vercel, GitHub Pages,
+  Nabu Casa), puis l'Universal SSL et les certificats edge de Cloudflare
+  (Google Trust Services, Let's Encrypt, SSL.com…). Un CAA incomplet casse
+  le renouvellement.
+- **SPF de `heoko.com` et `papapou.com`** : ces zones envoient par Google
+  (DKIM publiée) sans SPF. Il faudrait `include:_spf.google.com`, puis
+  durcir leur DMARC après lecture des rapports.
 
 ## Tunnel workstation `nabla-albandrieu`
 

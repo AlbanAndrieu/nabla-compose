@@ -55,6 +55,20 @@ import {
   id = "${var.zone_id}/${each.value}"
 }
 
+# Apex SPF records of mail.tofu exist in both zones: adopt them before -all.
+import {
+  for_each = var.mail_spf_record_ids
+  to       = cloudflare_dns_record.mail_spf[each.key]
+  id       = "${local.mail_zone_ids[each.key]}/${each.value}"
+}
+
+# Existing DMARC records of mail.tofu: adopt them before rua/ruf move.
+import {
+  for_each = var.mail_dmarc_record_ids
+  to       = cloudflare_dns_record.mail_dmarc[each.key]
+  id       = "${local.mail_zone_ids[each.key]}/${each.value}"
+}
+
 # Forward A for Free's PTR: adopt an existing record if found.
 # No import or new record unless one explicit opt-in is set.
 import {

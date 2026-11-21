@@ -79,6 +79,9 @@ services:
     image: docker.io/opensearchproject/opensearch:2.19.5
     container_name: opensearch-security
     hostname: opensearch-security
+    # Its consumers (graylog, wazuh-forwarder) do not run: kept out of the default start (21/11,
+    # performance plan item 7, about 1.6 GiB). `--profile security` brings it back.
+    profiles: ["security"]
     restart: unless-stopped
     # JVM memory cap (2026-11-06): 1g heap (OPENSEARCH_JAVA_OPTS) plus Lucene off-heap; an OOM stays in this cgroup.
     mem_limit: 2g
@@ -87,6 +90,9 @@ services:
       name: OpenSearch Security
       kind: search
       category: security
+      # Same TrueNAS App as opensearch: a mixed status makes the reboot planner fail closed,
+      # so the profile above, not the status, keeps it stopped (as for dsomm-baseline).
+      status: active
       runtime:
         provider: truenas-app
         containerService: opensearch-security

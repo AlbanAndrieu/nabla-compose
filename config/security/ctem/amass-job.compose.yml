@@ -1,0 +1,55 @@
+---
+# Bounded active CTEM Amass v5 runner. No additional database container: invoke with
+# docker compose --profile manual run --rm --no-deps ctem-amass ...
+# Dedicated container network namespace keeps Amass engine loopback :4000
+# separate from the Workstation and TrueNAS LiteLLM service.
+name: nabla-ctem-amass
+
+services:
+  ctem-amass:
+    image: python:3.13-slim
+    profiles:
+      - manual
+    restart: "no"
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 2g
+    cpus: "1.0"
+    network_mode: bridge
+    env_file:
+      - /mnt/cpool/secrets/runtime/ctem-amass/.env.secrets
+    environment:
+      CTEM_RUNTIME: truenas
+      AMASS_PG_CA: /pg-ca/ca.crt
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+    volumes:
+      # Canonical Git snapshot: only read, no Git writes or credentials.
+      - /mnt/cpool/compose/nabla-compose:/repo:ro
+      # Installer pins Amass v5.1.3 + verified sha256; root-owned mode 0700.
+      - /mnt/cpool/ctem/amass/bin/amass:/tools/amass:ro
+      # 0700 root-owned; all outputs are private, never served by HTTP.
+      - /mnt/cpool/ctem/amass/reports:/reports:rw
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/pg-ca/ca.crt:ro
+    entrypoint:
+      - python3
+      - /repo/scripts/security/run-amass-inventory.py
+    command:
+      - --amass
+      - /tools/amass
+      - --mode
+      - active
+      - --output
+      - /reports/manual-amass-summary.json
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

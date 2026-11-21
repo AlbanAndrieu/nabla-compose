@@ -13,7 +13,8 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, ProxyHandler, HTTPRedirectHandler, build_opener
 
-BASE = "http://127.0.0.1:4000"
+# LiteLLM publishes on the LAN address only (host_ip), not on loopback.
+BASE = "http://172.17.0.24:4000"
 # Canonical runtime file holding the key values (root:root 0600). LiteLLM itself
 # never reads these variables: a value only present here is registered without
 # recreating the LiteLLM container.

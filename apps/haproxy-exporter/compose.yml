@@ -19,7 +19,8 @@ services:
       name: pfSense HAProxy Exporter
       kind: metrics-exporter
       category: observability
-      status: planned
+      # pfSense and its HAProxy were retired on 2026-11-18: nothing left to observe.
+      status: disabled
       runtime:
         provider: truenas-app
         containerService: haproxy-exporter
