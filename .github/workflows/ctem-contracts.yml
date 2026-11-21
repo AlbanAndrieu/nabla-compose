@@ -64,6 +64,9 @@ jobs:
           assert exposures and not any(e.get("visibility") == "public" for e in exposures)
           print("V2 source projection validated; no raw artifacts in logs")
           PY
+      - name: Validate legacy LAN route parity before V2 migration acceptance
+        run: |
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/audit-service-catalog-v2-parity.py --check
       - name: Upload generated standard catalog (for branch reconciliation only)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
