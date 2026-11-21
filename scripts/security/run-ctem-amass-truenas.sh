@@ -95,6 +95,14 @@ PY
     echo "ctem_storage=PRIVATE_FILE_ONLY; shared-postgresql insertion not enabled"
   fi
 fi
+# Render a self-contained private dashboard only for a completed, validated scan.
+# No HTTP server, browser telemetry, remote script or public route is started.
+if ((rc == 0)) && [[ -f "${REPORTS}/candidates-${timestamp}.json" ]]; then
+  python3 "${ROOT}/scripts/security/render-ctem-amass-html.py" \
+    --summary "${summary}" \
+    --private "${REPORTS}/candidates-${timestamp}.json" \
+    --output "${REPORTS}/ctem-amass-${timestamp}.html" || rc=3
+fi
 if ((rc != 0)); then
   echo "ctem_amass=INCOMPLETE; exit=${rc}; no automatic DefectDojo finding" >&2
   exit "${rc}"
