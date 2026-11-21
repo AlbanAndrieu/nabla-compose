@@ -56,6 +56,8 @@ class DockerIsolationTests(unittest.TestCase):
             commands.append(command)
             if 'psql' in command:
                 return '2'
+            if 'logs' in command:
+                return 'PostgreSQL init process complete; ready for start up.'
             return ''
         with patch.object(mod.shutil, 'which', return_value='/usr/bin/docker'), \
              patch.object(mod, 'run', side_effect=fake_run), \

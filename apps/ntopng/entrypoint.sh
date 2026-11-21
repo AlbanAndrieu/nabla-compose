@@ -16,6 +16,8 @@ fi
 # Redis keeps ntopng users and preferences: the bind-mounted host directory
 # must belong to the image's redis user or every write fails after a BGSAVE error.
 chown -R redis:redis /var/lib/redis
+# The RRD tmpfs mounts start empty and root-owned; ntopng drops to ntopng:ntop.
+chown ntopng:ntop /var/lib/ntopng/0 /var/lib/ntopng/-1
 /etc/init.d/redis-server start >/dev/null
 tries=0
 until redis-cli ping >/dev/null 2>&1; do

@@ -36,7 +36,8 @@ CONTAINERS = {
 }
 HTTP = {
     "gatus": ("http://127.0.0.1:8085/api/v1/endpoints/statuses", "gatus"),
-    "litellm": ("http://127.0.0.1:4000/health/readiness", "litellm"),
+    # LiteLLM publishes on the LAN address only (host_ip), not on loopback.
+    "litellm": ("http://172.17.0.24:4000/health/readiness", "litellm"),
     "openrag": ("http://127.0.0.1:31060/health/collective_health", "openrag"),
     "scrutiny": ("http://172.17.0.24:31054/api/health", "scrutiny"),
     "influxdb": ("http://127.0.0.1:31055/health", "influxdb"),

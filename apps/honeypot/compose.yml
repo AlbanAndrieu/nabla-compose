@@ -37,17 +37,30 @@ services:
           visibility: lan
           gatewayRef: resource:default/truenas
           backendPort: web
+        - name: public
+          hostnames:
+            - login.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          # Every hit on / is reported to Project Honey Pot: outside-in probes read the static page.
+          probePath: /healthz
+          access:
+            # Address harvesters must reach the page: an Access login would hide it from them.
+            required: false
+          riskAcceptance:
+            id: honeypot-login-public-trap
+            status: accepted
+            reason: "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script and /healthz answer, every other path is 404."
+            control: isolated-read-only-trap-no-data
+            reviewAfter: null
     labels:
       com.albandrieu.nabla.entity-ref: component:default/honeypot
     restart: unless-stopped
     # Not deployed yet, so no memory.peak to scale from: 256m is the plan's smallest step.
     # Revisit with memory.peak x 1.5 once the App runs on TrueNAS.
     mem_limit: 256m
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
     user: "33:33"
     read_only: true
     cap_drop:

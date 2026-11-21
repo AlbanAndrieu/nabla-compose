@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 61 ; planifiées : 26.
+Apps : 91 ; actives : 61 ; planifiées : 25.
 
 ## Écarts par type
 
@@ -49,7 +49,7 @@ Apps : 91 ; actives : 61 ; planifiées : 26.
 | `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | manifest | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/ | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `graylog` | disabled | custom-apps.yml | `cpool/graylog` (databases) | manifest | — | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `haproxy-exporter` | planned | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `haproxy-exporter` | disabled | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homarr` | active | custom-apps.yml | `cpool/homarr` (app-state) | manifest | ❌ | — | — | générique | apps/homarr/config/ | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homeassistant` | active | ❌ | `cpool/ha` (app-state) | n/a | ✅ | — | — | diagnose-homeassistant-overkiz.sh<br>diagnose-homeassistant-usb.sh<br>diagnose-homeassistant.sh | bootstrap-homeassistant-postgres.sh | `NO_DEPLOY_PATH` |

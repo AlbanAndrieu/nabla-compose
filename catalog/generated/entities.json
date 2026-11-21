@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:942d4dd20aff2ac0321ec7d4638ef0289e2c7be93d38b666610c2972d9520b7a",
+  "catalogRevision": "sha256:4c78cf73d4623b53b8e30309b5dc96fb832b46644bccf53763d5b6cad3731519",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -543,6 +543,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "apisix"
+          ],
           "containerService": "apisix",
           "provider": "truenas-app",
           "source": "apps/apisix/compose.yml#services/apisix"
@@ -934,6 +937,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "cartography",
           "provider": "truenas-app",
           "source": "apps/cartography/compose.yml#services/cartography"
@@ -2208,6 +2214,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "dsomm-baseline",
           "provider": "truenas-app",
           "source": "apps/dsomm/compose.yml#services/dsomm-baseline"
@@ -2942,7 +2951,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "haproxy-exporter",
         "tags": [
@@ -3137,6 +3146,9 @@
       "x-nabla": {
         "runtime": {
           "appId": "hermes-agent",
+          "composeProfiles": [
+            "hermes"
+          ],
           "containerService": "hermes",
           "provider": "truenas-app",
           "source": "apps/hermes/compose.yml#services/hermes"
@@ -3363,6 +3375,33 @@
             "protocol": "HTTP",
             "source": "apps/honeypot/compose.yml#services/honeypot",
             "visibility": "lan"
+          },
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31090
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "login.albandrieu.com"
+            ],
+            "name": "public",
+            "probePath": "/healthz",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "isolated-read-only-trap-no-data",
+              "id": "honeypot-login-public-trap",
+              "reason": "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script and /healthz answer, every other path is 404.",
+              "reviewAfter": null,
+              "status": "accepted"
+            },
+            "source": "apps/honeypot/compose.yml#services/honeypot",
+            "visibility": "public"
           }
         ],
         "runtime": {
@@ -5743,6 +5782,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "security"
+          ],
           "containerService": "opensearch-security",
           "provider": "truenas-app",
           "source": "apps/opensearch/compose.yml#services/opensearch-security"
@@ -5831,6 +5873,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "scorecard",
           "provider": "truenas-app",
           "source": "apps/scorecard/compose.yml#services/scorecard"
@@ -6658,6 +6703,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "provider": "host",
           "source": "apps/postgresbackup/compose.yml#services/postgresbackup"
         }
@@ -9329,6 +9377,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual-audit"
+          ],
           "containerService": "watchtower",
           "provider": "truenas-app",
           "source": "apps/watchtower/compose.yml#services/watchtower"
@@ -9393,6 +9444,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "forwarding"
+          ],
           "containerService": "wazuh-forwarder",
           "provider": "truenas-app",
           "source": "apps/wazuh/compose.yml#services/wazuh-forwarder"

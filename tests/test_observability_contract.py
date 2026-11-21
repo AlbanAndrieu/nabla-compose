@@ -171,6 +171,8 @@ class ObservabilityContractTests(unittest.TestCase):
         # Disabled: no scrape, so the exporter never calls 172.17.0.1 (now the R7000).
         # Re-enabling restores the 300s interval and 30s timeout of the 1100 budget.
         self.assertNotIn("- job_name: pfsense_exporter", prometheus)
+        # pfSense and its HAProxy left on 2026-11-18: nothing to scrape on :9101.
+        self.assertNotIn("- job_name: haproxy", prometheus)
 
         exporter = compose.split("\n  pfsense-exporter:\n", 1)[1].split(
             "\nnetworks:",
@@ -215,7 +217,6 @@ class ObservabilityContractTests(unittest.TestCase):
             "postgres_exporter": "172.17.0.24:9187",
             "redis_exporter": "redis_exporter:9121",
             "influxdb": "influxdb:8086",
-            "haproxy": "172.17.0.24:9101",
             "opensearch": "172.17.0.24:9114",
             "opensearch-security": "172.17.0.24:9115",
         }
