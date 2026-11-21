@@ -2,8 +2,7 @@
 
 **État : import-first, rien n'est appliqué.** Premier changement porté :
 renommer le hostname public `sample.albandrieu.com` en
-`fastapi-sample.albandrieu.com`. Le nom interne `sample.int.albandrieu.com`
-(Pi-hole/Traefik) et l'App TrueNAS `sample` ne changent pas.
+`fastapi-sample.albandrieu.com`. Le routeur Traefik privé historique `sample.int.albandrieu.com` est retiré du Compose FastAPI (21/11/2026). L'App TrueNAS `sample` et son port LAN 8091 restent inchangés. Le canary HTTPS utilise SNI `traefik.int.albandrieu.com` et Host public `fastapi-sample.albandrieu.com`, sans désactivation de la vérification TLS.
 
 Provider `cloudflare/cloudflare` épinglé en `= 5.28.1` (dernière v5 au
 31/10/2026). État distant : bucket Garage `opentofu-state`, clé
