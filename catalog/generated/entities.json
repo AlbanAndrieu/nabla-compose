@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:f97f8862aca8c48b38e742f419ce5cd8cc8b5d8ab953899b557787e46cf31698",
+  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -10636,27 +10636,20 @@
         "exposure": [
           {
             "access": {
-              "required": false
+              "required": true
             },
             "backend": {
               "appProtocol": "https",
               "host": "172.17.0.24",
               "port": 7000
             },
-            "gatewayRef": "resource:default/pfsense-haproxy",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
             "hostnames": [
               "truenas.albandrieu.com"
             ],
             "name": "public",
-            "port": 7000,
+            "port": 443,
             "protocol": "HTTPS",
-            "riskAcceptance": {
-              "control": "tls-and-api-auth",
-              "id": "truenas-public-admin",
-              "reason": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately.",
-              "reviewAfter": null,
-              "status": "accepted"
-            },
             "source": "catalog/catalog-info.yaml",
             "visibility": "public"
           }
