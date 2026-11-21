@@ -67,8 +67,8 @@ adds the weekly bounded active Amass job on Sunday at 05:00 appliance local time
 GitHub App `public-mail-deep.json` into PostgreSQL on Monday at 08:00 (after the 04:41 UTC external scan window).
 Both reuse this same hourly Cron task, not creating another scheduler. It invokes
 `sudo -n` only for the reviewed CTEM runner; private results stay root-only,
-while the Cron mail contains counts/status only. It never redeploys a TrueNAS
-App and does not start/replace Doco-CD. See the
+while the Cron mail contains counts/status only. The cron never redeploys a TrueNAS App
+and does not start/replace Doco-CD. See the
 [CTEM runbook](runbooks/ctem-external-exposure.md). Each run mails a short report:
 
 - the commits pulled (no git progress) and the redeploy plan of the TrueNAS
