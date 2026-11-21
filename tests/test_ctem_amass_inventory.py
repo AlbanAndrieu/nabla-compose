@@ -34,8 +34,8 @@ class AmassInventoryTests(unittest.TestCase):
         # The 20 zones of the Cloudflare account (public-mail-domains.json).
         domains = MODULE["load_domains"]()
         self.assertEqual(len(domains), 20)
-        self.assertTrue({"albanandrieu.com", "albandrieu.com", "bababou.com",
-                         "papoyou.net"} <= set(domains))
+        self.assertLessEqual({"albanandrieu.com", "albandrieu.com", "bababou.com",
+                              "papoyou.net"}, set(domains))
 
 
 class CatalogReconciliationTests(unittest.TestCase):
