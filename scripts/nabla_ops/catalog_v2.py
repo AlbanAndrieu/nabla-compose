@@ -1016,10 +1016,14 @@ def route_intent_parity(
                 and route.get("port") == (url.port if url.port not in (80, 443) else None)
             ]
         else:
+            # A legacy row without tunnelUrl means *no public route*. The
+            # internal LAN endpoint can still use a split-horizon hostname.
+            # Refuse to match a public V2 route just because its port agrees.
             candidates = [
                 route for route in routes
-                if not route.get("hostnames")
+                if route.get("visibility") != "public"
                 and route["backend"]["port"] == row["internalPort"]
+                and route["backend"].get("host") == row["internalHost"]
             ]
         if len(candidates) != 1:
             mismatches.append(f"{legacy_id}: {len(candidates)} matching v2 routes on {ref}")

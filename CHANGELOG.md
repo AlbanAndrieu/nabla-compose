@@ -1,3 +1,10 @@
+# [0.108.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.5...0.108.0) (2026-11-21)
+
+
+### Features
+
+* **ctem:** active Amass with shared PostgreSQL, existing TrueNAS Cron and private findings ([#431](https://github.com/AlbanAndrieu/nabla-compose/issues/431)) ([130bf81](https://github.com/AlbanAndrieu/nabla-compose/commit/130bf81787ffd0dfded8ceb36e7cab0d085f9d35))
+
 ## [0.107.5](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.4...0.107.5) (2026-11-21)
 
 

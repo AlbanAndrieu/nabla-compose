@@ -18,7 +18,10 @@ def test_admin_no_insecure_api_or_host_8080_and_private_authenticated_router():
     assert "--api.insecure=true" not in cmd
     assert all(p["target"] != 8080 for p in service["ports"])
     assert labels["traefik.http.routers.traefik.service"] == "api@internal"
-    assert "traefik.int.albandrieu.com" in labels["traefik.http.routers.traefik.rule"]
+    assert labels["traefik.http.routers.traefik.rule"] == (
+        "Host(`traefik.int.albandrieu.com`) && "
+        "(PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+    )
     assert labels["traefik.http.routers.traefik.middlewares"] == "traefik-admin-lan-only,traefik-admin-auth@file"
     assert labels["traefik.http.middlewares.traefik-admin-lan-only.ipallowlist.sourcerange"] == "192.168.1.0/24,172.17.0.0/24"
     assert not any("forwardedheaders.insecure=true" in c.lower() for c in cmd)
