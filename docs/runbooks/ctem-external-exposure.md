@@ -301,7 +301,7 @@ python3 scripts/security/audit-ctem-catalog-policy.py --output /tmp/ctem-policy-
 
 Exit code `0` : **aucune contradiction LAN-only dans le périmètre déclaré**, pas une attestation d'absence de route WAN ; `3` : conflit déclaratif ou catalogue/scope invalide. Ce contrôle appelle uniquement la jointure V2 exacte de `run-amass-inventory.py`, sans démarrer Amass, DNS ou HTTP. Le JSON public ne contient ni hostname, ni `entityRef`, ni valeur de secret. Le rapport nominatif est refusé dans GitHub Actions. Les scripts `--output` refusent d'écraser les fichiers existants, choisir un nom neuf pour chaque exécution.
 
-À la révision observée le 21/11, `ollama-gpu.albandrieu.com` est toujours porté par une intention publique dans le généré V2, contraire à `LAN_ONLY_NAMES`. Cela impose une correction du descripteur **source** et une régénération coordonnée, puis une preuve externe négative : ce n'est pas une démonstration de route effectivement ouverte. Ne pas rendre ce contrôle bloquant dans la CI tant que l'écart historique n'est pas corrigé, puis l'ajouter au quality gate.
+Historique : au début du 21/11, `ollama-gpu.albandrieu.com` était déclaré public dans les sources et le généré V2, contrairement à `LAN_ONLY_NAMES`. La PR #431 a corrigé la source `catalog/catalog-info.yaml`, nettoyé le catalogue de présentation et **régénéré les quatre artefacts V2** (révision du généré : `sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339`). Le contrôle déclaratif est maintenant **bloquant dans la CI CTEM**. Cela ne prouve toujours pas l'absence de route WAN : effectuer séparément un inventaire Cloudflare DNS/Tunnel/Access et des sondes externes négatives avant réception.
 
 #### Rapprochement avec Backstage V2
 
