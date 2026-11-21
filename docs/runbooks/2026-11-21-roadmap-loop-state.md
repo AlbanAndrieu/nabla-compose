@@ -19,7 +19,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 |---|---|---|---|
 | 1 | 21/11 | 21/11 | après la passe 3 |
 | 2 | 21/11 | 21/11 | après la passe 3 |
-| 3 | 21/11 | en cours | en cours : skill (e863e844), refactorisation (lot 3a) |
+| 3 | 21/11 | 21/11 | fait : skill (e863e844), refactorisation (lot 3a), docs |
+| 4 | 21/11 | en cours | après la passe 6 |
 
 ## Journal
 
@@ -56,6 +57,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H19 : migration Home Assistant vers Compose | bloqué (V1) | `migrate-homeassistant-to-compose.sh --check` : secret `/mnt/cpool/secrets/runtime/homeassistant/.env.secrets` absent, rôle PostgreSQL `homeassistant` non prêt, recorder sur une autre base, `http.trusted_proxies` vide ; 0 mutation |
 | H17 suite : profils Compose dans le catalogue | reporté (passe 3) | `DeclaredService` de Sample est en `extra="forbid"` : Sample doit d'abord accepter `composeProfiles` et être déployé, nabla-compose le génère ensuite |
 | Passe 3 : re-test des blocages | fait | Vaultwarden toujours `locked` (`bw status`) ; nabla-openclaw : note de l'étape 10 (8f4c935) ; fastapi-sample : acceptation de `composeProfiles` demandée à la passe en cours de #452, la génération côté nabla-compose attend son déploiement |
+| Mimir : rétention de 90 jours | DEPLOYED | 1a029c66 ; `docker restart mimir` ; `/config` → `compactor_blocks_retention_period: 90d`, `/ready`, erreurs « empty ring » éteintes en 15 s |
+| Passe 4 : re-test | fait (03:25) | Gatus 68/68 ; Prometheus 38 cibles, aucune cible non `planned` en panne ; seule alerte `TrueNASHostIOPressureHigh` (test SMART de la nuit et build FastAPI) ; Vaultwarden `locked` |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
