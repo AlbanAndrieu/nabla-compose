@@ -117,17 +117,17 @@ class CloudflareContract(unittest.TestCase):
         self.assertIsNotNone(route)
         self.assertEqual(route.group(1), "http_status:404")
 
-    def test_bypassed_honeypot_route_is_refused_until_its_app_runs(self):
-        # Same precedent as joplin: "Everyone bypass" with nothing listening would
-        # publish any future listener on :31090. Set the App's port only once the
-        # honeypot App runs on TrueNAS (owner decision, 20/11/2026).
+    def test_bypassed_honeypot_route_reaches_only_the_honeypot_app(self):
+        # Owner decision, 20/11/2026: the trap is public behind "Everyone bypass".
+        # The route targets the published port of the honeypot App (running on
+        # TrueNAS since 21/11/2026), nothing else.
         tunnel = (TF / "tunnel.tofu").read_text(encoding="utf-8")
         route = re.search(
             r'hostname\s*=\s*"login\.albandrieu\.com".*?service\s*=\s*"([^"]*)"',
             tunnel, re.S,
         )
         self.assertIsNotNone(route)
-        self.assertEqual(route.group(1), "http_status:404")
+        self.assertEqual(route.group(1), "http://172.17.0.24:31090")
         self.assertNotIn('"honeypot-albandrieu.albandrieu.com"', tunnel)
         access = (TF / "access.tofu").read_text(encoding="utf-8")
         block = access.split('"honeypot_login"', 1)[1].split("\nresource ", 1)[0]
