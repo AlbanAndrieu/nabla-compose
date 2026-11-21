@@ -244,6 +244,33 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
    Vaultwarden 1.37.5 est `CODED` (78415e6e) mais pas déployé (voir le point
    Secrets du P0 Cloudflare).
 
+## Réception 21/11 — rapports NFS, ingress et honeypot
+
+- **CTEM TrueNAS → workstation** : `/mnt/cpool/www` est confirmé
+  monté en NFSv4.2 sur `/media/www`; les symlinks historiques Apache
+  servent directement ce partage, **pas** un miroir local. Le futur
+  rapport CTEM expurgé sera copié depuis ce partage par
+  `ansible-workstation #39` vers `/var/www/reports/ctem`, mais le
+  port LAN 8087 et le contrôle Apache effectif sont **NOT_VERIFIED**
+  (Apache `-S` n'affiche que 80/8082). Le répertoire
+  `nabla-site-apache/public` est modifiable par `www-data` : audit
+  des ACL avant exposition. [Runbook partagé](runbooks/workstation-truenas-report-sharing-and-honeypot.md).
+- **FastAPI** : routeur Traefik historique `sample.int.albandrieu.com`
+  retiré du Compose après redéploiement annoncé ; route publique
+  canary avec CrowdSec conservée, Tunnel direct 8091 par défaut,
+  SNI d'origine vérifié `traefik.int.albandrieu.com`.
+  Réception runtime/TLS et nettoyage éventuel DNS Pi-hole à faire.
+- **Honeypot `login.albandrieu.com`** : LAN `:31090` servi ;
+  le Tunnel **déclaré** pointe directement sur le port (pas Traefik).
+  Publication DNS / Access `Everyone bypass` non vérifiée live.
+  Le service est Project Honey Pot, **sans formulaire de connexion**
+  ni CAPTCHA ; si un leurre `/login` est approuvé, envisager
+  Traefik + CrowdSec sur ce chemin seulement, sans interférer avec
+  `/` (collecte) et `/healthz` (sonde). Pas de bannissement LAPI
+  ni d'activation Turnstile à partir des seules métriques :
+  `appsec_collections=PASS_INSTALLED` et metrics disponibles,
+  **403 non testé**, admin Traefik non attesté. Aucun apply Cloudflare.
+
 ## Historique minimal : problèmes à ne pas reproduire
 
 Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrations-retour-experience.md) ; le tableau original est dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md). Aucune ancienne procédure n'autorise une mutation actuelle.
