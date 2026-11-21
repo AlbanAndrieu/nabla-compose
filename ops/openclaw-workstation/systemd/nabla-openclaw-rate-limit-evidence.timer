@@ -1,9 +1,0 @@
-[Unit]
-Description=Periodic OpenClaw 429 evidence sampling (opt-in)
-[Timer]
-OnBootSec=10min
-OnUnitActiveSec=10min
-Unit=nabla-openclaw-rate-limit-evidence.service
-Persistent=false
-[Install]
-WantedBy=timers.target

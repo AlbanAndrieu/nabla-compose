@@ -192,6 +192,10 @@ la PR #386 ; ne pas créer une deuxième ADR-0003.
   ensemble). Options `argparse` identiques 5/5 avec OpenClaw `1bf9857` ;
   codes retour et sorties encore à recetter sur fixtures.
   [Relevé](runbooks/operator-script-ownership-inventory.md).
+  **21/11** : famille Workstation Gateway retirée de Compose (scripts
+  `scripts/workstation/*openclaw*`, tests, recettes, `ops/openclaw-workstation/`),
+  dont les cinq homonymes ; `nabla-openclaw` en est la seule source. Restent
+  le tunnel et le préflight LiteLLM TrueNAS.
 - **D1–D2** converger les outils Gateway dans `nabla-openclaw` et les audits
   OS dans `ansible-workstation`, avec wrappers temporaires et rollback.
   Conserver la logique inter-hôtes de LiteLLM/TrueNAS dans Compose.
