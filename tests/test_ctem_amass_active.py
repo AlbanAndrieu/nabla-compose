@@ -28,6 +28,19 @@ class AmassActiveModeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MOD["enum_arguments"](["example.com"], "deep")
 
+    def test_external_active_is_manual_opt_in_without_public_graph(self):
+        workflow = (ROOT / ".github/workflows/external-attack-surface.yml").read_text()
+        scanner = (ROOT / "scripts/security/run-amass-inventory.py").read_text()
+        self.assertIn("discovery-active", workflow)
+        self.assertIn("confirm_active_discovery", workflow)
+        self.assertIn('ACTIVE_APPROVED', workflow)
+        self.assertIn('mode=active', workflow)
+        self.assertIn('public-amass-summary.json', workflow)
+        self.assertNotIn('private-amass-candidates.json', workflow)
+        self.assertIn("EXTERNAL_PERSISTENCE_FORBIDDEN", scanner)
+        self.assertIn('"ephemeral-external"', scanner)
+        self.assertIn('"external-github-hosted"', scanner)
+
     def test_private_database_config_requires_ca_and_verify_full(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
