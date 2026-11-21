@@ -11,6 +11,14 @@ STORE = runpy.run_path(str(ROOT / "scripts/security/store-ctem-summary.py"))
 PROJECT = runpy.run_path(str(ROOT / "scripts/security/project-ctem-mail-findings.py"))
 VALIDATE = runpy.run_path(str(ROOT / "scripts/security/validate-defectdojo-report.py"))
 REVISION = "sha256:" + "a" * 64
+OWNED = sorted(
+    row["name"] for row in json.loads(
+        (ROOT / "config/security/public-mail-domains.json").read_text(encoding="utf-8")
+    )["domains"]
+)
+APPROVED = set(json.loads(
+    (ROOT / "config/security/defectdojo-allowed-imports.json").read_text(encoding="utf-8")
+)["producers"]["ctem-mail"]["hosts"])
 
 
 class CtemReportPipelineTests(unittest.TestCase):
@@ -20,7 +28,7 @@ class CtemReportPipelineTests(unittest.TestCase):
             "schema_version": 1, "scanner": "amass",
             "scan_mode": "active", "checked_at": "2026-11-21T01:00:00+00:00",
             "status": "OBSERVED_NOT_CERTIFIED",
-            "counts": {"albandrieu.com": 5, "albanandrieu.com": 0, "bababou.com": 0},
+            "counts": {domain: (5 if domain == "albandrieu.com" else 0) for domain in OWNED},
             "rejected_count": 0,
             "catalogReconciliation": {
                 "catalogRevision": REVISION, "catalogEntityCount": 210,
@@ -35,20 +43,22 @@ class CtemReportPipelineTests(unittest.TestCase):
 
     @staticmethod
     def mail():
+        rows = {
+            name: {
+                "domain": name, "spf_valid": True,
+                "dmarc_valid": True, "dmarc_p": "reject",
+            }
+            for name in OWNED
+        }
+        rows["albandrieu.com"]["spf_valid"] = False
+        rows["albanandrieu.com"]["dmarc_p"] = "none"
         return {
             "checked_at": "2026-11-21T01:00:00+00:00",
-            "scope": ["albandrieu.com", "albanandrieu.com", "bababou.com"],
+            "scope": OWNED,
             "checkdmarc_version": "6.0.3",
             "checkdmarc": {
                 "status": "OBSERVED_NOT_CERTIFIED",
-                "results": [
-                    {"domain": "albandrieu.com", "spf_valid": False,
-                     "dmarc_valid": True, "dmarc_p": "reject"},
-                    {"domain": "albanandrieu.com", "spf_valid": True,
-                     "dmarc_valid": True, "dmarc_p": "none"},
-                    {"domain": "bababou.com", "spf_valid": True,
-                     "dmarc_valid": True, "dmarc_p": "reject"},
-                ],
+                "results": list(rows.values()),
             },
         }
 
@@ -86,7 +96,7 @@ class CtemReportPipelineTests(unittest.TestCase):
             p = Path(temp) / "mail.json"
             p.write_text(json.dumps(self.mail()))
             obj, digest, _ = STORE["validate_receipt"]("checkdmarc", p)
-            self.assertEqual(obj["summary"]["domainCount"], 3)
+            self.assertEqual(obj["summary"]["domainCount"], len(OWNED))
             self.assertEqual(obj["scanner"], "checkdmarc")
             self.assertEqual(len(digest), 64)
             item = self.mail()
@@ -96,7 +106,7 @@ class CtemReportPipelineTests(unittest.TestCase):
                 STORE["validate_receipt"]("checkdmarc", p)
 
     def test_reviewed_mail_findings_pass_explicit_dojo_allowlist(self):
-        domains = set(self.mail()["scope"])
+        domains = APPROVED
         result = PROJECT["project"](
             self.mail(), domains, now=datetime(2026, 11, 21, 2, tzinfo=timezone.utc)
         )
@@ -120,7 +130,7 @@ class CtemReportPipelineTests(unittest.TestCase):
         item["checkdmarc"]["status"] = "INCOMPLETE"
         with self.assertRaises(ValueError):
             PROJECT["project"](
-                item, set(item["scope"]),
+                item, APPROVED,
                 now=datetime(2026, 11, 21, 2, tzinfo=timezone.utc),
             )
         item["checkdmarc"]["status"] = "OBSERVED_NOT_CERTIFIED"
@@ -131,7 +141,7 @@ class CtemReportPipelineTests(unittest.TestCase):
             )
 
     def test_dedup_id_stable(self):
-        domains = set(self.mail()["scope"])
+        domains = APPROVED
         clock = datetime(2026, 11, 21, 2, tzinfo=timezone.utc)
         one = PROJECT["project"](self.mail(), domains, now=clock)
         two = PROJECT["project"](self.mail(), domains, now=clock)
