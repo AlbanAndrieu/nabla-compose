@@ -34,7 +34,8 @@ changes the existing `sample.int.albandrieu.com` router.
 
 `terraform/cloudflare/tunnel.tofu` has an explicit boolean switch
 `fastapi_sample_tunnel_via_traefik=false` by default. The reviewed canary
-target is `https://172.17.0.24:443`, `origin_server_name =
+target is `https://traefik:443` (Traefik joins cloudflared's own network
+`ix-cloudflared_default`), `origin_server_name =
 sample.int.albandrieu.com` and `http_host_header =
 fastapi-sample.albandrieu.com` with TLS verification. It must not silently
 set `no_tls_verify=true`. **Shared tunnel state:** confirm the *entire* plan

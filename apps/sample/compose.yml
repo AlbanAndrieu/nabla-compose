@@ -209,6 +209,8 @@ services:
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.average=30"
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.period=1s"
       - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.burst=100"
+      # Per client: rightmost X-Forwarded-For entry, appended by Cloudflare and kept only from cloudflared.
+      - "traefik.http.middlewares.fastapi-sample-public-rate.ratelimit.sourcecriterion.ipstrategy.depth=1"
       - "traefik.http.routers.fastapi-sample-hook.rule=Host(`fastapi-sample.albandrieu.com`) && Path(`/webhooks/github`) && Method(`POST`)"
       - "traefik.http.routers.fastapi-sample-hook.entrypoints=websecure"
       - "traefik.http.routers.fastapi-sample-hook.tls=true"
@@ -218,6 +220,8 @@ services:
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.average=2"
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.period=1s"
       - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.burst=10"
+      # Per client: rightmost X-Forwarded-For entry, appended by Cloudflare and kept only from cloudflared.
+      - "traefik.http.middlewares.fastapi-sample-hook-rate.ratelimit.sourcecriterion.ipstrategy.depth=1"
     networks:
       # Dedicated observer network: do not reserve the TrueNAS allowlisted
       # source address inside the shared intranet pool. Docker may legitimately

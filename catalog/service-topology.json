@@ -3190,6 +3190,7 @@
         "provider": "truenas-app",
         "containerService": "traefik",
         "networks": [
+          "ix-cloudflared_default",
           "traefik_network"
         ]
       },

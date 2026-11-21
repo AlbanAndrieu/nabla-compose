@@ -88,7 +88,7 @@ Leçon : `systemd-run` en root fait refuser à git un checkout appartenant à `a
 ## Questions en attente
 
 Reprises du [runbook du 20/11](2026-11-20-roadmap-pass-blockers.md), à poser
-après la cinquième passe : Q1 (CrowdSec et Tunnel ; #432 prépare la première option, Tunnel via Traefik en canary avec CrowdSec AppSec, à confirmer), Q2 (Watchtower), Q5
+après la cinquième passe : Q1 (tranchée le 21/11 : bouncer Cloudflare de CrowdSec en périphérie, et Traefik/CrowdSec voient l'IP publique via `Cf-Connecting-Ip`/`X-Forwarded-For` depuis cloudflared, #432), Q2 (Watchtower), Q5
 (`talosconfig` dans Vaultwarden), Q6 (secours DNS et préfixe IPv6).
 
 Nouvelles :

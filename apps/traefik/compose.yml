@@ -82,6 +82,9 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--entrypoints.websecure.address=:443"
+      # Only cloudflared (its own Docker network, joined below) may assert the client IP;
+      # X-Forwarded-* from any other peer is replaced by the socket address.
+      - "--entrypoints.websecure.forwardedHeaders.trustedIPs=10.200.2.0/24"
       # Prometheus is separate from the admin API and LAN-bound on :8082.
       - "--entrypoints.metrics.address=:8082"
       - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
@@ -133,6 +136,9 @@ services:
       - "--accesslog.bufferingsize=100"
       - "--accesslog.fields.headers.defaultmode=drop"
       - "--accesslog.fields.headers.names.User-Agent=keep"
+      # Client IP set by the Cloudflare edge. CrowdSec uses it only when ClientHost is
+      # cloudflared (apps/crowdsec/parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml).
+      - "--accesslog.fields.headers.names.Cf-Connecting-Ip=keep"
 
       # Metrics
       - "--metrics.prometheus=true"
@@ -167,7 +173,7 @@ services:
       - ./dynamic:/etc/traefik-dynamic:ro
       # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro
 
-    networks: ["traefik_network"]
+    networks: ["traefik_network", "cloudflared_tunnel"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/traefik"
       # Only the private split-DNS hostname may reach api@internal.
@@ -276,6 +282,11 @@ networks:
     # driver: bridge
     external: true
   ix-dozzle_default:
+    external: true
+  # Network of the cloudflared catalog App: the Tunnel canary reaches Traefik directly,
+  # so the socket peer is cloudflared itself, not the NAT gateway shared by every container.
+  cloudflared_tunnel:
+    name: ix-cloudflared_default
     external: true
 
 volumes:

@@ -131,6 +131,7 @@ services:
       # AppSec acquis.d/appsec.yaml is mounted by the SAME read-only directory.
       # AppSec 7422 is Docker-network-only: never list it under `ports`.
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
+      - ./parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml:/etc/crowdsec/parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml:ro
       - type: bind
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
         target: /logs/suricata

@@ -197,11 +197,13 @@ locals {
       hostname = "fastapi-sample.albandrieu.com"
       # Opt-in canary; unchanged direct origin by default. SNI verifies the
       # existing internal certificate while Host selects the public router.
+      # "traefik" resolves on cloudflared's own network (Traefik joins
+      # ix-cloudflared_default), so Traefik sees cloudflared as the socket peer.
       origin_request = {
         origin_server_name = var.fastapi_sample_tunnel_via_traefik ? "sample.int.albandrieu.com" : null
         http_host_header   = var.fastapi_sample_tunnel_via_traefik ? "fastapi-sample.albandrieu.com" : null
       }
-      service = var.fastapi_sample_tunnel_via_traefik ? "https://172.17.0.24:443" : "http://172.17.0.24:8091"
+      service = var.fastapi_sample_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:8091"
     },
     {
       hostname       = "openrag.albandrieu.com"
