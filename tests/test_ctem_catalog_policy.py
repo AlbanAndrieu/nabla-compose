@@ -1,5 +1,6 @@
 """Offline CTEM V2 policy drift tests; no real scans or cloud access."""
 from pathlib import Path
+import json
 import runpy
 import unittest
 from unittest.mock import patch
@@ -25,6 +26,29 @@ class CatalogPolicyAuditTests(unittest.TestCase):
                 "metadata": {"annotations": {}},
                 "x-nabla": {"exposure": [{"hostnames": [hostname],
                                            "visibility": visibility}]}}
+
+    def test_real_catalog_is_lan_only_clean_after_regeneration(self):
+        root = Path(__file__).resolve().parents[1]
+        catalog = json.loads(
+            (root / "catalog/generated/entities.json").read_text(encoding="utf-8")
+        )
+        inventory = runpy.run_path(
+            str(root / "scripts/security/run-amass-inventory.py")
+        )
+        policy = runpy.run_path(
+            str(root / "scripts/security/check-public-exposure-paths.py")
+        )
+        report, conflicts = self.audit(
+            catalog, inventory["load_domains"](), set(policy["LAN_ONLY_NAMES"])
+        )
+        self.assertEqual(conflicts, [])
+        self.assertEqual(report["status"], "DECLARED_SCOPE_NO_LAN_ONLY_CONFLICT")
+        gpu = [entity for entity in catalog["entities"]
+               if entity["entityRef"] == "component:default/ollama-gpu"]
+        self.assertEqual(len(gpu), 1)
+        exposure = gpu[0]["x-nabla"]["exposure"]
+        self.assertTrue(exposure)
+        self.assertTrue(all(row["visibility"] == "lan" for row in exposure))
 
     def test_detects_stale_public_intent_without_running_amass(self):
         payload = self.catalog(self.entity("ollama", "ollama.example.com", "public"))
