@@ -10,7 +10,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | nabla-compose | [#430](https://github.com/AlbanAndrieu/nabla-compose/pull/430) |
 | fastapi-sample | [#452](https://github.com/AlbanAndrieu/fastapi-sample/pull/452) |
 | nabla-openclaw | [#26](https://github.com/AlbanAndrieu/nabla-openclaw/pull/26) |
-| nabla-site-alban | aucune PR ouverte : branche créée au premier changement |
+| nabla-site-alban | branche `feat/roadmap-20261121` (79789e3), PR Draft à ouvrir dès que le master SSH GitHub est rouvert |
 | ansible-workstation | [#38](https://github.com/AlbanAndrieu/ansible-workstation/pull/38) |
 
 ## Compteur
@@ -63,6 +63,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | FastAPI Sample 1.39.0 (master da6ef747) sur TrueNAS | DEPLOYED | `update-fastapi-sample.sh` (`systemd-run`, `HOME=/root`), `Result=success`, observateur et Prometheus/Gatus OK ; build de 1 h, ralenti par le test SMART de la nuit |
 | Readiness TrueNAS stricte | ACCEPTED | `diagnose-service-readiness.py --check --strict` : HEALTHY=8, WARN=0, BLOCKED=0 (LiteLLM 25b78deb, Sample attesté) |
 | Smoke RBAC pfSense retiré de `update-fastapi-sample.sh` (pfSense retiré le 18/11) | CODED | il ne pouvait plus que lever un WARN |
+| nabla-site-alban passe 1 : `master` rouge réparé (next 16.4.6), retrait pfSense affiché, garde H17 (aucun lecteur V1/legacy) | TESTED | c34eab0, 3d71fb8, da026a6, 79789e3 ; `quality:agent:publish` PASS (`QG_PUBLISH_PROOF_OK`) dans un clone propre ; push bloqué par l'invite YubiKey (master GitHub expiré) |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
@@ -91,4 +92,7 @@ Nouvelles :
 - **O3 — Vercel FinOps** : export JSON du tableau *Usage*.
 - **P1 — pre-commit sur les 50 autres dépôts** : ajouter le workflow partout représente 50 nouvelles PR à relire. Inventaire GraphQL du 21/11 (56 dépôts non archivés) : 33 ont un `.pre-commit-config.yaml`, dont environ 24 sans workflow nommé pre-commit, lint ou quality ; 16 d'entre eux ont été poussés depuis septembre. 22 n'ont ni config ni workflow. Proposition : commencer par ces 16 dépôts actifs ; d'accord ?
 - **P3 — étape 10, famille Workstation Gateway** : le lot 3a retire les recettes `openclaw-429-attribution*` et la sonde des cooldowns d'auth. Le reste (`repair-openclaw-429.py`, `upgrade-openclaw-mise.py` et environ 35 autres scripts sous `scripts/workstation/`, leurs tests, une trentaine de recettes et 13 fichiers sous `ops/`) s'appelle en chaîne (`backup-openclaw.sh`, `openclaw-route-metadata.py`, `openclaw-recovery-readonly.sh`) et ne peut partir qu'en un lot de plus de 20 fichiers, et le gate exige `QUALITY_ALLOW_LARGE_DELETION=1` après revue explicite pour les fichiers de plus de ~300 lignes : d'accord pour un commit unique, et pour ce drapeau ?
+- **S1 — icônes du site** : 9 icônes manquent à nabla-site-alban pour suivre `catalog/service-icons.json` (apisix, bazarr, bitcoin, gluetun, honeypot, jellyfin, qbittorrent, recyclarr, seerr) : télécharger depuis selfh.st, ou `generic-app.svg` côté Compose ?
+- **S2 — Stripe A5** : quelle persistance pour les événements webhook ?
+- **S3 — graphe OWNER du site** : recâbler en Freebox → R7000 + Pi-hole et retirer le mode « direct » ?
 - **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 12 du plan de performance)
