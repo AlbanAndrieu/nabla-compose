@@ -3202,7 +3202,7 @@
       "kind": "storage-platform",
       "category": "infrastructure",
       "sourcePath": "apps/homarr/compose.yml",
-      "url": "https://truenas.albandrieu.com:7000",
+      "url": "https://truenas.albandrieu.com",
       "description": "TrueNAS SCALE storage and application host.",
       "presentationRole": "core",
       "criticality": "critical"
