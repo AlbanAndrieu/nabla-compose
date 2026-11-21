@@ -24,6 +24,37 @@
 
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
+### Suite du 21/11 — H04/H05 : honeypot / identité du trafic
+
+- **DNS `login.albandrieu.com` :** le propriétaire a supprimé
+  le A périmé `82.66.4.247`. `dig @1.1.1.1` ne retourne plus
+  de A et la sonde HTTPS échoue en résolution ; le LAN
+  `172.17.0.24:31090/healthz` répond `ok`.
+  **Prochaine réception H04 :** état Cloudflare Garage, plan import-first
+  du CNAME proxifié vers le Tunnel et Access `Everyone bypass`,
+  puis HTTP 200 externe sur `/healthz` (sans hit `/`).
+- **Honeypot Traefik/CrowdSec (#436), CODED / NOT_DEPLOYED :**
+  routeurs `login` avec peer Cloudflare Tunnel 10.200.2.0/24,
+  AppSec fail-closed et rate-limit HTTP, réseau Docker Traefik ;
+  switch `honeypot_tunnel_via_traefik=false` par défaut avec
+  rollback direct 31090. Une page `/login` de simulation
+  ne transmet aucun champ d'identifiants et POST est refusé 403
+  avant PHP. Scénario de burst CrowdSec versionné **non monté**,
+  simulation avant toute remédiation IP et revue des faux positifs.
+  Le certificat/SNI, 403 AppSec, dashboard et IP réelle restent
+  **NOT_VERIFIED** ; aucune activation du Tunnel depuis GitHub.
+- **CTEM détection / minimisation :** un agrégateur read-only
+  `summarize-honeypot-traefik.py` retient seulement les requêtes
+  des routeurs honeypot ayant un peer `cloudflared` prouvé,
+  regroupe méthodes/chemins reconnus/codes et compte IP distinctes
+  **sans publier les adresses ni les logs bruts**. Pas de
+  collecte d'identité civile. Prévoir la conservation privée et
+  l'UX OWNER, avant toute diffusion de compteurs. Le site
+  `nabla-site-alban` dispose déjà de `/[locale]/login`
+  (démo Turnstile) : étude d'un GET vers le leurre TrueNAS
+  sans POST d'identifiants ni cross-origin credential forwarding.
+  [Runbook](../apps/honeypot/README.md).
+
 ## CTEM — réconciliation du 21 novembre 2026 (H04/H05/H13/H17)
 
 Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-external-exposure.md), sans roadmap parallèle : **H04** = exposition et contrôles de frontière ; **H05** = inventaire Amass (GitHub passif ou actif externe sur approbation, TrueNAS actif via le PostgreSQL partagé) et rapprochement Backstage V2 ; **H13** = findings qualifiés dans DefectDojo ; **H17** = fiabilité des entités et révisions. Priorité au contrôle déclaratif sans accès LAN ; les campagnes actives sont séparées, bornées et autorisées. L'ordre général H01 → H02 → H04 → H05 → H12 → H13 → H16 n'est pas modifié.
