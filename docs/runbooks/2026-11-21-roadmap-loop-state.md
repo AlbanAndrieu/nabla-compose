@@ -22,6 +22,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | 3 | 21/11 | 21/11 | fait : skill (e863e844), refactorisation (lot 3a), docs |
 | 4 | 21/11 | 21/11 | après la passe 6 |
 | 5 | 21/11 | 21/11 | après la passe 6 ; questions posées à l'issue de cette passe |
+| 6 | 21/11 | 21/11 | à faire : réconciliation (skill, instructions, docs, refactorisation) |
 
 ## Journal
 
@@ -72,6 +73,17 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Réconciliation des roadmaps sur #432 | CODED | `roadmap.md` : doublons fusionnés (ordre H01→H16, H05, H12, Talos, Cloudflare, fastpool, H18) et éléments terminés retirés (H01 réceptionné, H02, fenêtre nocturne, SMART, redéploiements, rétention Mimir, ddns-updater, Terragrunt CD) ; portfolio : H01 `ACCEPTED`, H05/H08/H10/H17 au 21/11, addenda H13/H20 dupliqués retirés ; `check-roadmap-portfolio.py --check` PASS |
 | Vaultwarden 1.37.3 au lieu de 1.37.5, `bitwarden-api` en boucle | constaté | `docker ps` : `vaultwarden/server:1.37.3` (App `ix-vaultwarden`, aucun conteneur `doco-cd`) alors que `master` déclare 1.37.5 ; `bitwarden-api` : 692 redémarrages, « Vault is locked » |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
+| Passe 6 (décisions du propriétaire, 21/11 après-midi) : IP cliente publique derrière le Tunnel (Traefik `forwardedHeaders.trustedIPs` limité à `ix-cloudflared_default`, plugin CrowdSec sur `Cf-Connecting-Ip`, parseur `s02-enrich`) | CODED | 482629ba ; contrats edge verts ; `NOT_RUN` : déploiement Traefik/CrowdSec et vérification de l'IP réelle dans `access.log` |
+| Bouncer Cloudflare Worker de CrowdSec (profil `cloudflare-bouncer`, jeton `nabla-crowdsec-cloudflare-bouncer` limité à albandrieu.com) | CODED | 69a08d34 ; `NOT_RUN` : apply du jeton, secrets, démarrage, passage manuel des routes en Fail Open |
+| Watchtower retiré au profit de Renovate (Q2) | CODED | 06ecc705 ; réactivation de l'App Renovate : étape du propriétaire (navigateur de l'agent non connecté à GitHub) |
+| Préfixe IPv6 masqué dans la doc réseau, DNS du R7000 décidé (Q6) | CODED | 627f0e58 ; le préfixe reste dans `scripts/truenas/ipv6-guard.nft` et l'historique Git ; réglage du R7000 : étape du propriétaire |
+| P3 : famille Workstation Gateway supprimée (90 fichiers, 73 recettes) | TESTED | 61c11dcb (sous-agent vérifié : suite complète 3175 verts) ; gate avec `QUALITY_ALLOW_LARGE_DELETION=1` |
+| Vaultwarden 1.37.5 (correctif sécurité) | DEPLOYED | snapshot `cpool/vaultwarden@pre-1.37.5-20261121`, `midclt call -j app.redeploy vaultwarden` ; `vaultwarden/server:1.37.5` `healthy`, `/alive` 200 |
+| `bitwarden-api` en boucle : cause | DEPLOYED | Pi-hole gardait `172.17.0.24 vaultwarden.albandrieu.com` (et `garage.albandrieu.com`) sans routeur Traefik : tout client LAN relayé par le R7000 recevait le 404 de Traefik, apps Bitwarden mobiles en Wi-Fi comprises. Retirés par `scripts/truenas/pihole-public-host-override.sh` (c62cd8d5, `check` → `apply` → `check` `ABSENT`) ; le LAN suit désormais la route publique, Access garde `/admin`. Après `docker restart`, l'adaptateur est `healthy`, 0 redémarrage, « Syncing complete ». `hello.albandrieu.com` et `garage-admin.albandrieu.com` ont la même surcharge mais aucun enregistrement public : laissés |
+| FinOps Vercel (O3, relevé par l'agent) | constaté | tableau *Usage* (navigateur intégré) : CPU actif Fluid 4 h 22 min sur 30 jours, soit 109 % du quota Hobby de 4 h ; une hausse temporaire ×3 jusqu'au 9/12 ramène l'usage à 36 %. API Billing FOCUS : 404 `costs_not_found` ; AI Gateway : vide ; la ventilation par projet ne s'affiche pas. Seuil `CRITICAL` (90 %) de `docs/vercel-finops.md` (nabla-openclaw) dépassé hors dérogation |
+| fastapi-sample passe 2 (suite) : F14 (1), F01 `deployment_id`, F07 ZFS par service, master rouge réparé | TESTED | #452 fusionnée pendant la passe ; reprise en [#455](https://github.com/AlbanAndrieu/fastapi-sample/pull/455) (Draft, 25a05710), L2 et L3 verts |
+| nabla-site-alban S1–S3 : 9 icônes (selfh.st CC BY 4.0, APISIX officiel, honeypot générique), graphe OWNER Freebox → R7000 → Pi-hole, registre Postgres des webhooks Stripe | TESTED | #336 à 6a0b17f2, `quality:agent:publish` vert ; `NOT_RUN` : provisionnement Neon et test Stripe |
+| P1 : pre-commit sur ansible-synergy | CODED | #3 à 7ef08627 : hooks réparés, le check échoue désormais sur de vrais constats (ansible-lint 46, shellcheck `.envrc`, conflit pyupgrade/fix-encoding-pragma, `git-branches-check` sans `user.name` en CI) |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
 
@@ -79,27 +91,33 @@ Leçons (à reporter dans le skill au cycle de réconciliation) :
 - Toutes les sous-parties d'une même App TrueNAS déclarent le même `status` x-nabla ; un service optionnel passe par un profil Compose (précédent `dsomm-baseline`).
 - `docker logs` doit montrer `init process complete` avant `pg_isready` : l'entrypoint PostgreSQL répond depuis un serveur `initdb` temporaire puis redémarre.
 
-Refactorisation de la passe 3 (signalée par la passe 2 d'openclaw) : lot 3a fait (recettes `openclaw-429-attribution*`, sonde des cooldowns d'auth et son test), reste soumis à P3. Avant : l'étape 10 n'avait pas bougé depuis le 11/11. Restent 41 scripts OpenClaw sous `scripts/workstation/` et 13 fichiers sous `ops/` ; les recettes `openclaw-upgrade-local-*` et `openclaw-429-*` visent le Gateway Workstation, désactivé depuis le 3/11.
+Refactorisation de la passe 3 (signalée par la passe 2 d'openclaw) : lot 3a fait (recettes `openclaw-429-attribution*`, sonde des cooldowns d'auth et son test), puis P3 accordé et fait le 21/11 (61c11dcb). Avant : l'étape 10 n'avait pas bougé depuis le 11/11. Restent 41 scripts OpenClaw sous `scripts/workstation/` et 13 fichiers sous `ops/` ; les recettes `openclaw-upgrade-local-*` et `openclaw-429-*` visent le Gateway Workstation, désactivé depuis le 3/11.
 
 Leçon : `ansible-playbook` ouvre son propre socket SSH (YubiKey) ; `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`, sans `ControlPersist`, réutilise le ControlMaster de `~/.ssh/config`.
 
 Leçon : `systemd-run` en root fait refuser à git un checkout appartenant à `albandrieu` (« dubious ownership »). Passer `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory` et `GIT_CONFIG_VALUE_0=<checkout>`.
 
-## Questions en attente
+## Décisions du propriétaire (21/11)
 
-Reprises du [runbook du 20/11](2026-11-20-roadmap-pass-blockers.md), à poser
-après la cinquième passe : Q1 (tranchée le 21/11 : bouncer Cloudflare de CrowdSec en périphérie, et Traefik/CrowdSec voient l'IP publique via `Cf-Connecting-Ip`/`X-Forwarded-For` depuis cloudflared, #432), Q2 (Watchtower), Q5
-(`talosconfig` dans Vaultwarden), Q6 (secours DNS et préfixe IPv6).
+Toutes les recommandations de la passe 5 sont acceptées.
 
-Nouvelles :
+| Question | Décision | Statut |
+|---|---|---|
+| Q1 | Bouncer Cloudflare en bordure ; Traefik et CrowdSec voient l'IP publique | CODED (482629ba, 69a08d34) |
+| Q2 | Watchtower retiré, Renovate seule source | CODED (06ecc705) ; App Renovate à réactiver par le propriétaire |
+| Q5 | `talosconfig` et `kubeconfig` en pièces jointes Vaultwarden | fait : note sécurisée `nabla/prod/talos-operator` (dossier TrueNAS) créée avec les deux pièces jointes, script idempotent lancé dans le terminal du propriétaire |
+| Q6 | Pi-hole principal, Freebox secondaire sur le R7000 ; préfixe IPv6 retiré de la doc | CODED (627f0e58) ; réglage du R7000 par le propriétaire |
+| V1 | Plans et applies OpenTofu dans le terminal du propriétaire (`bw` déverrouillé constaté à 13:45) | en cours |
+| O1, O2 | Slack OpenClaw en sortie seule ; App GitHub dédiée à la devbox | consignés (nabla-openclaw aee76db) ; création de l'App `NOT_RUN` |
+| O3 | FinOps relevé par l'agent | constaté (journal) |
+| P1 | pre-commit, une PR par dépôt actif | ansible-synergy #3 ouvert ; 4 dépôts sautés car sales (nabla, nabla-projects-interview-visma, ansible-cpp, ansible-gcc) |
+| P2 | paperless-ngx en Custom App sur `/mnt/cpool/paperless` | planifié : documents personnels, migration seulement avec export vérifié et chemin de retour testé |
+| P3 | Commit unique, `QUALITY_ALLOW_LARGE_DELETION=1` | TESTED (61c11dcb) |
+| S1–S3 | Icônes selfh.st, Postgres (Neon) pour Stripe, graphe OWNER recâblé | TESTED (#336) ; Neon `NOT_RUN` |
+| F07a, F07b, F01 | netdata par App, ZFS par convention, corrélation par `FASTAPICLOUD_DEPLOYMENT_ID` | F07b et F01 TESTED (#455) ; F07a impossible tel quel (question ci-dessous) |
 
-- **V1 — Vaultwarden verrouillé** : les plans et applies Cloudflare (`CLOUDFLARE_API_TOKEN`, clés S3 de l'état Garage), les secrets de Keycloak sur Talos et les rotations H02/H03 en dépendent. Il faut une session déverrouillée (`bw unlock`, `BW_SESSION` dans l'environnement de l'agent), ou les deux variables d'OpenTofu exportées.
-- **O1 — Slack d'OpenClaw** (passe nabla-openclaw) : le canal OpenClaw porte-t-il les notifications du control plane FastAPI, en sortie seule ?
-- **O2 — identité GitHub de la devbox** : App dédiée ou compte machine ?
-- **O3 — Vercel FinOps** : export JSON du tableau *Usage*.
-- **P1 — pre-commit sur les 50 autres dépôts** : ajouter le workflow partout représente 50 nouvelles PR à relire. Inventaire GraphQL du 21/11 (56 dépôts non archivés) : 33 ont un `.pre-commit-config.yaml`, dont environ 24 sans workflow nommé pre-commit, lint ou quality ; 16 d'entre eux ont été poussés depuis septembre. 22 n'ont ni config ni workflow. Proposition : commencer par ces 16 dépôts actifs ; d'accord ?
-- **P3 — étape 10, famille Workstation Gateway** : le lot 3a retire les recettes `openclaw-429-attribution*` et la sonde des cooldowns d'auth. Le reste (`repair-openclaw-429.py`, `upgrade-openclaw-mise.py` et environ 35 autres scripts sous `scripts/workstation/`, leurs tests, une trentaine de recettes et 13 fichiers sous `ops/`) s'appelle en chaîne (`backup-openclaw.sh`, `openclaw-route-metadata.py`, `openclaw-recovery-readonly.sh`) et ne peut partir qu'en un lot de plus de 20 fichiers, et le gate exige `QUALITY_ALLOW_LARGE_DELETION=1` après revue explicite pour les fichiers de plus de ~300 lignes : d'accord pour un commit unique, et pour ce drapeau ?
-- **S1 — icônes du site** : 9 icônes manquent à nabla-site-alban pour suivre `catalog/service-icons.json` (apisix, bazarr, bitcoin, gluetun, honeypot, jellyfin, qbittorrent, recyclarr, seerr) : télécharger depuis selfh.st, ou `generic-app.svg` côté Compose ?
-- **S2 — Stripe A5** : quelle persistance pour les événements webhook ?
-- **S3 — graphe OWNER du site** : recâbler en Freebox → R7000 + Pi-hole et retirer le mode « direct » ?
-- **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 6 du plan de performance)
+## Questions ouvertes (à poser après la cinquième passe suivante)
+
+- **F07a** : TrueNAS 27.0.0-RC.1 n'a pas de graphe netdata par App (`reporting.netdata_get_data` ne sert que ses graphes fixes). La seule source par App est l'abonnement `app.stats`, par App et non par service Compose : remplace-t-il cAdvisor ?
+- **ansible-synergy #3** : corriger les constats ansible-lint et shellcheck dans cette PR, ou d'abord fusionner #2 (`fix/ansible-core-2.21`) qui en couvre une partie ?
+- **Surcharges Pi-hole sans route publique** : `hello.albandrieu.com` et `garage-admin.albandrieu.com` renvoient le 404 de Traefik en LAN ; les retirer (NXDOMAIN) ou leur donner un routeur ?
