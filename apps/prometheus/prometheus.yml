@@ -400,16 +400,6 @@ scrape_configs:
           platform: truenas
           role: object-storage
 
-  # This exporter is intentionally a pfSense HAProxy observer. Its scrape input
-  # is configured by PFSENSE_HAPROXY_SCRAPE_URI in apps/haproxy-exporter.
-  - job_name: haproxy
-    static_configs:
-      - targets:
-          - 172.17.0.24:9101
-        labels:
-          platform: truenas
-          operational_state: planned
-
   - job_name: clickhouse
     metrics_path: /metrics
     static_configs:

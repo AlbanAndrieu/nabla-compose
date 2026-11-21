@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:5c4bd0a8670a7b72dd4a4ad49ea0bbc8f7542678e1f488ca537b8e25cbbc6aec",
+  "catalogRevision": "sha256:99ad715861c70749a28a220114beafbb78be31d8e85aa00ca7c4684c7a64a598",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1019,7 +1019,7 @@
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
       "composeService": "haproxy-exporter",
-      "status": "planned",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "haproxy-exporter"

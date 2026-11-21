@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:f3d7803ef64e6dec6bc0adf0b7c9d74414e929d3b6793b30fba4178fe82fd7d9",
+  "catalogRevision": "sha256:d8c2d483ca616bc606010de7285d7a750118779a454063209ac687d397a4bf49",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -1211,7 +1211,7 @@
         "provider": "truenas-app"
       },
       "sourcePath": "apps/haproxy-exporter/compose.yml",
-      "status": "planned"
+      "status": "disabled"
     },
     {
       "category": "operations",
@@ -3549,7 +3549,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:5c4bd0a8670a7b72dd4a4ad49ea0bbc8f7542678e1f488ca537b8e25cbbc6aec",
+  "operatorRevision": "sha256:99ad715861c70749a28a220114beafbb78be31d8e85aa00ca7c4684c7a64a598",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -8086,7 +8086,7 @@
         "provider": "truenas-app"
       },
       "sourcePath": "apps/haproxy-exporter/compose.yml",
-      "status": "planned"
+      "status": "disabled"
     },
     {
       "category": "development",

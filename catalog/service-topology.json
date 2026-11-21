@@ -1065,7 +1065,7 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
-      "status": "planned",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "haproxy-exporter"
