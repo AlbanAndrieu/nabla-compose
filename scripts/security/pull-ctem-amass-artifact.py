@@ -54,6 +54,47 @@ def verify_artifact(items: list, run_id: int) -> int:
     return matches[0]["id"]
 
 
+def strict_public_summary(data: dict) -> None:
+    """Reject any unexpected field, even nested; no candidates in artifacts."""
+    fields = {
+        "schema_version", "scanner", "scanner_version", "scan_mode",
+        "asset_database", "checked_at", "source_revision", "vantage",
+        "status", "scope", "counts", "rejected_count",
+        "catalogReconciliation", "finding_semantics",
+    }
+    cat_fields = {
+        "catalogRevision", "catalogEntityCount", "catalogHostnameCount",
+        "catalogHostnamesMissingGithubProject", "catalogLanOnlyPolicyConflicts",
+        "candidateMatchCounts", "matchedCandidatesMissingGithubProject",
+        "semantics", "status",
+    }
+    matches = {
+        "MATCHED_PUBLIC_INTENT", "LAN_ONLY_POLICY_REVIEW",
+        "NON_PUBLIC_INTENT_REVIEW", "AMBIGUOUS_ENTITY_REVIEW", "UNMAPPED_REVIEW",
+    }
+    rec = data.get("catalogReconciliation")
+    counts = data.get("counts")
+    if (set(data) != fields or not isinstance(rec, dict)
+            or set(rec) != cat_fields or not isinstance(counts, dict)
+            or not 0 < len(counts) <= 100
+            or any(not isinstance(k, str) or not re.fullmatch(r"[a-z0-9.-]{1,253}", k)
+                   or type(n) is not int or not 0 <= n <= 1_000_000
+                   for k, n in counts.items())
+            or not isinstance(data.get("scope"), list)
+            or data["scope"] != sorted(counts)
+            or not isinstance(rec.get("candidateMatchCounts"), dict)
+            or set(rec["candidateMatchCounts"]) != matches
+            or any(type(n) is not int or n < 0
+                   for n in rec["candidateMatchCounts"].values())
+            or sum(rec["candidateMatchCounts"].values()) != sum(counts.values())
+            or any(type(rec.get(k)) is not int or rec[k] < 0
+                   for k in ("catalogEntityCount", "catalogHostnameCount",
+                             "catalogHostnamesMissingGithubProject",
+                             "catalogLanOnlyPolicyConflicts",
+                             "matchedCandidatesMissingGithubProject"))):
+        raise ValueError("external Amass report schema contains unapproved fields")
+
+
 def unpack(archive: bytes, sha: str) -> bytes:
     if not 0 < len(archive) <= MAX_ARCHIVE:
         raise ValueError("external Amass ZIP oversized")
@@ -78,7 +119,8 @@ def unpack(archive: bytes, sha: str) -> bytes:
             or data.get("vantage") != "external-github-hosted"
             or data.get("source_revision") != sha):
         raise ValueError("external Amass artifact provenance/scope invalid")
-    # Future comparisons also validate scope and catalog revision.
+    strict_public_summary(data)
+    # Later comparison independently verifies exact owned scope and V2 revision.
     return content
 
 
