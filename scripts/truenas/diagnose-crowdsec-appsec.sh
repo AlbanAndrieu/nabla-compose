@@ -33,14 +33,44 @@ case "${mode}" in
       exit 2
     fi
     echo "appsec_network=PASS_TRAEFIK_NETWORK_JOINED"
-    installed="$(docker exec crowdsec cscli collections list 2>/dev/null || true)"
-    if ! grep -q 'crowdsecurity/appsec-virtual-patching' <<<"${installed}" ||
-       ! grep -q 'crowdsecurity/appsec-generic-rules' <<<"${installed}"; then
-      echo "appsec_collections=NOT_VERIFIED"
+    # Separate a failed cscli query from missing Hub collections; both are
+    # non-mutating NO-GO states, not evidence that the WAF blocked traffic.
+    if ! installed="$(docker exec crowdsec cscli collections list 2>/dev/null)"; then
+      echo "appsec_collections=NOT_VERIFIED_CLI_ERROR"
+      echo "appsec_next=inspect_crowdsec_cli_and_logs_readonly"
+      exit 2
+    fi
+    missing=()
+    for collection in crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules; do
+      if ! grep -Fq -- "$collection" <<<"$installed"; then
+        missing+=("$collection")
+      fi
+    done
+    if ((${#missing[@]})); then
+      echo "appsec_collections=NOT_VERIFIED_MISSING"
+      printf "appsec_collections_missing=%s\n" "$(IFS=,; echo "${missing[*]}")"
+      # Print only allowlisted COLLECTIONS state; never dump all env or secrets.
+      declared="$(docker exec crowdsec printenv COLLECTIONS 2>/dev/null || true)"
+      if [[ -z "$declared" ]]; then
+        echo "appsec_runtime_collections_declaration=NOT_VERIFIED"
+      else
+        missing_declared=()
+        for collection in "${missing[@]}"; do
+          if [[ " $declared " != *" $collection "* ]]; then
+            missing_declared+=("$collection")
+          fi
+        done
+        if ((${#missing_declared[@]})); then
+          echo "appsec_runtime_collections_declaration=MISSING_REQUIRED"
+        else
+          echo "appsec_runtime_collections_declaration=EXPECTED_PRESENT"
+        fi
+      fi
+      echo "appsec_next=review_running_compose_and_redeploy_from_versioned_source_then_recheck"
       exit 2
     fi
     echo "appsec_collections=PASS_INSTALLED"
-    unset installed
+    unset installed missing
     # Read-only metrics can confirm processing; they cannot prove HTTP blocking.
     if docker exec crowdsec cscli metrics show appsec >/dev/null 2>&1; then
       echo "appsec_metrics=AVAILABLE_BLOCK_BEHAVIOR_NOT_VERIFIED"
