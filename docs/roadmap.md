@@ -175,6 +175,11 @@ La 27.0 finale est annoncée début décembre 2026 (hôte en 27.0.0-RC.1, profil
 
 ## P1 — Assistants IA, IaC et observabilité (11 novembre 2026)
 
+- **Nexus, cache de paquets** (relevé du 22/11, lecture anonyme depuis la workstation) : 3.92.3 Community, 9 dépôts Maven et NuGet seulement ; les dépôts déclarés dans `terraform/nexus` (`apt-ubuntu-26-04`, `npm-all`, `pypi-all`, `docker-all`, `terraform-proxy`…) répondent 404, **jamais appliqués**. `nexus.int.albandrieu.com` résout vers Pi-hole, mais l'accès HTTPS privé par Traefik est désactivé (`NEXUS_PRIVATE_INGRESS_ENABLED`). Ordre :
+  - [x] proxy séparé `apt-ubuntu-26-04-security` (`security.ubuntu.com`, `resolute-security`), `CODED` le 22/11 ;
+  - [ ] `tofu plan` puis `apply` de `terraform/nexus` (jeton admin depuis Vaultwarden), relire la liste des dépôts ;
+  - [ ] accès HTTPS privé ([runbook](runbooks/nexus-private-dns-ingress.md)), puis 3.98.3 après test de restauration de `cpool/nexus3` ;
+  - [ ] clients de la workstation (apt, npm, pip, uv) : `ansible-workstation`, `docs/workstation-nexus-package-cache.md`.
 - **Mimir et Tempo** : déployés dans l'App `grafana` avec Loki et Alloy (Prometheus `remote_write` vers Mimir, rétention de 90 jours depuis le 21/11 ; Alloy reçoit l'OTLP sur 4319/4320 et l'envoie à Tempo, rétention de 14 jours). Reste :
   - [ ] instrumenter les Apps en OTLP (FastAPI Sample, LiteLLM, n8n) vers Alloy, et vérifier les traces dans Grafana ;
 
