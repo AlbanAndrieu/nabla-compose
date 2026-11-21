@@ -2078,6 +2078,7 @@
       "kind": "search",
       "category": "security",
       "sourcePath": "apps/opensearch/compose.yml",
+      "status": "active",
       "lifecycle": {
         "phase": "secondary-data",
         "priority": 30
