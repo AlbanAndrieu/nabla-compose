@@ -14,7 +14,7 @@ TARGETS = (
     "www.albanandrieu.com:443",
     "www.bababou.com:443",
     "manager.albandrieu.com:443",
-    "truenas.albandrieu.com:7000",
+    "truenas.albandrieu.com:443",
     "famp-albandrieu.albandrieu.com:443",
     "fastapi-sample.fastapicloud.dev:443",
 )

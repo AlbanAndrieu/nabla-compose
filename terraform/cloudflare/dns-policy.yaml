@@ -55,7 +55,6 @@ retired_hostnames:
   - sentry.albandrieu.com
   - toto.albandrieu.com
   - traefik.albandrieu.com
-  - truenas.albandrieu.com
   - vaultwarden-albandrieu.albandrieu.com
   - warp.albandrieu.com
   - www.toto.albandrieu.com
@@ -65,6 +64,7 @@ retired_hostnames:
 # login: the honeypot (owner decision, 20/11/2026), after its dead A was retired.
 new_tunnel_hostnames:
   - login.albandrieu.com
+  - truenas.albandrieu.com
 
 # Tunnel routes deliberately left without a public CNAME (adopted as found on
 # 14/11/2026): the route exists, the name does not resolve. Publishing one is

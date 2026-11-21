@@ -1,0 +1,11 @@
+---
+# The dashboard credential comes from the already existing Vaultwarden-managed
+# TRAEFIK_DASHBOARD_BASIC_AUTH env_file, not a Compose label or public env.
+# Missing/invalid credentials must leave this router unavailable.
+http:
+  middlewares:
+    traefik-admin-auth:
+      basicAuth:
+        removeHeader: true
+        users:
+          - '{{ env "TRAEFIK_DASHBOARD_BASIC_AUTH" }}'

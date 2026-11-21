@@ -1,0 +1,47 @@
+# CrowdSec Cloudflare Worker bouncer (21/11/2026): pushes the LAPI decisions to a
+# Worker + KV in front of the public Tunnel hostnames that bypass Cloudflare Access.
+# ${...} values are expanded by the bouncer from its environment (csstring.StrictExpand);
+# the token and LAPI key come from the rendered nabla/prod/crowdsec runtime file.
+crowdsec_config:
+  lapi_key: ${CROWDSEC_CLOUDFLARE_BOUNCER_LAPI_KEY}
+  lapi_url: http://crowdsec:8080/
+  update_frequency: 10s
+  # Free plan: 1,000 KV writes a day. Skip the community blocklist (CAPI) and
+  # sync only the local scenarios and manual cscli decisions.
+  only_include_decisions_from: ["cscli", "crowdsec"]
+  include_scenarios_containing: []
+  exclude_scenarios_containing: []
+  insecure_skip_verify: false
+
+cloudflare_config:
+  accounts:
+    - id: bdfe00eeee5845782ab91adfbff71ee1
+      account_name: nabla
+      token: ${CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN}
+      zones:
+        - zone_id: 015b9ec0f8674ce52b6cceb99d3adb3d # albandrieu.com
+          actions: [ban, captcha]
+          default_action: captcha
+          # Only the hostnames whose Access app bypasses authentication
+          # (terraform/cloudflare/access.tofu); the rest already needs a login.
+          routes_to_protect:
+            - fastapi-sample.albandrieu.com/*
+            - keycloak.albandrieu.com/*
+            - login.albandrieu.com/*
+            - joplin.albandrieu.com/*
+            - vaultwarden.albandrieu.com/*
+          turnstile:
+            enabled: true
+            rotate_secret_key: true
+            rotate_secret_key_every: 168h0m0s
+            mode: managed
+
+log_level: info
+log_media: stdout
+ban_template_path: ""
+
+# Loopback only: it backs the container healthcheck, nothing scrapes it.
+prometheus:
+  enabled: true
+  listen_addr: 127.0.0.1
+  listen_port: "2112"

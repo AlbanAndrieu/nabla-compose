@@ -382,11 +382,11 @@ scrape_configs:
           - 172.17.0.24:6060
 
   # --metrics.prometheus without its own entrypoint serves /metrics on the API
-  # entrypoint (:8080); traefik.rules.yml needs traefik_service_server_up from here.
+  # :8082 is separate from the authenticated API; keep existing rules unchanged.
   - job_name: traefik
     static_configs:
       - targets:
-          - 172.17.0.24:8080
+          - 172.17.0.24:8082
         labels:
           platform: truenas
 

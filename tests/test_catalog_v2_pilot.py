@@ -204,7 +204,8 @@ class CatalogV2PilotTests(unittest.TestCase):
             "component:default/traefik",
         )
         ports = {item["name"]: item for item in service["ports"]}
-        self.assertEqual(set(ports), {"web", "websecure", "dashboard", "metrics"})
+        # The admin API (:8080) is no longer published; Prometheus has its own :8082 entrypoint.
+        self.assertEqual(set(ports), {"web", "websecure", "metrics"})
         self.assertEqual(ports["websecure"]["app_protocol"], "https")
 
 

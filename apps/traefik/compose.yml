@@ -74,7 +74,7 @@ services:
 
       # API / Dashboard
       - "--api.dashboard=true"
-      - "--api.insecure=true"
+      - "--api.insecure=false"
 
       # Entrypoints
       - "--entrypoints.web.address=:80"
@@ -82,6 +82,11 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--entrypoints.websecure.address=:443"
+      # Only cloudflared (its own Docker network, joined below) may assert the client IP;
+      # X-Forwarded-* from any other peer is replaced by the socket address.
+      - "--entrypoints.websecure.forwardedHeaders.trustedIPs=10.200.2.0/24"
+      # Prometheus is separate from the admin API and LAN-bound on :8082.
+      - "--entrypoints.metrics.address=:8082"
       - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
 
       #  - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
@@ -122,7 +127,7 @@ services:
 
       # Logging
       # - "--log.level=INFO"
-      - "--log.level=DEBUG"
+      - "--log.level=INFO"
       # JSON file acquired by CrowdSec (apps/crowdsec/acquis.d/traefik.yaml).
       # Headers are dropped except User-Agent, needed by the HTTP scenarios.
       - "--accesslog=true"
@@ -131,9 +136,13 @@ services:
       - "--accesslog.bufferingsize=100"
       - "--accesslog.fields.headers.defaultmode=drop"
       - "--accesslog.fields.headers.names.User-Agent=keep"
+      # Client IP set by the Cloudflare edge. CrowdSec uses it only when ClientHost is
+      # cloudflared (apps/crowdsec/parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml).
+      - "--accesslog.fields.headers.names.Cf-Connecting-Ip=keep"
 
       # Metrics
       - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entrypoint=metrics"
       - "--metrics.prometheus.addentrypointslabels=true"
       - "--metrics.prometheus.addserviceslabels=true"
 
@@ -148,14 +157,11 @@ services:
         published: "443"
         protocol: tcp
         app_protocol: https
-      - name: dashboard
-        target: 8080
-        published: "8080"
-        protocol: tcp
-        app_protocol: http
+      # Dashboard/API 8080 is no longer published. Prometheus alone uses 8082.
       - name: metrics
         target: 8082
         published: "8082"
+        host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http
 
@@ -167,17 +173,20 @@ services:
       - ./dynamic:/etc/traefik-dynamic:ro
       # NOK - /mnt/cpool/traefik/routes.yml:/etc/traefik/routes.yml:ro
 
-    networks: ["traefik_network"]
+    networks: ["traefik_network", "cloudflared_tunnel"]
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/traefik"
-      # - "traefik.enable=true"
-      # - "traefik.http.routers.traefik.rule=Host(`traefik.albandrieu.com`)"
-      # - "traefik.http.routers.traefik.entrypoints=websecure"
-      # - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      # Only the private split-DNS hostname may reach api@internal.
+      # BasicAuth is read via the existing file provider from Vaultwarden's
+      # canonical TRAEFIK_DASHBOARD_BASIC_AUTH runtime environment secret.
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.int.albandrieu.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.traefik.service=api@internal" # This "api@internal" is to access the dashboard
-      # NOK - "traefik.http.routers.traefik.middlewares=traefik-auth"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
+      - "traefik.http.routers.traefik.service=api@internal"
+      # Source IP is the direct socket peer. Do not trust spoofable XFF.
+      - "traefik.http.routers.traefik.middlewares=traefik-admin-lan-only,traefik-admin-auth@file"
+      - "traefik.http.middlewares.traefik-admin-lan-only.ipallowlist.sourcerange=192.168.1.0/24,172.17.0.0/24"
 
   cloudflare-ddns:
     logging: *nabla-logging
@@ -273,6 +282,11 @@ networks:
     # driver: bridge
     external: true
   ix-dozzle_default:
+    external: true
+  # Network of the cloudflared catalog App: the Tunnel canary reaches Traefik directly,
+  # so the socket peer is cloudflared itself, not the NAT gateway shared by every container.
+  cloudflared_tunnel:
+    name: ix-cloudflared_default
     external: true
 
 volumes:

@@ -189,6 +189,7 @@ print_compact_log() {
     }
     /^FAILED tests\// || /^ERROR tests\// || /^FAIL: / || /^ERROR: / ||
     /^❌ QG_/ || /^- hook id:/ ||
+    /^stale catalog-v2 artifacts:/ || /^ - catalog\/generated\// ||
     /^  consumer_drift[.:]/ || /^  topology_drift[.:]/ {
       if (count++ < limit) print "  " $0
     }

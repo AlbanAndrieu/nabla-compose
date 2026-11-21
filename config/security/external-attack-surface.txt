@@ -7,7 +7,7 @@
 # Default backend: any unknown Host or the bare address lands on prod_back (Heimdall login).
 https://82.66.4.247
 https://manager.albandrieu.com @wan
-https://truenas.albandrieu.com:7000 @wan
+https://truenas.albandrieu.com @wan
 
 # Workstation Apache, retired from HAProxy on 15/11 (tunnel + Access only).
 https://apache.albandrieu.com @wan

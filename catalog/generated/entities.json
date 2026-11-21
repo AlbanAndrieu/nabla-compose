@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339",
+  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -1233,6 +1233,32 @@
           "provider": "truenas-app",
           "source": "apps/crowdsec/compose.yml#services/crowdsec"
         }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/crowdsec-cloudflare-bouncer",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "crowdsec-cloudflare-bouncer",
+        "tags": [
+          "security",
+          "cloudflare"
+        ],
+        "title": "CrowdSec Cloudflare Worker bouncer"
+      },
+      "sourcePath": "apps/crowdsec/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/crowdsec",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -9354,40 +9380,6 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/watchtower",
-      "kind": "Component",
-      "metadata": {
-        "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-        "labels": {
-          "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
-        },
-        "name": "watchtower",
-        "tags": [
-          "security"
-        ],
-        "title": "Watchtower"
-      },
-      "sourcePath": "apps/watchtower/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "experimental",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "image-update-auditor"
-      },
-      "x-nabla": {
-        "runtime": {
-          "composeProfiles": [
-            "manual-audit"
-          ],
-          "containerService": "watchtower",
-          "provider": "truenas-app",
-          "source": "apps/watchtower/compose.yml#services/watchtower"
-        }
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/wazuh-dashboard",
       "kind": "Component",
       "metadata": {
@@ -10644,27 +10636,20 @@
         "exposure": [
           {
             "access": {
-              "required": false
+              "required": true
             },
             "backend": {
               "appProtocol": "https",
               "host": "172.17.0.24",
               "port": 7000
             },
-            "gatewayRef": "resource:default/pfsense-haproxy",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
             "hostnames": [
               "truenas.albandrieu.com"
             ],
             "name": "public",
-            "port": 7000,
+            "port": 443,
             "protocol": "HTTPS",
-            "riskAcceptance": {
-              "control": "tls-and-api-auth",
-              "id": "truenas-public-admin",
-              "reason": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately.",
-              "reviewAfter": null,
-              "status": "accepted"
-            },
             "source": "catalog/catalog-info.yaml",
             "visibility": "public"
           }

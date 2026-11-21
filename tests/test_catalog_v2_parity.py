@@ -463,6 +463,16 @@ class CatalogV2ParityTests(unittest.TestCase):
             "internalPort": 8080, "internalSecure": False, "probePriority": 5,
         }
         self.assertEqual(route_intent_parity([row], [entity]), [])
+        # An explicitly authored HTTPS :443 is equivalent to the implicit
+        # default port in the legacy URL; an actual port mismatch is not.
+        entity["x-nabla"]["exposure"][0]["port"] = 443
+        self.assertEqual(route_intent_parity([row], [entity]), [])
+        entity["x-nabla"]["exposure"][0]["port"] = 8443
+        self.assertIn(
+            "app: 0 matching v2 routes on component:default/app",
+            route_intent_parity([row], [entity]),
+        )
+        del entity["x-nabla"]["exposure"][0]["port"]
         self.assertEqual(
             route_intent_parity(
                 [{**row, "internalPort": 9090, "cloudflareAccessRequired": False}],

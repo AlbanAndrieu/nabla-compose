@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 61 ; planifiées : 25.
+Apps : 90 ; actives : 61 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -13,9 +13,9 @@ Apps : 91 ; actives : 61 ; planifiées : 25.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 26 |
-| `NO_DEPLOY_PATH` | 18 |
+| `NO_DEPLOY_PATH` | 17 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 45 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -34,7 +34,7 @@ Apps : 91 ; actives : 61 ; planifiées : 25.
 | `clamav` | active | custom-apps.yml | `cpool/clamav` (❌)<br>`cpool/logs` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | `SNAPSHOT_UNCLASSIFIED`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | manifest | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
-| `crowdsec` | active | custom-apps.yml | `cpool/traefik` (app-state) | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
+| `crowdsec` | active | custom-apps.yml | `cpool/traefik` (app-state) | manifest | ❌ | crowdsec | — | diagnose-crowdsec-appsec.sh<br>diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
 | `cyberbro` | active | custom-apps.yml | `cpool/cyberbro` (app-state) | manifest | ✅ | — | — | diagnose-cyberbro.sh | bootstrap-cyberbro-env.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ddns-updater` | disabled | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -111,5 +111,4 @@ Apps : 91 ; actives : 61 ; planifiées : 25.
 | `traefik` | active | custom-apps.yml | `cpool/traefik` (app-state) | legacy | ❌ | traefik | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `uptimekuma` | planned | ❌ | `cpool/uptimekuma` (app-state) | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `vaultwarden` | active | custom-apps.yml | `cpool/vaultwarden` (critical) | n/a | ❌ | — | — | diagnose-vaultwarden-cli.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `watchtower` | planned | ❌ | — | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `wazuh` | active | custom-apps.yml | `cpool/secrets` (critical)<br>`cpool/wazuh` (databases) | legacy | ❌ | — | — | diagnose-wazuh.sh | apps/wazuh/config/<br>bootstrap-wazuh.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |

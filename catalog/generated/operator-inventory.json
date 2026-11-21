@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339",
+  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -135,7 +135,6 @@
     "uptimekuma": "component:default/uptimekuma",
     "vaultwarden": "component:default/vaultwarden",
     "vaultwarden-rest-api": "component:default/vaultwarden-rest-api",
-    "watchtower": "component:default/watchtower",
     "wazuh-dashboard": "component:default/wazuh-dashboard",
     "wazuh-forwarder": "component:default/wazuh-forwarder",
     "wazuh-indexer": "component:default/wazuh-indexer",
@@ -3330,6 +3329,7 @@
       "runtime": {
         "containerService": "traefik",
         "networks": [
+          "ix-cloudflared_default",
           "traefik_network"
         ],
         "provider": "truenas-app"
@@ -3345,7 +3345,7 @@
       "name": "TrueNAS",
       "presentationRole": "core",
       "sourcePath": "apps/homarr/compose.yml",
-      "url": "https://truenas.albandrieu.com:7000"
+      "url": "https://truenas.albandrieu.com"
     },
     {
       "category": "observability",
@@ -3417,24 +3417,6 @@
         "protect"
       ],
       "sourcePath": "apps/vaultwarden/compose.yml"
-    },
-    {
-      "category": "security",
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-      "id": "watchtower",
-      "kind": "image-update-auditor",
-      "name": "Watchtower",
-      "presentationRole": "support",
-      "runtime": {
-        "containerService": "watchtower",
-        "networks": [
-          "docker-proxy",
-          "intranet"
-        ],
-        "provider": "truenas-app"
-      },
-      "sourcePath": "apps/watchtower/compose.yml",
-      "status": "planned"
     },
     {
       "category": "security",
@@ -3550,7 +3532,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:bf2203fb05fea6f1a8c1718e652fb8f17b345cc7bd04014e11017447a04cc8d0",
+  "operatorRevision": "sha256:30ee567aa65f05d8e77ddd52446e14e58780c7b6bf8752d3cfd7e6202bfc77ab",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -6918,26 +6900,6 @@
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/watchtower/compose.yml:watchtower.x-nabla.runtime.containerService"
-      ],
-      "source": "watchtower",
-      "strength": "required",
-      "target": "docker",
-      "type": "hostedBy"
-    },
-    {
-      "description": "Watchtower lists containers and images through the allowlisted, POST-disabled Docker API proxy.",
-      "evidence": [
-        "apps/watchtower/compose.yml:DOCKER_HOST"
-      ],
-      "source": "watchtower",
-      "strength": "required",
-      "target": "docker-socket-proxy",
-      "type": "consumesApi"
-    },
-    {
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
         "apps/wazuh/compose.yml:wazuh.dashboard.x-nabla.runtime.containerService"
       ],
       "source": "wazuh-dashboard",
@@ -10011,6 +9973,7 @@
       "runtime": {
         "containerService": "traefik",
         "networks": [
+          "ix-cloudflared_default",
           "traefik_network"
         ],
         "provider": "truenas-app"
@@ -10090,25 +10053,6 @@
         "protect"
       ],
       "sourcePath": "apps/vaultwarden/compose.yml"
-    },
-    {
-      "category": "security",
-      "composeService": "watchtower",
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-      "id": "watchtower",
-      "kind": "image-update-auditor",
-      "name": "Watchtower",
-      "presentationRole": "support",
-      "runtime": {
-        "containerService": "watchtower",
-        "networks": [
-          "docker-proxy",
-          "intranet"
-        ],
-        "provider": "truenas-app"
-      },
-      "sourcePath": "apps/watchtower/compose.yml",
-      "status": "planned"
     },
     {
       "category": "security",

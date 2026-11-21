@@ -12,7 +12,6 @@ CONSUMERS = {
     "apps/pihole/compose.yml": "pihole-dns-sync",
     "apps/autoxpose/compose.yml": "autoxpose",
     "apps/homarr/compose.yml": "homarr",
-    "apps/watchtower/compose.yml": "watchtower",
     "apps/gatus/compose.yml": "gatus",
     "apps/grafana/compose.yml": "alloy",
 }
