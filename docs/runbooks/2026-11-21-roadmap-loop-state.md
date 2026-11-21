@@ -59,6 +59,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Passe 3 : re-test des blocages | fait | Vaultwarden toujours `locked` (`bw status`) ; nabla-openclaw : note de l'étape 10 (8f4c935) ; fastapi-sample : acceptation de `composeProfiles` demandée à la passe en cours de #452, la génération côté nabla-compose attend son déploiement |
 | Mimir : rétention de 90 jours | DEPLOYED | 1a029c66 ; `docker restart mimir` ; `/config` → `compactor_blocks_retention_period: 90d`, `/ready`, erreurs « empty ring » éteintes en 15 s |
 | Passe 4 : re-test | fait (03:25) | Gatus 68/68 ; Prometheus 38 cibles, aucune cible non `planned` en panne ; seule alerte `TrueNASHostIOPressureHigh` (test SMART de la nuit et build FastAPI) ; Vaultwarden `locked` |
+| Route Tunnel `login` → `http://172.17.0.24:31090` (honeypot) | CODED | c4fc9da0 (245df0af de la session « DNS Cloudflare morts », gate vert là-bas puis ici) ; recette LAN `/` 200, `/wp-login.php` 404 ; plan attendu du second plan : 2 ajouts, 1 modification, 0 destruction ; apply `NOT_RUN` (V1), après le retrait de l'A mort `82.66.4.247` du 7ᵉ tour |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
