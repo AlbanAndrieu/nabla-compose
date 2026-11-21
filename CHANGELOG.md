@@ -1,3 +1,10 @@
+# [0.109.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.108.0...0.109.0) (2026-11-21)
+
+
+### Features
+
+* **vercel-waf:** enforce SQLi/XSS/RCE and public rate limiting via Terraform ([#433](https://github.com/AlbanAndrieu/nabla-compose/issues/433)) ([a5e5f99](https://github.com/AlbanAndrieu/nabla-compose/commit/a5e5f99f906ec8315de2e103c187f6fa2d001fe0))
+
 # [0.108.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.107.5...0.108.0) (2026-11-21)
 
 
