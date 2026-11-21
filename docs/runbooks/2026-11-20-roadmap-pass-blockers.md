@@ -44,6 +44,6 @@ pas touchés ici.
 | Q1 | CrowdSec : faire passer le tunnel Cloudflare par Traefik (le bouncer voit alors l'IP réelle via `CF-Connecting-IP`), ou bloquer à la périphérie avec le bouncer Cloudflare de CrowdSec ? |
 | Q2 | Watchtower : on le laisse de côté au profit de Renovate, ou tu veux une surveillance des seuls tags `latest` (il faut alors autoriser les `pull` au proxy du socket) ? |
 | Q3 | Installer l'App Renovate sur tous les dépôts : https://github.com/apps/renovate, « All repositories ». Une PR d'onboarding arrivera par dépôt sans configuration. |
-| Q4 | J'approuve la bascule scrutiny après avoir relu snapshot, historique et token ? |
+| Q4 | ~~Close le 21/11 : `deploy-scrutiny.sh --check` constate la bascule faite (InfluxDB, web et collecteur `RUNNING`, SMART visible, fichier de secrets canonique).~~ J'approuve la bascule scrutiny après avoir relu snapshot, historique et token ? |
 | Q5 | Tu ranges `talosconfig` et kubeconfig dans Vaultwarden (pièces jointes d'un élément `nabla/prod/talos-operator`) ? |
 | Q6 | Restent de la passe du 18/11 : DNS distribué par le DHCP du R7000, routeur du LAN (Pi-hole seul, ou Pi-hole puis un secours hors TrueNAS ?) et le préfixe IPv6 publié dans `docs/pfsense/roadmap.md`. |
