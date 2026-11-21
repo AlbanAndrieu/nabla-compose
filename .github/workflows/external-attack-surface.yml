@@ -3,6 +3,7 @@ name: External attack surface (homelab)
 # Outside-in Nuclei scan of the homelab names that reach the pfSense HAProxy.
 # Scheduled and manual only: it hits production, so it is never a PR gate.
 on:
+  # checkov:skip=CKV_GHA_7:Manual reconnaissance uses allowlisted scan profiles and explicit WAN/CDN authorization, never build parameters.
   workflow_dispatch:
     inputs:
       scan_profile:
