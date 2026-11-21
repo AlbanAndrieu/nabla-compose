@@ -11,6 +11,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | fastapi-sample | [#452](https://github.com/AlbanAndrieu/fastapi-sample/pull/452) |
 | nabla-openclaw | [#26](https://github.com/AlbanAndrieu/nabla-openclaw/pull/26) |
 | nabla-site-alban | aucune PR ouverte : branche créée au premier changement |
+| ansible-workstation | [#38](https://github.com/AlbanAndrieu/ansible-workstation/pull/38) |
 
 ## Compteur
 
@@ -49,6 +50,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H09 : TLS PostgreSQL côté serveur | constaté | `pg_hba_file_rules` : seul `hostssl`/`scram-sha-256` pour le réseau ; TLSv1.3 minimum ; `pg_stat_ssl` : 8 clients réseau tous en TLSv1.3 |
 | H17 : réception du catalogue V2 dans Sample | ACCEPTED (critère du 16/11) | sonde à clé 6fb919e4 : un seul `binding_conflict` (`sentry-edge`), aucune App arrêtée en `declared_only` |
 | Noms publics `keycloak` (403) et `joplin` (502 par le Tunnel, App absente) | constaté | à revoir à l'activation de Joplin |
+| Tests SMART longs à 08:00 (hors fenêtre nocturne de bitcoind) | DEPLOYED | ansible-workstation a1916a5, `truenas-stabilize.yml` plan/apply/plan à 0 action |
+| nabla-openclaw passe 2 : x-nabla `active` pour le Gateway et la devbox, affirmations périmées retirées | TESTED | PR #26, 2d41c45 (`just test` vert, rapport du sous-agent vérifié sur GitHub) |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
@@ -56,6 +59,10 @@ Leçons (à reporter dans le skill au cycle de réconciliation) :
 - Ne jamais modifier le clone pendant que le gate tourne : il échoue sur « Working tree is not clean ».
 - Toutes les sous-parties d'une même App TrueNAS déclarent le même `status` x-nabla ; un service optionnel passe par un profil Compose (précédent `dsomm-baseline`).
 - `docker logs` doit montrer `init process complete` avant `pg_isready` : l'entrypoint PostgreSQL répond depuis un serveur `initdb` temporaire puis redémarre.
+
+À traiter au cycle de refactorisation (signalé par la passe 2 d'openclaw) : l'étape 10 n'a pas bougé depuis le 11/11. Restent 41 scripts OpenClaw sous `scripts/workstation/` et 13 fichiers sous `ops/` ; les recettes `openclaw-upgrade-local-*` et `openclaw-429-*` visent le Gateway Workstation, désactivé depuis le 3/11.
+
+Leçon : `ansible-playbook` ouvre son propre socket SSH (YubiKey) ; `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`, sans `ControlPersist`, réutilise le ControlMaster de `~/.ssh/config`.
 
 Leçon : `systemd-run` en root fait refuser à git un checkout appartenant à `albandrieu` (« dubious ownership »). Passer `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory` et `GIT_CONFIG_VALUE_0=<checkout>`.
 
