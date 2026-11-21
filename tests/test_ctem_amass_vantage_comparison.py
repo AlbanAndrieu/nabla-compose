@@ -48,8 +48,9 @@ class VantageTests(unittest.TestCase):
         self.assertNotIn("hostname", str(result))
 
     def test_difference_requires_review_not_down(self):
-        outside = evidence("external-github-hosted",
-                           {DOMAINS[0]: 9, DOMAINS[1]: 3, DOMAINS[2]: 3})
+        outside_counts = dict.fromkeys(DOMAINS, 3)
+        outside_counts[DOMAINS[0]] = 9
+        outside = evidence("external-github-hosted", outside_counts)
         result = COMP["compare"](evidence(), outside, now=NOW)
         self.assertEqual(result["status"], "COUNT_DIFFERENCE_REVIEW")
         self.assertEqual(result["rows"][0]["count_delta_external_minus_truenas"], 6)
