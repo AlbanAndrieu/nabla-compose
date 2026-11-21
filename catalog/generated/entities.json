@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
+  "catalogRevision": "sha256:fde6a87a54175962f0514e5896ae87a510411a77d545f1203ccb48ff19317c8b",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3422,7 +3422,7 @@
             "riskAcceptance": {
               "control": "isolated-read-only-trap-no-data",
               "id": "honeypot-login-public-trap",
-              "reason": "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script and /healthz answer, every other path is 404.",
+              "reason": "login.albandrieu.com publishes the Project Honey Pot trap page through the Cloudflare tunnel without Access, so address harvesters reach it (owner decision 20/11/2026). The container holds no data and runs read-only as www-data, without capabilities, on its own network; only the trap script, /healthz and credential-free /login decoy answer; POST /login returns 403 without PHP processing; other paths remain 404.",
               "reviewAfter": null,
               "status": "accepted"
             },

@@ -602,8 +602,8 @@
       "sourcePath": "apps/honeypot/compose.yml",
       "composeService": "honeypot",
       "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
+      "href": "https://login.albandrieu.com",
+      "syncEligible": true,
       "description": "Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS."
     },
     {
