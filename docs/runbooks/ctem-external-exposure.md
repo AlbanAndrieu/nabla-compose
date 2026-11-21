@@ -31,6 +31,52 @@ pas configuré sans identification de l'outil exact. La note A/A+ n'est
 pas une preuve de conformité FIPS. Ne pas scanner l'origine d'un CDN
 en déduisant une IP mutualisée d'une réponse DNS.
 
+### Double perspective — TrueNAS LAN vs Amass actif extérieur
+
+- **Depuis TrueNAS** : `run-ctem-amass-truenas.sh --run` interroge
+  les domaines déclarés et historise les relations d'actifs dans le
+  PostgreSQL commun `assetdb`. La résolution peut refléter le split DNS
+  LAN ; ce constat **ne prouve pas** l'exposition publique.
+- **Depuis GitHub Actions** : `External attack surface (homelab)`,
+  `workflow_dispatch`, profil `discovery-active`,
+  `confirm_active_discovery=true`. L'énumération Amass est **active**,
+  `-rigid -p 80,443`, sans bruteforce et sans accès PostgreSQL
+  TrueNAS. La base Amass externe est éphémère ; seuls les **compteurs**
+  et l'horodatage, mode, périmètre, `vantage=external-github-hosted`
+  et `catalogRevision` vont dans l'artifact
+  `public-amass-summary-<run_id>` (rétention 7 jours). Le profil
+  `discovery` reste passif et `all` ne lance pas d'actif par défaut.
+- Comparer les **comptes** entre les deux observateurs, avec prudence :
+  les environnements DNS, délais d'exécution et périmètres évoluent.
+  Le dédoublonnage **nominatif** entre observations exige un transfert
+  chiffré vers TrueNAS (à faire) : les noms externes ne sont pas publiés.
+  Ni GitHub Actions ni les runners ne doivent accéder à `assetdb`
+  en direct. Les fournisseurs CDN doivent autoriser la reconnaissance
+  active sur leurs points de présence.
+
+### Visualisation privée des actifs Amass
+
+Le runner TrueNAS produit après scan **achevé** :
+
+- `summary-<UTC>.json` et `summary-latest.json` : statut, agrégats
+  par domaine, catégories de réconciliation, révision Backstage et vantage ;
+- `candidates-<UTC>.json` : FQDN, statut, correspondance exacte
+  `entityRef` (privé 0600) ;
+- **`ctem-amass-<UTC>.html`** : tableau de bord autonome (couverture,
+  statut V2, liste filtrable par recherche navigateur), HTML échappé,
+  sans CDN, script tiers, télémétrie ou serveur HTTP.
+  Ce fichier **doit rester local** et inaccessible depuis Internet.
+
+Le fichier HTML n'est créé que si le scan est complet, si le rapport
+`candidates` correspond au `summary` et si la révision V2 est
+valide. Son contenu n'est **pas une analyse de vulnérabilités**.
+On peut ouvrir une **copie privée** dans un navigateur de workstation
+de confiance après un transfert SSH/SFTP authentifié :
+ne pas exposer le dossier via Traefik, Cloudflare Tunnel, n8n ou nginx.
+Les graphiques Amass natifs `viz` nécessitent en outre l'installation
+de la CLI v5 et son accès contrôlé au graphe PostgreSQL ; aucun portail
+Amass web public n'est créé.
+
 ### TrueNAS — Amass actif + PostgreSQL commun + Cron existant (21/11/2026)
 
 **Décision opérateur :** exécuter Amass **actif** sur TrueNAS (DNS, TLS,
@@ -215,8 +261,8 @@ vérifiée par SHA-256 publié dans la release). Le moteur v5 utilise
 127.0.0.1:4000 : ne pas le lancer sur la workstation LiteLLM, ni partager
 le réseau hôte TrueNAS. Le runner GitHub éphémère ou une VM dédiée suffit.
 Aucun port entrant, aucun secret fournisseur, aucune connexion à Neo4j
-Security. La découverte passive est limitée aux apices du fichier
-`config/security/public-mail-domains.json` (inventaire encore partiel);
+Security. Le profil GitHub passif est limité aux apices du fichier
+`config/security/public-mail-domains.json` (20 domaines déclarés au 21/11, à réviser avant active);
 `-rigid` interdit d'élargir le scope, sans brute force ni mode actif.
 Le job est borné; une interruption ou un export vide reste INCOMPLETE.
 
@@ -301,9 +347,11 @@ n'est présumé et aucune réinstallation n'est prévue.
 
 ### Messagerie
 
-`config/security/public-mail-domains.json` contient albandrieu.com,
-albanandrieu.com, bababou.com. Tous sont encore `unverified`; la liste
-n'atteste pas toutes les zones détenues. Ajouter domaines d'envoi, domaines
+`config/security/public-mail-domains.json` recense désormais 20 domaines
+issus du catalogue de zones, avec `mail_use` différencié (`sending`,
+`unverified`, `no-mail`) et des sélecteurs DKIM renseignés quand connus.
+Ce périmètre est une déclaration d'autorité, pas une vérification dynamique
+de leur exposition ni un droit de sonder des IP CDN non détenues. Ajouter domaines d'envoi, domaines
 de stationnement et sous-domaines de messagerie explicitement.
 Vérifier les sélecteurs DKIM depuis chaque fournisseur, pas par liste
 devinée. Pour contrôle approfondi, sur runner extérieur de confiance :
