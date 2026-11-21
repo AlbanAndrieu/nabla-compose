@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Pull exactly one external Amass counts-only artifact via existing GitHub App.
 
 Manual run-id only: active discovery is never scheduled nor assumed complete.
