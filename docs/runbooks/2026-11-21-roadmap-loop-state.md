@@ -18,7 +18,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Passe | Début | Fin | Réconciliation |
 |---|---|---|---|
 | 1 | 21/11 | 21/11 | après la passe 3 |
-| 2 | 21/11 | en cours | après la passe 3 |
+| 2 | 21/11 | 21/11 | après la passe 3 |
+| 3 | 21/11 | en cours | en cours : skill (e863e844), refactorisation (lot 3a) |
 
 ## Journal
 
@@ -62,7 +63,7 @@ Leçons (à reporter dans le skill au cycle de réconciliation) :
 - Toutes les sous-parties d'une même App TrueNAS déclarent le même `status` x-nabla ; un service optionnel passe par un profil Compose (précédent `dsomm-baseline`).
 - `docker logs` doit montrer `init process complete` avant `pg_isready` : l'entrypoint PostgreSQL répond depuis un serveur `initdb` temporaire puis redémarre.
 
-À traiter au cycle de refactorisation (signalé par la passe 2 d'openclaw) : l'étape 10 n'a pas bougé depuis le 11/11. Restent 41 scripts OpenClaw sous `scripts/workstation/` et 13 fichiers sous `ops/` ; les recettes `openclaw-upgrade-local-*` et `openclaw-429-*` visent le Gateway Workstation, désactivé depuis le 3/11.
+Refactorisation de la passe 3 (signalée par la passe 2 d'openclaw) : lot 3a fait (recettes `openclaw-429-attribution*`, sonde des cooldowns d'auth et son test), reste soumis à P3. Avant : l'étape 10 n'avait pas bougé depuis le 11/11. Restent 41 scripts OpenClaw sous `scripts/workstation/` et 13 fichiers sous `ops/` ; les recettes `openclaw-upgrade-local-*` et `openclaw-429-*` visent le Gateway Workstation, désactivé depuis le 3/11.
 
 Leçon : `ansible-playbook` ouvre son propre socket SSH (YubiKey) ; `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`, sans `ControlPersist`, réutilise le ControlMaster de `~/.ssh/config`.
 
@@ -81,4 +82,5 @@ Nouvelles :
 - **O2 — identité GitHub de la devbox** : App dédiée ou compte machine ?
 - **O3 — Vercel FinOps** : export JSON du tableau *Usage*.
 - **P1 — pre-commit sur les 50 autres dépôts** : ajouter le workflow partout représente 50 nouvelles PR à relire ; tous les dépôts, ou seulement les actifs (liste à fixer) ?
+- **P3 — étape 10, famille Workstation Gateway** : le lot 3a retire les recettes `openclaw-429-attribution*` et la sonde des cooldowns d'auth. Le reste (`repair-openclaw-429.py`, `upgrade-openclaw-mise.py` et environ 35 autres scripts sous `scripts/workstation/`, leurs tests, une trentaine de recettes et 13 fichiers sous `ops/`) s'appelle en chaîne (`backup-openclaw.sh`, `openclaw-route-metadata.py`, `openclaw-recovery-readonly.sh`) et ne peut partir qu'en un lot de plus de 20 fichiers, et le gate exige `QUALITY_ALLOW_LARGE_DELETION=1` après revue explicite pour les fichiers de plus de ~300 lignes : d'accord pour un commit unique, et pour ce drapeau ?
 - **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 12 du plan de performance)
