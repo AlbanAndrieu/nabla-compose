@@ -88,7 +88,7 @@ class HoneypotLogSummaryContract(unittest.TestCase):
         ]
         for forbidden in ("8.8.8.8", "9.9.9.9", "DO_NOT_LEAK", "SECRET_DO_NOT_LEAK", "password"):
             assert forbidden not in proc.stdout
-    
+
 
     def test_honeypot_summary_refuses_symlink_and_has_safe_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="honeypot-summary-") as tmp:
