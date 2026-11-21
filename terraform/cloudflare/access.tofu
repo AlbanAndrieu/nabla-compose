@@ -430,3 +430,30 @@ resource "cloudflare_zero_trust_access_application" "fastapi_github_webhook" {
     prevent_destroy = true
   }
 }
+
+# Privileged appliance UI/API: identity-aware Access is mandatory even though
+# TrueNAS also enforces local authentication. No Everyone-bypass policy.
+resource "cloudflare_zero_trust_access_application" "truenas_admin" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "truenas.albandrieu.com"
+    },
+  ]
+  domain = "truenas.albandrieu.com"
+  name   = "truenas-admin"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+  ]
+  session_duration = "8h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
