@@ -42,8 +42,8 @@ case "${mode}" in
     fi
     missing=()
     for collection in crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules; do
-      if ! grep -Fq -- "$collection" <<<"$installed"; then
-        missing+=("$collection")
+      if ! grep -Fq -- "${collection}" <<<"${installed}"; then
+        missing+=("${collection}")
       fi
     done
     if ((${#missing[@]})); then
@@ -51,13 +51,13 @@ case "${mode}" in
       printf "appsec_collections_missing=%s\n" "$(IFS=,; echo "${missing[*]}")"
       # Print only allowlisted COLLECTIONS state; never dump all env or secrets.
       declared="$(docker exec crowdsec printenv COLLECTIONS 2>/dev/null || true)"
-      if [[ -z "$declared" ]]; then
+      if [[ -z "${declared}" ]]; then
         echo "appsec_runtime_collections_declaration=NOT_VERIFIED"
       else
         missing_declared=()
         for collection in "${missing[@]}"; do
-          if [[ " $declared " != *" $collection "* ]]; then
-            missing_declared+=("$collection")
+          if [[ " ${declared} " != *" ${collection} "* ]]; then
+            missing_declared+=("${collection}")
           fi
         done
         if ((${#missing_declared[@]})); then
