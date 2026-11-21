@@ -56,6 +56,14 @@ class AmassActiveModeTests(unittest.TestCase):
             cfg = MOD["postgres_config"](source, work)
             self.assertEqual(stat.S_IMODE(cfg.stat().st_mode), 0o600)
             content = cfg.read_text()
+            self.assertEqual(content.splitlines(), [
+                "options:",
+                "  bruteforce:",
+                "    enabled: false",
+                "  alterations:",
+                "    enabled: false",
+                "  rigid_boundaries: true",
+            ])
             self.assertNotIn("foo bar@!#", content)
             self.assertNotIn("foo%20bar%40%21%23", content)
             self.assertNotIn("database:", content)

@@ -210,10 +210,10 @@ def postgres_config(source: dict[str, str], work: Path) -> Path | None:
         raise ValueError("PostgreSQL trusted CA must match the mounted certificate")
     config = work / "amass-config.yaml"
     config.write_text(
-        "options:\\n"
-        "  bruteforce:\\n    enabled: false\\n"
-        "  alterations:\\n    enabled: false\\n"
-        "  rigid_boundaries: true\\n",
+        "options:\n"
+        "  bruteforce:\n    enabled: false\n"
+        "  alterations:\n    enabled: false\n"
+        "  rigid_boundaries: true\n",
         encoding="utf-8",
     )
     config.chmod(0o600)
