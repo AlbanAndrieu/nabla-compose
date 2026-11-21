@@ -7,7 +7,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 
 | Dépôt | PR de consolidation |
 |---|---|
-| nabla-compose | [#430](https://github.com/AlbanAndrieu/nabla-compose/pull/430) |
+| nabla-compose | [#430](https://github.com/AlbanAndrieu/nabla-compose/pull/430) (fusionnée le 21/11), puis [#432](https://github.com/AlbanAndrieu/nabla-compose/pull/432) |
 | fastapi-sample | [#452](https://github.com/AlbanAndrieu/fastapi-sample/pull/452) |
 | nabla-openclaw | [#26](https://github.com/AlbanAndrieu/nabla-openclaw/pull/26) |
 | nabla-site-alban | [#336](https://github.com/AlbanAndrieu/nabla-site-alban/pull/336) |
@@ -47,7 +47,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Checkout TrueNAS avancé | fait | 1bd9200e |
 | ntopng : séries RRD en tmpfs (`/var/lib/ntopng/0` et `-1`, chown par l'entrypoint) | DEPLOYED | 6ad96b8c, e6c64afa, `app.redeploy ntopng` ; RRD écrits sans `Permission denied` |
 | Sondes TrueNAS de LiteLLM : `172.17.0.24:4000` au lieu de la boucle locale (faux `BLOCKED`) | DEPLOYED (checkout) | 25b78deb ; `/health/readiness` `healthy` |
-| Tempête IO : `usermod` de `paperless-ngx` (copy-up overlay, une synchro txg par fichier) | App arrêtée | pool de 1 070 à 269 écritures/s, txg revenus à 5 s ; suite au point 12 du plan de performance |
+| Tempête IO : `usermod` de `paperless-ngx` (copy-up overlay, une synchro txg par fichier) | App arrêtée | pool de 1 070 à 269 écritures/s, txg revenus à 5 s ; suite au point 6 du plan de performance |
 | H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; smoke CSI `--apply` vert depuis TrueNAS (provision, RWX entre deux workers, reclaim ZFS/NFS prouvé) ; MCP `truenas-readonly` « Connection closed » : `TRUENAS_MCP_HOST` et la clé API ne sont pas exportés dans la session (`.mcp.json` les lit dans l'environnement), donc secret absent (V1) et non régression de TrueNAS 27 |
 | Keycloak et Joplin : activation | bloqué (V1) | aucun fichier de secrets runtime (`/mnt/cpool/keycloak/.env.secrets`, `/mnt/cpool/secrets/runtime/joplin/`) ; source Vaultwarden verrouillée |
 | H09 : TLS PostgreSQL côté serveur | constaté | `pg_hba_file_rules` : seul `hostssl`/`scram-sha-256` pour le réseau ; TLSv1.3 minimum ; `pg_stat_ssl` : 8 clients réseau tous en TLSv1.3 |
@@ -69,6 +69,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H17 suite : `composeProfiles` dans `entities.json` | CODED | dérivé de `profiles:` dans Compose, 9 entités ; le Sample déployé l'ignore (projection limitée à `provider/appId/containerService/networks`) ; `services.json` attend le déploiement de #452 |
 | Passe 5 : re-test | fait (11:41) | 0 alerte active (`TrueNASHostIOPressureHigh` éteinte avec la fin du test SMART) ; Gatus 68/68 ; Prometheus 11 cibles DOWN sur 38 : 10 `planned`, plus `keycloak` (`active`, App `STOPPED` depuis au moins 14 h, activation bloquée par V1). La passe 4 aurait dû le relever : sa mention « aucune cible non `planned` en panne » était fausse ; Vaultwarden `locked` ; les 5 PR `MERGEABLE`, CI verte |
 | F14 (1) Sample : un job `exited` n'est pas un échec | vérifié | middleware TrueNAS `ix_apps/query.py` l. 266 : `exited` avec `ExitCode != 0` → `crashed` (App `CRASHED`), donc `exited` = code 0 ; en direct `defectdojo-initializer` `exited`, App `RUNNING` ; mise en œuvre demandée sur fastapi-sample#452 |
+| Réconciliation des roadmaps sur #432 | CODED | `roadmap.md` : doublons fusionnés (ordre H01→H16, H05, H12, Talos, Cloudflare, fastpool, H18) et éléments terminés retirés (H01 réceptionné, H02, fenêtre nocturne, SMART, redéploiements, rétention Mimir, ddns-updater, Terragrunt CD) ; portfolio : H01 `ACCEPTED`, H05/H08/H10/H17 au 21/11, addenda H13/H20 dupliqués retirés ; `check-roadmap-portfolio.py --check` PASS |
+| Vaultwarden 1.37.3 au lieu de 1.37.5, `bitwarden-api` en boucle | constaté | `docker ps` : `vaultwarden/server:1.37.3` (App `ix-vaultwarden`, aucun conteneur `doco-cd`) alors que `master` déclare 1.37.5 ; `bitwarden-api` : 692 redémarrages, « Vault is locked » |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
@@ -86,7 +88,7 @@ Leçon : `systemd-run` en root fait refuser à git un checkout appartenant à `a
 ## Questions en attente
 
 Reprises du [runbook du 20/11](2026-11-20-roadmap-pass-blockers.md), à poser
-après la cinquième passe : Q1 (CrowdSec et Tunnel), Q2 (Watchtower), Q5
+après la cinquième passe : Q1 (CrowdSec et Tunnel ; #432 prépare la première option, Tunnel via Traefik en canary avec CrowdSec AppSec, à confirmer), Q2 (Watchtower), Q5
 (`talosconfig` dans Vaultwarden), Q6 (secours DNS et préfixe IPv6).
 
 Nouvelles :
@@ -100,4 +102,4 @@ Nouvelles :
 - **S1 — icônes du site** : 9 icônes manquent à nabla-site-alban pour suivre `catalog/service-icons.json` (apisix, bazarr, bitcoin, gluetun, honeypot, jellyfin, qbittorrent, recyclarr, seerr) : télécharger depuis selfh.st, ou `generic-app.svg` côté Compose ?
 - **S2 — Stripe A5** : quelle persistance pour les événements webhook ?
 - **S3 — graphe OWNER du site** : recâbler en Freebox → R7000 + Pi-hole et retirer le mode « direct » ?
-- **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 12 du plan de performance)
+- **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 6 du plan de performance)
