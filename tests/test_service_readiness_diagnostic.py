@@ -187,7 +187,7 @@ def test_fastapi_provenance_warning_does_not_erase_healthy_components(monkeypatc
 
 def test_litellm_uses_readiness_instead_of_liveliness():
     url, kind = module["HTTP"]["litellm"]
-    assert url == "http://127.0.0.1:4000/health/readiness"
+    assert url == "http://172.17.0.24:4000/health/readiness"
     assert kind == "litellm"
 
 
@@ -372,4 +372,3 @@ def test_gatus_probe_successful_monitor_history(monkeypatch):
     result = http_check("gatus")
     assert result == {"status": "ok",
                       "detail": "monitors=1 up=1 down=0 pending=0 unknown=0"}
-

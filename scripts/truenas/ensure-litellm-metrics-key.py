@@ -28,7 +28,8 @@ from urllib.request import ProxyHandler, Request, build_opener
 NAME = "LITELLM_PROMETHEUS_METRICS_API_KEY"
 ALIAS = "prometheus-metrics"
 ROUTES = ["/metrics"]
-BASE = "http://127.0.0.1:4000"
+# LiteLLM publishes on the LAN address only (host_ip), not on loopback.
+BASE = "http://172.17.0.24:4000"
 LITELLM_ENV = Path("/mnt/cpool/secrets/runtime/litellm/.env.secrets")
 PROMETHEUS_KEY = Path("/mnt/cpool/prometheus/secrets/litellm-metrics.key")
 PROMETHEUS_GID = 568

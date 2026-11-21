@@ -33,7 +33,9 @@ Agents must never commit, push or write files directly on `master` (Git CLI, Git
 
 On a connected workstation, read FastAPI Sample on **TrueNAS first**:
 `http://172.17.0.24:8091/api/homelab/status` and
-`/api/homelab/health` (internal API/probe privileges). Then query
+`/api/homelab/health` (internal API/probe privileges: both answer 401
+without a credential since fastapi-sample #447, which is `DENIED`; read them
+with `sudo bash scripts/truenas/read-sample-observer.sh [path]` on the host). Then query
 `https://fastapi-sample.fastapicloud.dev/sickz`: this is an **independent
 outside-in probe executed in FastAPI Cloud**, not a test from the LAN.
 Cloud HTTP 200 alone never proves the target service exposed or healthy;
@@ -73,6 +75,7 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 - Remote/API-only: bounded offline checks and static review, a Draft PR with expected-SHA writes; **never claim** that L2/L3 or runtime ran. Preserve CI/SAST/SCA/secret scanning; no invented PASS or disabled gate to save credits.
 - Do not start the full Compose stack to validate. For service modifications use the dedicated catalog/Compose contract; for operational acceptance use task-specific read-only probes before any authorized mutation.
 - Record remaining work in [docs/roadmap-portfolio.md](docs/roadmap-portfolio.md) and [docs/roadmap.md](docs/roadmap.md); include what changed, checks **actually** executed and missing proofs. Preserve old wrappers while consumers/tests still use them.
+- Implementing or advancing the roadmap follows [`nabla-roadmap-loop`](.agents/skills/nabla-roadmap-loop/SKILL.md): owner-approved homelab sprint mode (21/11/2026), one PR per repository, questions after five passes, a reconciliation cycle every third pass.
 
 ## OpenCode and smaller-model execution
 

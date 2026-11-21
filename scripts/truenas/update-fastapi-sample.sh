@@ -529,6 +529,8 @@ if [[ "${image_source}" == "local-build" ]]; then
         printf 'Reusing local Docker base/dependency cache; set FASTAPI_SAMPLE_REFRESH_BASE_IMAGES=true for a security refresh.\n'
     fi
     build_args+=(fastapi-sample)
+    # Stamp the exact commit: a local build of a moving ref otherwise reports build_revision=null.
+    export FASTAPI_SAMPLE_BUILD_REVISION="${target}"
 
     step '3/6' 'Build image before replacing runtime'
     guard_dockerhub_base_build
@@ -636,29 +638,6 @@ else
     summary_warn "${prometheus_details}"
 fi
 
-pfsense_state='not-run'
-if run_docker exec "${CONTAINER}" /code/.venv/bin/python \
-    -c 'import nabla.api.pfsense_auth_smoke' >/dev/null 2>&1; then
-    pfsense_report="$(mktemp)"
-    if run_docker exec "${CONTAINER}" /code/.venv/bin/python \
-        -m nabla.api.pfsense_auth_smoke --url https://home.albandrieu.com:10443 >"${pfsense_report}" 2>&1; then
-        pfsense_summary="$(grep -E '^summary passed=[0-9]+ total=[0-9]+ secrets_printed=no$' "${pfsense_report}" | tail -n 1 || true)"
-        if [[ -n "${pfsense_summary}" ]]; then
-            summary_ok "pfSense RBAC: ${pfsense_summary}"
-            pfsense_state='ok'
-        else
-            summary_warn 'pfSense check returned success without expected summary'
-            pfsense_state='warning'
-        fi
-    else
-        summary_warn 'pfSense RBAC smoke failed (authenticated log suppressed); deployment remains accepted because pfSense is optional diagnostic evidence'
-        pfsense_state='warning'
-    fi
-    rm -f -- "${pfsense_report}"
-else
-    summary_warn 'pfSense auth-smoke module unavailable (optional)'
-fi
-
 # Optional, strictly bounded AI acceptance from inside the running Sample
 # container. Does not generate a completion or read private OpenRAG documents.
 ai_connectivity_state='not-run'
@@ -696,7 +675,7 @@ runtime_version="$(jq -r '.release_version // .version // "unknown"' <<<"${versi
 diag_section '6/6' 'FastAPI Sample · final acceptance'
 diag_ok "staging :8091 | version ${runtime_version} | app HTTP ${health_status}"
 printf 'Git ref: %s (%s) · image: %s\n' "${REF}" "${runtime_sha:0:12}" "${runtime_image}"
-printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s | AI transports=%s\n' "${prometheus_state}" "${pfsense_state}" "${ai_connectivity_state}"
+printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | AI transports=%s\n' "${prometheus_state}" "${ai_connectivity_state}"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
     summary_warn "Parent gitlink ${pinned_sha:0:12} differs from checkout ${runtime_sha:0:12}. Not automatically staged."
 fi

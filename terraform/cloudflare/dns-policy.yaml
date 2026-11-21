@@ -22,8 +22,14 @@ version: 1
 # pfSense and its HAProxy left on 18/11 (public traffic only enters through the
 # tunnel). Kept: the apex and www (a Redirect Rule answers before any origin)
 # and home (Free PTR, dns.tofu); hello.int and s3.int, published by
-# cloudflare-ddns (owner decision, 20/11/2026). Not here: mail2, whose MX
-# would go with it (the circuit retires every type).
+# cloudflare-ddns (owner decision, 20/11/2026). login: its dead A was retired
+# first; the honeypot now takes the name through the tunnel (owner decision,
+# 20/11/2026; an A and a CNAME cannot coexist).
+# Eighth round (20/11/2026): index, a proxied CNAME to the apex answering 403
+# 1050 (owner decision). Kept: mail2 (A, MX to mx3.mtahosting.com), a
+# receive-only Project Honey Pot MX donation created by the owner on 27/12/2025
+# (Cloudflare audit log); the only declared exception of the Google-only mail
+# scan (config/security/public-mail-domains.json, mx_exceptions).
 retired_hostnames:
   - account.albandrieu.com
   - anythingllm-albandrieu.albandrieu.com
@@ -32,8 +38,8 @@ retired_hostnames:
   - autoxpose.albandrieu.com
   - drawio.albandrieu.com
   - honeypot-albandrieu.albandrieu.com
+  - index.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
-  - login.albandrieu.com
   - manager.albandrieu.com
   - motion-albandrieu.albandrieu.com
   - netalertx-albandrieu.albandrieu.com
@@ -56,7 +62,9 @@ retired_hostnames:
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
-new_tunnel_hostnames: []
+# login: the honeypot (owner decision, 20/11/2026), after its dead A was retired.
+new_tunnel_hostnames:
+  - login.albandrieu.com
 
 # Tunnel routes deliberately left without a public CNAME (adopted as found on
 # 14/11/2026): the route exists, the name does not resolve. Publishing one is

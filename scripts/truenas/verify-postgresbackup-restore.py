@@ -94,7 +94,8 @@ def test_restore(archive: Path, timeout: int) -> int:
         run(['docker', 'run', '--rm', '-i', '--pull', 'never', '--network', 'none',
              '--memory', '512m', '--memory-swap', '512m', '--cpus', '1',
              '--pids-limit', '128', '--entrypoint', 'pg_restore',
-             POSTGRES_IMAGE, '--list', '-'],
+             # pg_restore reads stdin when no file is named; '-' is a literal file name.
+             POSTGRES_IMAGE, '--list'],
             stdin=stream, timeout=timeout, discard_stdout=True)
     name = f'nabla-pg-restore-{uuid.uuid4().hex[:12]}'
     try:
@@ -106,13 +107,17 @@ def test_restore(archive: Path, timeout: int) -> int:
              '-c', 'listen_addresses='], timeout=60)
         for attempt in range(60):
             try:
-                run(['docker', 'exec', name, 'pg_isready', '-q', '-U', 'postgres'],
-                    timeout=5)
-                break
+                # The entrypoint answers pg_isready from a temporary initdb server, then
+                # restarts it: wait for the final server or createdb races the restart.
+                if 'init process complete' in run(['docker', 'logs', name], timeout=5):
+                    run(['docker', 'exec', name, 'pg_isready', '-q', '-U', 'postgres'],
+                        timeout=5)
+                    break
             except RuntimeError:
-                if attempt == 59:
-                    raise RuntimeError('isolated_postgres_not_ready') from None
-                time.sleep(1)
+                pass
+            if attempt == 59:
+                raise RuntimeError('isolated_postgres_not_ready')
+            time.sleep(1)
         run(['docker', 'exec', '-u', 'postgres', name, 'createdb',
              '-U', 'postgres', '-T', 'template0', 'restore_validation'])
         with archive.open('rb') as stream:

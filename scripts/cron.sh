@@ -177,25 +177,27 @@ report_recent_containers() {
 }
 
 # Prints why FastAPI Cloud is not fully healthy; succeeds silently when it is.
+# Anonymous routes only: /readyz and /healthz need X-Diagnostics-Key since
+# fastapi-sample #447, and the cron holds no FastAPI secret.
 fastapi_cloud_unhealthy_reason() {
   local path code payload
 
-  for path in livez readyz; do
+  for path in livez v2/version; do
     code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${FASTAPI_CLOUD_URL}/${path}" 2>/dev/null || true)"
     if [[ "${code}" != 200 ]]; then
       printf '/%s answered HTTP %s' "${path}" "${code:-none}"
       return 0
     fi
   done
-  if ! payload="$(curl -fsS --max-time 20 "${FASTAPI_CLOUD_URL}/healthz" 2>/dev/null)"; then
-    printf '/healthz unreachable'
+  if ! payload="$(curl -fsS --max-time 20 "${FASTAPI_CLOUD_URL}/health" 2>/dev/null)"; then
+    printf '/health unreachable'
     return 0
   fi
   if jq -e "${FASTAPI_HEALTHY_FILTER}" <<<"${payload}" >/dev/null 2>&1; then
     return 0
   fi
-  jq -r '"status=\(.status // "unknown"), failing: " + ([(.components // {} | to_entries[] | select(.value.status != "healthy") | .key), (.checks // {} | to_entries[] | select(.value.reachable == false) | .key)] | join(", "))' <<<"${payload}" 2>/dev/null ||
-    printf '/healthz payload is not JSON'
+  jq -r '"status=\(.status // "unknown"), failing: " + ([.components // {} | to_entries[] | select(.value.status != "healthy") | .key] | join(", "))' <<<"${payload}" 2>/dev/null ||
+    printf '/health payload is not JSON'
 }
 
 update_fastapi_sample() {
