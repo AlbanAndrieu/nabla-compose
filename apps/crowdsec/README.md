@@ -226,6 +226,36 @@ Le middleware `crowdsec-appsec@file` est un **deuxième profil du même plugin**
 
 **Admission avant bascule** : contrôle `cscli collections list`, `cscli metrics show appsec`, socket local `7422`, plugin actif, test officiel `/crowdsec-test-NtktlJHV4TfBSK3wvlhiOBnl` (déclenche un événement mais **n'est pas un test de blocage HTTP**), véritable test de règle WAF sur cible canary isolée avec requêtes bénignes témoins, et absence de faux positif sur `/api`, `/api/ui/session` et `POST /webhooks/github` signé. Le test de blocage doit comparer route protégée/canary et route LAN non protégée avec métadonnées sans secret. Valider journal/compteurs et capacité mémoire (limite actuelle 384 MiB) pendant charge. **Ne jamais utiliser un exploit réel ni publier les JWT/HMAC dans un rapport**. Aucune exécution réelle de ces contrôles n'a été faite.
 
+**Diagnostic du 21/11/2026 — préflight utilisateur :** `--check` a réussi
+(11 tests), `appsec_exposure=PASS_NOT_HOST_PUBLISHED` et
+`appsec_network=PASS_TRAEFIK_NETWORK_JOINED`. L'exécution `--runtime` s'est
+arrêtée à `appsec_collections=NOT_VERIFIED` : ce n'est **pas** une preuve de
+WAF actif. Le script amélioré distingue désormais
+`NOT_VERIFIED_CLI_ERROR` (échec de `cscli collections list`) de
+`NOT_VERIFIED_MISSING` (liste obtenue mais collections requises absentes) et
+affiche seulement les noms publics des collections manquantes, jamais les
+secrets. `appsec_runtime_collections_declaration=MISSING_REQUIRED` indique
+que la variable `COLLECTIONS` du conteneur actuel ne contient pas les éléments
+requis ; `EXPECTED_PRESENT` signifie que l'environnement les déclare, mais
+que leur installation effective n'est pas attestée.
+
+Pour diagnostiquer **sans modifier** le runtime sur TrueNAS :
+
+```bash
+sudo docker exec crowdsec cscli collections list
+sudo docker exec crowdsec printenv COLLECTIONS
+sudo docker inspect crowdsec --format '{{.State.Status}}'
+sudo bash scripts/truenas/diagnose-crowdsec-appsec.sh --runtime
+```
+
+Si les collections ne sont pas installées, comparer le conteneur en cours à
+`apps/crowdsec/compose.yml` et au checkout réellement déployé. Après
+vérification de l'état/backup et approbation de la fenêtre de maintenance,
+réconcilier l'application TrueNAS avec les fichiers déclaratifs et relancer les
+contrôles. Ne pas improviser un `cscli collections install` dans le conteneur
+comme substitut à la configuration versionnée. Ne pas activer le Tunnel vers
+Traefik tant que ces contrôles et le test canary HTTP 403 ne sont pas reçus.
+
 **Rollback immédiat** : d'abord laisser/revenir au tunnel direct `:8091`; puis seulement remplacer le middleware du canary par `crowdsec@file`. Retirer `acquis.d/appsec.yaml` et collections seulement après preuve qu'aucun client ne les utilise. Ne jamais ouvrir `7422` en TCP sur TrueNAS ou Internet.
 
 Sources : https://docs.crowdsec.net/docs/appsec/quickstart/traefik/ et https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin .
