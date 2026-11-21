@@ -149,14 +149,13 @@ CTEM_WORKSTATION_MIRROR_APPROVED=YES \
   python3 /opt/script/publish-ctem-web-mirror.py --apply
 ```
 
-Le module `nabla-lan-only.conf` existant sert alors
-`http://<workstation>:8087/reports/ctem/` uniquement au LAN, et
-le tunnel exige les contrôles existants. Attention : l'en-tête
-`Cf-Access-Jwt-Assertion` vérifié par Apache n'est **pas**
-cryptographiquement validé par ce module ; aucune donnée sensible
-ne doit reposer sur cette seule protection. Ne pas publier
-automatiquement depuis la workstation ni créer de cron supplémentaire
-avant vérification de l'authentification Cloudflare et des règles Apache.
+Le module `nabla-lan-only.conf` de la PR workstation #39 sert
+`http://<workstation>:8087/reports/ctem/` **uniquement au LAN** ;
+un tunnel public ne doit pas obtenir accès sur la seule présence d'un
+en-tête `Cf-Access-Jwt-Assertion`. Une vérification cryptographique
+du jeton Access, ou un mécanisme équivalent, serait nécessaire pour
+une publication hors LAN. Ne pas créer de timer supplémentaire avant
+validation des ACL NFS et Apache.
 
 ### Visualisation privée des actifs Amass
 
