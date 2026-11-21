@@ -118,6 +118,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/crowdsec-cloudflare-bouncer"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/cyberbro"
     },
     {
@@ -999,7 +1003,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339"
+        "value": "sha256:7ccefedef40e59f4e972d3eb68922de14aa1fe6f4791b8a38eaed7b793867e8f"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1011,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:8b9cfdd8-a146-66e4-2dcd-d764edb314bf",
+  "serialNumber": "urn:uuid:7ccefede-f40e-59f4-e972-d3eb68922de1",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1619,6 +1623,32 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-agent"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/crowdsec-cloudflare-bouncer",
+      "name": "CrowdSec Cloudflare Worker bouncer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/crowdsec-cloudflare-bouncer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/crowdsec/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",

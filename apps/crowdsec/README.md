@@ -181,6 +181,41 @@ Limite : si l'App cloudflared recrée son réseau sur un autre sous-réseau, la 
 `tests/test_tunnel_client_ip_contract.py`. Recette après bascule : une requête publique doit apparaître dans
 `cscli alerts list`/`cscli decisions list` avec son IP publique, et `ClientHost` dans 10.200.2.0/24.
 
+## Bouncer Cloudflare Worker (21/11/2026, CODED)
+
+Le service `cloudflare-worker-bouncer` (profil `cloudflare-bouncer`, image
+épinglée par digest) pousse les décisions de la LAPI vers un Worker et un
+namespace KV Cloudflare. Les IP bannies sont arrêtées en bordure, avant le Tunnel.
+Les routes protégées (`cloudflare-worker-bouncer.yaml`) sont les seuls hôtes
+dont l'application Access laisse passer sans connexion : fastapi-sample,
+keycloak, login, joplin et vaultwarden. Traefik et CrowdSec continuent de voir
+l'IP publique via `Cf-Connecting-Ip` (section précédente) : la détection reste
+locale, la remédiation part en bordure.
+
+- **Jeton** : `cloudflare_account_token.crowdsec_bouncer` dans
+  [`terraform/cloudflaretokens`](../../terraform/cloudflaretokens/tokens.tofu),
+  limité à la zone albandrieu.com et à l'adresse WAN.
+- **Secrets** : `CROWDSEC_CLOUDFLARE_BOUNCER_LAPI_KEY` (`cscli bouncers add
+  cloudflare-worker-bouncer`) et `CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN`
+  (`tofu output -raw crowdsec_bouncer_token`, sans affichage) vont dans l'élément
+  Vaultwarden `nabla/prod/crowdsec` du manifeste. Le rendu les écrit dans le même
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` que la LAPI : c'est un
+  compromis assumé, puisque les deux conteneurs appartiennent à la même App.
+- **Plan gratuit** : 1 000 écritures KV par jour. La config ne synchronise donc
+  que les décisions `crowdsec` et `cscli`, sans la blocklist communautaire. Le
+  plafond est de 100 000 requêtes Worker par jour.
+- **Fail Open (manuel)** : le bouncer crée les routes en Fail Closed et aucune
+  API publique ne permet de changer ce mode. Après le premier démarrage, passer
+  chaque route en Fail Open dans le dashboard (Workers Routes, *Request limit
+  failure mode*). Sinon, un quota épuisé renvoie une erreur à tous les visiteurs.
+- **Activation** (`NOT_RUN`) : appliquer le jeton, ranger les deux valeurs,
+  relancer le rendu des secrets, puis lancer `docker compose --profile cloudflare-bouncer up -d
+  cloudflare-worker-bouncer` dans l'App crowdsec. Contrôler ensuite avec
+  `cscli decisions add --ip 198.51.100.7 --duration 5m` puis `--type captcha`.
+- **Retrait** : lancer `crowdsec-cloudflare-worker-bouncer -d` dans le
+  conteneur. Cette commande supprime le Worker, le KV, les routes et le widget
+  Turnstile.
+
 ## WAF AppSec — pilote FastAPI TrueNAS (21/11/2026)
 
 **CODED, NOT_DEPLOYED.** Test offline via `bash scripts/truenas/diagnose-crowdsec-appsec.sh --check` ; preflight Docker read-only via `sudo bash scripts/truenas/diagnose-crowdsec-appsec.sh --runtime`. Réutilisation du moteur CrowdSec 1.8.1 et du plugin Traefik épinglé v1.8.1. Les collections `crowdsecurity/appsec-virtual-patching` et `crowdsecurity/appsec-generic-rules` alimentent `crowdsecurity/appsec-default` via `acquis.d/appsec.yaml`. Le moteur écoute `0.0.0.0:7422` **uniquement dans le conteneur**, sans port hôte, sur le réseau Docker existant `traefik_network`. Le répertoire `acquis.d` est monté en lecture seule ; aucun secret n'y est écrit.

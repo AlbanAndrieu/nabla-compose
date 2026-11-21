@@ -220,6 +220,17 @@
       "syncEligible": false
     },
     {
+      "id": "crowdsec-cloudflare-bouncer",
+      "entityRef": "component:default/crowdsec-cloudflare-bouncer",
+      "name": "CrowdSec Cloudflare Worker bouncer",
+      "group": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "composeService": "cloudflare-worker-bouncer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "cyberbro",
       "entityRef": "component:default/cyberbro",
       "name": "Cyberbro",

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339",
+  "catalogRevision": "sha256:7ccefedef40e59f4e972d3eb68922de14aa1fe6f4791b8a38eaed7b793867e8f",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -1233,6 +1233,32 @@
           "provider": "truenas-app",
           "source": "apps/crowdsec/compose.yml#services/crowdsec"
         }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/crowdsec-cloudflare-bouncer",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "crowdsec-cloudflare-bouncer",
+        "tags": [
+          "security",
+          "cloudflare"
+        ],
+        "title": "CrowdSec Cloudflare Worker bouncer"
+      },
+      "sourcePath": "apps/crowdsec/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/crowdsec",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {

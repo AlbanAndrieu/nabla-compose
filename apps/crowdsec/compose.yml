@@ -142,6 +142,45 @@ services:
     # LAPI stays LAN-bound and is never routed by Traefik (no traefik.enable).
     networks: ["default", "traefik_network"]
 
+  # Edge remediation (21/11/2026): opt-in profile until the token is applied and
+  # the Worker routes are switched to Fail Open by hand (no public API).
+  cloudflare-worker-bouncer:
+    profiles: ["cloudflare-bouncer"]
+    logging: *nabla-logging
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/crowdsec-cloudflare-bouncer
+    image: crowdsecurity/cloudflare-worker-bouncer:v0.0.18@sha256:5a736b48156c0b75f900f0e6cc937b6d74b2015fe8ab240154b7059531637c9a
+    container_name: crowdsec-cloudflare-bouncer
+    restart: unless-stopped
+    mem_limit: 128m
+    read_only: true
+    cap_drop: [all]
+    security_opt: [no-new-privileges:true]
+    # Same rendered runtime file as crowdsec (nabla/prod/crowdsec): adds
+    # CROWDSEC_CLOUDFLARE_BOUNCER_LAPI_KEY and CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN.
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:2112/metrics",
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - ./cloudflare-worker-bouncer.yaml:/etc/crowdsec/bouncers/crowdsec-cloudflare-worker-bouncer.yaml:ro
+    depends_on:
+      crowdsec:
+        condition: service_healthy
+
 networks:
   traefik_network:
     external: true

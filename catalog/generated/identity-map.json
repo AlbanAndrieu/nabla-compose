@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339",
+  "catalogRevision": "sha256:7ccefedef40e59f4e972d3eb68922de14aa1fe6f4791b8a38eaed7b793867e8f",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -95,6 +95,12 @@
       "entityRef": "component:default/code-server",
       "evidence": "apps/code/compose.yml:services.code-server.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/code/compose.yml#services/code-server",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/crowdsec-cloudflare-bouncer",
+      "evidence": "apps/crowdsec/compose.yml:services.cloudflare-worker-bouncer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/crowdsec/compose.yml#services/cloudflare-worker-bouncer",
       "sourceType": "compose"
     },
     {
