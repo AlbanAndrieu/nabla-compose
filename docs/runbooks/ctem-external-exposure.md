@@ -54,6 +54,47 @@ en déduisant une IP mutualisée d'une réponse DNS.
   en direct. Les fournisseurs CDN doivent autoriser la reconnaissance
   active sur leurs points de présence.
 
+### Comparaison LAN/Internet — collecte privée de l'artefact externe
+
+Après un profil GitHub Actions `discovery-active` **approuvé**, récupérer
+son `run_id` depuis l'onglet Actions. Le nouveau client
+`scripts/security/pull-ctem-amass-artifact.py` réutilise la GitHub App
+existante, avec droit `Actions:read` sur `AlbanAndrieu/nabla-compose`.
+Il refuse une run hors `master`, un événement non manuel, une exécution
+échouée/incomplète ou âgée de plus de sept jours. Il vérifie le SHA de
+provenance, l'identité `external-github-hosted`, `scan_mode=active`
+et l'absence de liste nominative dans l'artefact. Il ne crée ni
+token supplémentaire, ni route publique, ni connexion PostgreSQL depuis
+GitHub.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/security/pull-ctem-amass-artifact.py --check
+# Remplacer 123456789 par l'ID de la run discovery-active approuvée
+sudo env CTEM_EXTERNAL_AMASS_PULL_APPROVED=YES \
+  python3 scripts/security/pull-ctem-amass-artifact.py --pull --run-id 123456789
+
+# Les deux sources restent en local, avec permissions root 0600.
+sudo python3 scripts/security/compare-ctem-amass-vantages.py \
+  --internal /mnt/cpool/ctem/amass/reports/summary-latest.json \
+  --external /mnt/cpool/ctem/amass/reports/external/amass-active-123456789.json \
+  --output /mnt/cpool/ctem/amass/reports/vantage-comparison-123456789.json
+```
+
+Le comparateur est **fail-closed** : versions, mode, scope exact,
+révisions V2, statuts complets, horodatages frais et décalage
+maximal de sept jours sont contrôlés avant toute conclusion.
+Il émet `SAME_COUNTS_NOT_SAME_ASSETS` ou
+`COUNT_DIFFERENCE_REVIEW` (pas `DOWN` ni une vulnérabilité).
+Ces compteurs ne révèlent **pas** les FQDN présents dans un seul des
+deux inventaires ; il faut un dispositif de transfert chiffré de
+l'inventaire externe pour établir des différences nominatives.
+**Ne jamais envoyer les données nominatives via un artifact public.**
+
+Le JSON de comparaison, toujours privé 0600, se consulte avec :
+`sudo jq '{status,rows,semantics}' /mnt/cpool/ctem/amass/reports/vantage-comparison-123456789.json`.
+Un dashboard exposé sur Traefik ou Cloudflare n'est pas créé.
+
 ### Visualisation privée des actifs Amass
 
 Le runner TrueNAS produit après scan **achevé** :
