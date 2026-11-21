@@ -13,6 +13,15 @@ locals {
       }
       service = "https://172.17.0.24:30120"
     },
+    # TrueNAS administration: Access-protected public 443 to HTTPS LAN 7000.
+    # Keep origin certificate verification and the TrueNAS hostname for SNI.
+    {
+      hostname       = "truenas.albandrieu.com"
+      origin_request = {
+        origin_server_name = "truenas.albandrieu.com"
+      }
+      service = "https://172.17.0.24:7000"
+    },
     {
       hostname       = "prometheus.albandrieu.com"
       origin_request = {}
@@ -254,6 +263,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
     cloudflare_zero_trust_access_application.fastapi_sample,
     cloudflare_zero_trust_access_application.fastapi_sample_api,
     cloudflare_zero_trust_access_application.honeypot_login,
+    cloudflare_zero_trust_access_application.truenas_admin,
   ]
 
   lifecycle {
