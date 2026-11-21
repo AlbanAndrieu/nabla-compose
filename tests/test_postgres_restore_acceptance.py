@@ -90,6 +90,9 @@ class RestoreContract(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'empty_restored_database'):
                 module.test_restore(self.archive, 60)
         cleanup.assert_called_once()
+        # pg_restore reads stdin only without a file argument: '-' failed every run on 21/11.
+        listing = next(c for c in calls if '--list' in c)
+        self.assertEqual(listing[-1], '--list')
 
     def test_receipt_requires_explicit_restore_test(self) -> None:
         result = subprocess.run(

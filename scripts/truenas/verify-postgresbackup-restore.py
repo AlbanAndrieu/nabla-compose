@@ -94,7 +94,8 @@ def test_restore(archive: Path, timeout: int) -> int:
         run(['docker', 'run', '--rm', '-i', '--pull', 'never', '--network', 'none',
              '--memory', '512m', '--memory-swap', '512m', '--cpus', '1',
              '--pids-limit', '128', '--entrypoint', 'pg_restore',
-             POSTGRES_IMAGE, '--list', '-'],
+             # pg_restore reads stdin when no file is named; '-' is a literal file name.
+             POSTGRES_IMAGE, '--list'],
             stdin=stream, timeout=timeout, discard_stdout=True)
     name = f'nabla-pg-restore-{uuid.uuid4().hex[:12]}'
     try:
