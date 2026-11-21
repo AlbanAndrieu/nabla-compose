@@ -1204,7 +1204,11 @@
       ],
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "honeypot"
+        "containerService": "honeypot",
+        "networks": [
+          "default",
+          "traefik_network"
+        ]
       },
       "monitoring": {
         "type": "port",

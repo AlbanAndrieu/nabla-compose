@@ -11,7 +11,7 @@ ROOT = Path(__file__).parents[1]
 
 
 class PublicIngressContractTests(unittest.TestCase):
-    def test_sample_internal_traefik_host_is_canonical_for_pihole_sync(self) -> None:
+    def test_sample_internal_traefik_host_is_retired(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
         self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
@@ -26,9 +26,10 @@ class PublicIngressContractTests(unittest.TestCase):
         self.assertIn("gw_priority: 1", compose)
         self.assertNotIn("ipv4_address:", compose)
         self.assertNotIn("FASTAPI_SAMPLE_OBSERVER_SUBNET", compose)
-        self.assertIn("Host(`sample.int.albandrieu.com`)", compose)
+        self.assertNotIn("Host(`sample.int.albandrieu.com`)", compose)
         self.assertNotIn("fastapi-sample.int.albandrieu.com", compose)
-        self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 1)
+        self.assertEqual(compose.count("traefik.http.routers.fastapi-sample.rule="), 0)
+        self.assertIn("traefik.http.routers.fastapi-sample-public.rule=", compose)
         self.assertIn(
             "traefik.http.services.fastapi-sample.loadbalancer.server.port=8080",
             compose,

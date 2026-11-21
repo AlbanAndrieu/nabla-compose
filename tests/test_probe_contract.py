@@ -63,7 +63,9 @@ class ProbeLibraryContractTests(unittest.TestCase):
         self.assertNotIn('</dev/tcp/${TRUENAS_HOST}/2049', csi)
 
         self.assertIn("lib/probe.sh", exposure)
-        self.assertIn('probe_dns_addresses "${INTERNAL_HOST}" 3', exposure)
+        self.assertNotIn("sample.int.albandrieu.com", exposure)
+        self.assertIn("CHECK_TRAEFIK_CANARY_TLS", exposure)
+        self.assertIn("traefik.int.albandrieu.com", exposure)
         self.assertIn('probe_dns_addresses "${PUBLIC_HOST}" 3', exposure)
         self.assertNotIn('getent ahostsv4 "${INTERNAL_HOST}"', exposure)
         self.assertNotIn('getent ahostsv4 "${PUBLIC_HOST}"', exposure)

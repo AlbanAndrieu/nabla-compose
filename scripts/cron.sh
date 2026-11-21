@@ -17,6 +17,7 @@ RECENT_MINUTES="${NABLA_CRON_RECENT_MINUTES:-65}"
 DOCO_CD_PROJECTS="${NABLA_CRON_DOCO_CD_PROJECTS:-vaultwarden garage}"
 FASTAPI_UPDATE="${NABLA_CRON_FASTAPI_UPDATE:-true}"
 CTEM_AMASS_ENABLED="${NABLA_CRON_CTEM_AMASS_ENABLED:-false}"
+CTEM_WEB_ENABLED="${NABLA_CRON_CTEM_WEB_ENABLED:-false}"
 CTEM_MAIL_ENABLED="${NABLA_CRON_CTEM_MAIL_ENABLED:-false}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
@@ -274,7 +275,10 @@ run_weekly_ctem_amass() {
     return 1
   fi
   log_info "CTEM: running approved bounded active weekly Amass; private candidates stay on TrueNAS."
+  local web_approved=NO
+  [[ "${CTEM_WEB_ENABLED}" == true ]] && web_approved=YES
   sudo -n env CTEM_AMASS_ACTIVE_APPROVED=YES CTEM_REPORT_STORE_APPROVED=YES \
+    CTEM_WEB_PUBLISH_APPROVED="${web_approved}" \
     bash "${SCRIPT_DIR}/security/run-ctem-amass-truenas.sh" --run || rc=$?
   if ((rc == 0)); then
     log_info "CTEM: completed, private artifact retained; only counts may be published."

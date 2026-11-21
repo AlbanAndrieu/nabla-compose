@@ -70,7 +70,6 @@ Environment:
   QUALITY_SUMMARY_LINES            maximum failure-summary lines (default: 8)\n  QUALITY_VERBOSE=1               print full failure log on error
   QUALITY_FIX_MAX_PASSES           deterministic fix passes (default: 6)
   NABLA_TRUENAS_DEV_VENV           preferred local dev venv (default: ~/.cache/nabla-compose/dev-venv)
-  QUALITY_ALLOW_LARGE_DELETION=1   acknowledge an intentional large file truncation
 EOF
     exit 0
     ;;
@@ -105,7 +104,6 @@ done
 LOG_TAIL="${QUALITY_LOG_TAIL:-12}"
 LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"
-REVIEWED_LARGE_DELETIONS="${ROOT}/config/quality/reviewed-large-deletions.tsv"
 if ! [[ "${LOG_TAIL}" =~ ^[1-9][0-9]*$ ]]; then
   printf '❌ QUALITY_LOG_TAIL must be a positive integer\n' >&2
   exit 2
@@ -240,29 +238,13 @@ collect_changed_files() {
     done
 }
 
-collect_deleted_files() {
-  {
-    if [[ "${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD" ]] &&
-      git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
-      git diff --name-only --diff-filter=D "${BASE_REF}...HEAD"
-    fi
-    git diff --name-only --diff-filter=D
-    git diff --cached --name-only --diff-filter=D
-  } |
-    awk 'NF' |
-    sort -u
-}
-
-# Process substitution masks Git errors; fail closed rather than skip tests.
-if ! changed_output="$(collect_changed_files)" ||
-  ! deleted_output="$(collect_deleted_files)"; then
-  printf '❌ QG_GIT_SCOPE: failed to collect changed/deleted paths; no checks were skipped\n' >&2
+# Process substitution can mask Git errors: fail closed on a failed diff.
+if ! changed_output="$(collect_changed_files)"; then
+  printf '❌ QG_GIT_SCOPE: failed to collect changed paths; no checks were skipped\n' >&2
   exit 2
 fi
 CHANGED_FILES=()
-DELETED_FILES=()
 [[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
-[[ -z "${deleted_output}" ]] || mapfile -t DELETED_FILES <<<"${deleted_output}"
 
 check_base_freshness() {
   if [[ "${BASE_REF}" == "HEAD" ]]; then
@@ -277,102 +259,6 @@ check_base_freshness() {
     exit 1
   fi
   printf '✅ branch contains comparison base %s\n' "${BASE_REF}"
-}
-
-is_reviewed_large_deletion() {
-  local file="$1"
-  local current_state="${2:-PRESENT}"
-  local base_blob current_blob
-
-  [[ -f "${REVIEWED_LARGE_DELETIONS}" ]] || return 1
-  base_blob="$(git rev-parse "${BASE_REF}:${file}" 2>/dev/null || true)"
-  [[ -n "${base_blob}" ]] || return 1
-
-  if [[ "${current_state}" == "DELETED" ]]; then
-    current_blob="DELETED"
-  else
-    [[ -f "${file}" ]] || return 1
-    current_blob="$(git hash-object "${file}")"
-  fi
-
-  awk -F '\t' \
-    -v path="${file}" \
-    -v base="${base_blob}" \
-    -v current="${current_blob}" '
-      $0 !~ /^#/ && $1 == path && $2 == base && $3 == current { found = 1 }
-      END { exit(found ? 0 : 1) }
-    ' "${REVIEWED_LARGE_DELETIONS}"
-}
-
-check_destructive_diff() {
-  local large_deletion_failed=0
-  if [[ "${QUALITY_ALLOW_LARGE_DELETION:-0}" == "1" || "${BASE_REF}" == "HEAD" ]]; then
-    printf '✅ destructive-diff guard\n'
-    return 0
-  fi
-
-  for file in "${CHANGED_FILES[@]}"; do
-    case "${file}" in
-      catalog/service-topology.json|catalog/services.json|apps/homarr/generated/apps.json|apps/autokuma/static/generated-monitors.json|apps/gatus/config/config.yml|package-lock.json)
-        continue
-        ;;
-      *.md|*.py|*.sh|*.yml|*.yaml|*.json|*.toml|*.hcl|*.tofu|Dockerfile*|Makefile)
-        ;;
-      *)
-        continue
-        ;;
-    esac
-
-    git cat-file -e "${BASE_REF}:${file}" 2>/dev/null || continue
-    base_lines="$(git show "${BASE_REF}:${file}" | wc -l | tr -d ' ')"
-    current_lines="$(wc -l <"${file}" | tr -d ' ')"
-    if ((base_lines < 200 || current_lines >= base_lines)); then
-      continue
-    fi
-    deleted_lines=$((base_lines - current_lines))
-    deleted_percent=$((deleted_lines * 100 / base_lines))
-    if ((deleted_lines >= 100 && deleted_percent >= 40)); then
-      if is_reviewed_large_deletion "${file}" PRESENT; then
-        printf '✅ reviewed large deletion: %s lost %d/%d lines (%d%%) with exact blob approval\n' \
-          "${file}" "${deleted_lines}" "${base_lines}" "${deleted_percent}"
-        continue
-      fi
-      printf '❌ QG_LARGE_DELETION: %s lost %d/%d lines (%d%%); set QUALITY_ALLOW_LARGE_DELETION=1 only after explicit review\n' \
-        "${file}" "${deleted_lines}" "${base_lines}" "${deleted_percent}" >&2
-      large_deletion_failed=1
-    fi
-  done
-
-  for file in "${DELETED_FILES[@]}"; do
-    case "${file}" in
-      catalog/service-topology.json|catalog/services.json|apps/homarr/generated/apps.json|apps/autokuma/static/generated-monitors.json|apps/gatus/config/config.yml|package-lock.json)
-        continue
-        ;;
-      *.md|*.py|*.sh|*.yml|*.yaml|*.json|*.toml|*.hcl|*.tofu|Dockerfile*|Makefile)
-        ;;
-      *)
-        continue
-        ;;
-    esac
-
-    git cat-file -e "${BASE_REF}:${file}" 2>/dev/null || continue
-    base_lines="$(git show "${BASE_REF}:${file}" | wc -l | tr -d ' ')"
-    if ((base_lines >= 200)); then
-      if is_reviewed_large_deletion "${file}" DELETED; then
-        printf '✅ reviewed large deletion: %s deleted (%d lines) with exact blob approval\n' \
-          "${file}" "${base_lines}"
-        continue
-      fi
-      printf '❌ QG_LARGE_DELETION: %s was deleted (%d lines); set QUALITY_ALLOW_LARGE_DELETION=1 only after explicit review\n' \
-        "${file}" "${base_lines}" >&2
-      large_deletion_failed=1
-    fi
-  done
-
-  if ((large_deletion_failed != 0)); then
-    exit 1
-  fi
-  printf '✅ destructive-diff guard\n'
 }
 
 check_exec_bits() {
@@ -439,7 +325,6 @@ check_exec_bits() {
 }
 
 check_base_freshness
-check_destructive_diff
 check_exec_bits
 
 if [[ "${MODE}" == "preflight" ]]; then

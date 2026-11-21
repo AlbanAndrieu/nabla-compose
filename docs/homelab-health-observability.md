@@ -16,6 +16,64 @@ Use two independent evidence paths:
 A Prometheus outage must not prevent direct verification of TrueNAS, Talos,
 etcd or Kubernetes health.
 
+## Réception ciblée H04/H05 — Traefik, CrowdSec et honeypot (21/11/2026)
+
+**Code versionné, réception runtime NON VÉRIFIÉE.** Gatus et Prometheus
+mesurent des frontières différentes : un port ouvert, un backend HTTP
+répondant et une cible `/metrics` scrappée ne signifient pas qu'une
+règle CrowdSec bloque réellement une requête.
+
+| Contrôle | Source d'autorité | Problème détecté |
+| --- | --- | --- |
+| Gatus `Traefik` | `config/monitoring/gatus-endpoints.yml` | TCP :443 fermé |
+| Gatus `Hello Nginx` | Même source | backend Nginx port :8099 |
+| Gatus `Hello Nginx via Traefik` | Même source | HTTPS Host/SNI privé et HTTP 200 |
+| Gatus `CrowdSec` | Même source | LAPI /health :8084 HTTP 200 |
+| Gatus `Honeypot LAN Health` | Même source | /healthz :31090 HTTP 200 ; n'active pas le script Project Honey Pot |
+| Prometheus `traefik` | `prometheus.yml` | scrape :8082 ; règles de cible DOWN/ABSENT et backends KO |
+| Prometheus `crowdsec` | `prometheus.yml` | scrape :6060 ; règles DOWN/ABSENT sans doublon de `NablaExporterTargetDown` |
+
+Les règles `apps/prometheus/rules/traefik.rules.yml` contiennent
+`TraefikMetricsTargetDown`, `TraefikMetricsTargetAbsent` et
+`TraefikServiceDown`. La dernière alerte ne s'émet que si
+`traefik_service_server_up` possède effectivement une série à zéro ;
+les deux premières détectent la perte/absence de télémétrie, sans
+prétendre établir la cause.
+
+`apps/prometheus/rules/crowdsec.rules.yml` ajoute
+`CrowdSecMetricsTargetDown` et `CrowdSecMetricsTargetAbsent`.
+Le job CrowdSec est retiré de la règle générique d'exporter
+pour éviter **deux alertes simultanées sur le même scrape**.
+Une panne Prometheus n'est pas une preuve d'absence de bannissement
+et un `cscli decisions list` vide n'est pas une preuve de WAF AppSec sain.
+
+Contrôles read-only après déploiement :
+
+```bash
+# TrueNAS, sans bannir ni soumettre de requête de leurre
+curl -fsS http://172.17.0.24:6060/metrics >/dev/null
+curl -fsS http://172.17.0.24:8082/metrics >/dev/null
+curl -fsS http://172.17.0.24:8084/health >/dev/null
+curl -fsS http://172.17.0.24:31090/healthz
+curl --fail-with-body --max-time 10 \
+  --resolve hello.int.albandrieu.com:443:172.17.0.24 \
+  https://hello.int.albandrieu.com/ -o /dev/null
+
+# Vérifier la syntaxe des règles montées dans Prometheus
+sudo docker exec prometheus sh -c \
+  'promtool check rules /etc/prometheus/rules/*.rules.yml'
+```
+
+Aucun de ces contrôles n'a été lancé par cette PR sur TrueNAS :
+l'ajout des règles ne prouve pas que le conteneur Prometheus
+les a chargées ni qu'Alertmanager transmet les notifications.
+Recevoir aussi la cible Gatus `Hello Nginx via Traefik` :
+une erreur DNS/SSL n'implique pas un backend Nginx arrêté.
+
+Sources officielles :
+[Traefik metrics](https://doc.traefik.io/traefik/v3.8/reference/install-configuration/observability/metrics/),
+[CrowdSec Prometheus](https://docs.crowdsec.net/docs/observability/prometheus/).
+
 ## Current baseline — 2026-09-06
 
 The base cluster is no longer only planned. The current repository/runtime

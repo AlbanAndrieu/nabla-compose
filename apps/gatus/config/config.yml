@@ -196,6 +196,16 @@ endpoints:
   url: tcp://172.17.0.24:8099
   conditions:
   - '[CONNECTED] == true'
+- name: Hello Nginx via Traefik
+  group: network
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: hello-nginx-traefik
+    nabla_service_id: hello-nginx
+    nabla_entity_ref: component:default/hello-nginx
+  url: https://hello.int.albandrieu.com/
+  conditions:
+  - '[STATUS] == 200'
 - name: Homarr
   group: operations
   interval: 60s
@@ -217,6 +227,16 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: Honeypot LAN Health
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: honeypot
+    nabla_service_id: honeypot
+    nabla_entity_ref: component:default/honeypot
+  url: http://172.17.0.24:31090/healthz
+  conditions:
+  - '[STATUS] == 200'
 - name: InfluxDB
   group: data
   interval: 60s
@@ -660,7 +680,7 @@ endpoints:
     nabla_monitor_id: traefik
     nabla_service_id: traefik
     nabla_entity_ref: component:default/traefik
-  url: tcp://172.17.0.24:80
+  url: tcp://172.17.0.24:443
   conditions:
   - '[CONNECTED] == true'
 - name: TrueNAS

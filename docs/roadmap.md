@@ -24,6 +24,68 @@
 
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
+### Suite du 21/11 — H04/H05 : honeypot / identité du trafic
+
+- **DNS `login.albandrieu.com` :** le propriétaire a supprimé
+  le A périmé `82.66.4.247`. `dig @1.1.1.1` ne retourne plus
+  de A et la sonde HTTPS échoue en résolution ; le LAN
+  `172.17.0.24:31090/healthz` répond `ok`.
+  **Prochaine réception H04 :** état Cloudflare Garage, plan import-first
+  du CNAME proxifié vers le Tunnel et Access `Everyone bypass`,
+  puis HTTP 200 externe sur `/healthz` (sans hit `/`).
+- **Honeypot Traefik/CrowdSec (#436), CODED / NOT_DEPLOYED :**
+  routeurs `login` avec peer Cloudflare Tunnel 10.200.2.0/24,
+  AppSec fail-closed et rate-limit HTTP, réseau Docker Traefik ;
+  switch `honeypot_tunnel_via_traefik=false` par défaut avec
+  rollback direct 31090. Une page `/login` de simulation
+  ne transmet aucun champ d'identifiants et POST est refusé 403
+  avant PHP. Scénario de burst CrowdSec versionné **non monté**,
+  simulation avant toute remédiation IP et revue des faux positifs.
+  Le certificat/SNI, 403 AppSec, dashboard et IP réelle restent
+  **NOT_VERIFIED** ; aucune activation du Tunnel depuis GitHub.
+- **CTEM détection / minimisation :** un agrégateur read-only
+  `summarize-honeypot-traefik.py` retient seulement les requêtes
+  des routeurs honeypot ayant un peer `cloudflared` prouvé,
+  regroupe méthodes/chemins reconnus/codes et compte IP distinctes
+  **sans publier les adresses ni les logs bruts**. Pas de
+  collecte d'identité civile. Prévoir la conservation privée et
+  l'UX OWNER, avant toute diffusion de compteurs. Le site
+  `nabla-site-alban` dispose déjà de `/[locale]/login`
+  (démo Turnstile) : étude d'un GET vers le leurre TrueNAS
+  sans POST d'identifiants ni cross-origin credential forwarding.
+  [Runbook](../apps/honeypot/README.md).
+
+### H04/H05 — Réception Traefik/CrowdSec, Hello et validation de la CI
+
+- **Traefik Hello** : `apps/nginx/compose.yml` porte **déjà** le
+  routeur TLS `Host(hello.int.albandrieu.com)` sur `websecure`,
+  backend Nginx `:80` et réseau `traefik_network`.
+  Healthcheck Docker ajouté ; smoke HTTPS/SNI documenté dans
+  [Hello](../apps/nginx/README.md).
+  **Attention** : la déclaration historique d'exposition
+  `gatewayRef=pfsense-haproxy` n'est pas une preuve WAN,
+  pfSense étant retiré. Pas de nouvelle route Tunnel/NAT ;
+  réception LAN puis revue du DNS public avant correction H04.
+- **Gatus** : sondes existantes CrowdSec LAPI :8084/health,
+  Traefik TCP (désormais :443) et backend Hello 8099.
+  Nouvelle sonde `Hello Nginx via Traefik` HTTPS 200 et sonde
+  honeypot `:31090/healthz` sans visite Project Honey Pot.
+  La config générée est recalculée par le job CTEM, aucune
+  preuve de chargement Gatus runtime à ce stade.
+- **Prometheus** : scrapes déjà déclarés pour Traefik :8082
+  et CrowdSec :6060. Règles de cibles DOWN/ABSENT ajoutées ;
+  `TraefikServiceDown` corrigée (`sum by(service)` au lieu de
+  `count(...) == 0`). Les alertes CrowdSec dédiées remplacent
+  ce job dans la règle générique pour éviter une double alerte.
+  Syntaxe `promtool`, reload Prometheus, réception Alertmanager
+  et véritable blocage AppSec **NOT_VERIFIED**.
+- **Agents** : suppression explicite de
+  `config/quality/reviewed-large-deletions.tsv` et des contrôles
+  `QG_LARGE_DELETION` / `QUALITY_ALLOW_LARGE_DELETION`.
+  Le gate garde le contrôle des branches, bases fraîches, secrets,
+  permissions exécutables et tests. Les suppressions importantes
+  restent visibles dans la PR Git, sans refus selon le nombre de lignes.
+
 ## CTEM — réconciliation du 21 novembre 2026 (H04/H05/H13/H17)
 
 Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-external-exposure.md), sans roadmap parallèle : **H04** = exposition et contrôles de frontière ; **H05** = inventaire Amass (GitHub passif ou actif externe sur approbation, TrueNAS actif via le PostgreSQL partagé) et rapprochement Backstage V2 ; **H13** = findings qualifiés dans DefectDojo ; **H17** = fiabilité des entités et révisions. Priorité au contrôle déclaratif sans accès LAN ; les campagnes actives sont séparées, bornées et autorisées. L'ordre général H01 → H02 → H04 → H05 → H12 → H13 → H16 n'est pas modifié.
@@ -33,6 +95,8 @@ Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-
 - **Nouvelle implémentation H04/H05 (branche CTEM) :** `scripts/security/audit-ctem-catalog-policy.py` vérifie **hors ligne** les contradictions entre `x-nabla.exposure` du Backstage V2 généré et la politique `LAN_ONLY_NAMES`, y compris sans sortie Amass ; artefact public avec compteurs uniquement, détails nominaux optionnels en fichier privé 0600. Son exit code non nul signale un conflit ou un catalogue invalide ; absence de conflit ne prouve ni absence de route WAN ni exhaustivité des domaines possédés. Test : `python3 -m unittest tests.test_ctem_catalog_policy -v`.
 - **Validation du 21/11 (#431) :** 44 tests CTEM offline réussis sur les contrôles Amass interne/externe, report HTML privé, GitHub App, JSON `checkdmarc`, DefectDojo et vraie source Backstage V2. Les 4 JSON V2 sont recalculés à partir des sources ; les deux JSON déclaratifs hors générateur sont formatés avec le Biome épinglé. Le quality gate global reste à vérifier sur le HEAD final ; aucun scan ni déploiement TrueNAS n'a été observé.
 - **Écart déclaratif résolu dans la PR #431 :** `ollama-gpu` est déclaré `visibility: lan` / `gatewayRef: truenas` dans la source Backstage et le catalogue de présentation n’a plus de `tunnelUrl` ; les quatre projections V2 ont été régénérées ensemble en CI. La gate déclarative `LAN_ONLY_NAMES` est maintenant bloquante. L'absence effective de routes DNS/Tunnel/Access/NAT publiques reste **NOT_VERIFIED**.
+- **CTEM → workstation Apache, synthèses uniquement (21/11, CODED / NOT_DEPLOYED)** : `publish-ctem-web-summary.py` réduit strictement le rapport Amass TrueNAS (aucun FQDN, IP, `entityRef`, graphe ou détail) puis publie deux fichiers sous `/mnt/cpool/www/reports/ctem`, exposés en NFS existant comme `/media/www/reports/ctem`. Publication désactivée par défaut (`NABLA_CRON_CTEM_WEB_ENABLED=false`). `ansible-workstation` construit un miroir local validé sous `/var/www/reports/ctem` servi par l'Alias Apache existant sans montage NFS par requête, sans nouveau timer. Les exports NFS directs `cpool/code`, CTEM privé et `ops-logs` sont explicitement candidats `state: absent` dans le plan Ansible ; vérification live et approbation requises. [Runbook](runbooks/ctem-external-exposure.md#publication-contrôlée-vers-mediawww-workstation).
+- **Suivi CTEM outside-in / LAN (21/11)** : le profil externe `discovery-active` et le rapport HTML privé de #431 sont sur `master`. La PR de suivi isole le collecteur GitHub App `pull-ctem-amass-artifact.py` (une run manuelle réussie, source exacte, 7 jours, noms exclus) et `compare-ctem-amass-vantages.py` (comparaison des compteurs LAN/externe uniquement à périmètre, statut, révision V2 et fenêtres temporelles compatibles). Les divergences restent des observations, pas `DOWN` ni vulnérabilité. Runtime **NOT_VERIFIED** ; [runbook](runbooks/ctem-external-exposure.md).
 - **Critères de réception ouverts :** quality gate globale sur SHA Git (CI CTEM dédiée déjà verte), relevé Cloudflare DNS/Tunnel/Access négatif pour Ollama/LiteLLM, premiers scans réels depuis TrueNAS et l'extérieur, validation TLS PostgreSQL, comparaison des deux vantage et cartographie des propriétaires. L'interface HTML locale **CODED/TESTED, NOT_DEPLOYED** ; aucun scan d'IP CDN mutualisées ni import automatique des candidats Amass en vulnérabilités.
 
 ## Règles de suivi
@@ -245,6 +309,33 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
    du propriétaire, `NOT_RUN` (navigateur de l'agent non connecté à GitHub).
    Vaultwarden 1.37.5 est `CODED` (78415e6e) mais pas déployé (voir le point
    Secrets du P0 Cloudflare).
+
+## Réception 21/11 — rapports NFS, ingress et honeypot
+
+- **CTEM TrueNAS → workstation** : `/mnt/cpool/www` est confirmé
+  monté en NFSv4.2 sur `/media/www`; les symlinks historiques Apache
+  servent directement ce partage, **pas** un miroir local. Le futur
+  rapport CTEM expurgé sera copié depuis ce partage par
+  `ansible-workstation #39` vers `/var/www/reports/ctem`, mais le
+  port LAN 8087 et le contrôle Apache effectif sont **NOT_VERIFIED**
+  (Apache `-S` n'affiche que 80/8082). Le répertoire
+  `nabla-site-apache/public` est modifiable par `www-data` : audit
+  des ACL avant exposition. [Runbook partagé](runbooks/workstation-truenas-report-sharing-and-honeypot.md).
+- **FastAPI** : routeur Traefik historique `sample.int.albandrieu.com`
+  retiré du Compose après redéploiement annoncé ; route publique
+  canary avec CrowdSec conservée, Tunnel direct 8091 par défaut,
+  SNI d'origine vérifié `traefik.int.albandrieu.com`.
+  Réception runtime/TLS et nettoyage éventuel DNS Pi-hole à faire.
+- **Honeypot `login.albandrieu.com`** : LAN `:31090` servi ;
+  le Tunnel **déclaré** pointe directement sur le port (pas Traefik).
+  Publication DNS / Access `Everyone bypass` non vérifiée live.
+  Le service est Project Honey Pot, **sans formulaire de connexion**
+  ni CAPTCHA ; si un leurre `/login` est approuvé, envisager
+  Traefik + CrowdSec sur ce chemin seulement, sans interférer avec
+  `/` (collecte) et `/healthz` (sonde). Pas de bannissement LAPI
+  ni d'activation Turnstile à partir des seules métriques :
+  `appsec_collections=PASS_INSTALLED` et metrics disponibles,
+  **403 non testé**, admin Traefik non attesté. Aucun apply Cloudflare.
 
 ## Historique minimal : problèmes à ne pas reproduire
 

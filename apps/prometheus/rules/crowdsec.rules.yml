@@ -1,0 +1,28 @@
+---
+# Source of truth: apps/prometheus/prometheus.yml job=crowdsec,
+# static LAN metrics endpoint :6060. These alerts detect missing telemetry,
+# NOT missing/remediating login attacks or CrowdSec LAPI functionality.
+groups:
+  - name: CrowdSec
+    rules:
+      - alert: CrowdSecMetricsTargetDown
+        expr: up{job="crowdsec"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: observability
+          impact: blind_spot
+        annotations:
+          summary: "CrowdSec metrics scrape failed"
+          description: "Prometheus has been unable to collect CrowdSec metrics at :6060 for two minutes. Check Gatus LAPI health separately."
+
+      - alert: CrowdSecMetricsTargetAbsent
+        expr: absent(up{job="crowdsec"})
+        for: 5m
+        labels:
+          severity: warning
+          scope: observability
+          impact: unverified
+        annotations:
+          summary: "CrowdSec metrics target missing"
+          description: "No crowdsec up series exists; inspect the static scrape job before interpreting CrowdSec as down."

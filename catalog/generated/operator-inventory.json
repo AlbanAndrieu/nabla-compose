@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
+  "catalogRevision": "sha256:fde6a87a54175962f0514e5896ae87a510411a77d545f1203ccb48ff19317c8b",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -1344,6 +1344,10 @@
       "presentationRole": "support",
       "runtime": {
         "containerService": "honeypot",
+        "networks": [
+          "default",
+          "traefik_network"
+        ],
         "provider": "truenas-app"
       },
       "securityFunctions": [
@@ -3532,7 +3536,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:30ee567aa65f05d8e77ddd52446e14e58780c7b6bf8752d3cfd7e6202bfc77ab",
+  "operatorRevision": "sha256:f1db8b3c4be339feb5ecd73d68d70628558a19ef64122e15bb514a1380fd82d5",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -8178,6 +8182,10 @@
       "presentationRole": "support",
       "runtime": {
         "containerService": "honeypot",
+        "networks": [
+          "default",
+          "traefik_network"
+        ],
         "provider": "truenas-app"
       },
       "securityFunctions": [

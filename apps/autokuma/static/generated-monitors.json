@@ -199,6 +199,16 @@
     "port": 8099
   },
   {
+    "id": "hello-nginx-traefik",
+    "type": "http",
+    "name": "Hello Nginx via Traefik",
+    "description": "Small internal Nginx service used for ingress and routing experiments.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "https://hello.int.albandrieu.com/"
+  },
+  {
     "id": "homarr",
     "type": "port",
     "name": "Homarr",
@@ -218,6 +228,16 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:30103/manifest.json"
+  },
+  {
+    "id": "honeypot",
+    "type": "http",
+    "name": "Honeypot LAN Health",
+    "description": "Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31090/healthz"
   },
   {
     "id": "influxdb",
@@ -686,7 +706,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 80
+    "port": 443
   },
   {
     "id": "truenas",
