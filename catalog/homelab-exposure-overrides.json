@@ -3,10 +3,9 @@
     {
       "name": "TrueNAS",
       "external": true,
-      "tunnelUrl": "https://truenas.albandrieu.com:7000",
-      "tunnelSecure": false,
-      "cloudflareAccessRequired": false,
-      "securityException": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately."
+      "tunnelUrl": "https://truenas.albandrieu.com",
+      "tunnelSecure": true,
+      "cloudflareAccessRequired": true
     },
     {
       "name": "pfSense",
