@@ -3345,7 +3345,7 @@
       "name": "TrueNAS",
       "presentationRole": "core",
       "sourcePath": "apps/homarr/compose.yml",
-      "url": "https://truenas.albandrieu.com:7000"
+      "url": "https://truenas.albandrieu.com"
     },
     {
       "category": "observability",
@@ -3532,7 +3532,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:1d6a09326f9967cda0b689cc08b0afc26efe88c716cbeb1e3f1155d14721f41f",
+  "operatorRevision": "sha256:30ee567aa65f05d8e77ddd52446e14e58780c7b6bf8752d3cfd7e6202bfc77ab",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
