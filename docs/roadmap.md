@@ -237,8 +237,12 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
    n'ont pas de job pre-commit sur leurs PR : l'y ajouter avant de l'exiger.
 2. **Remettre une source de mises à jour des images.** Décision du 21/11 :
    Watchtower est retiré (`apps/watchtower` supprimé ; les labels fail-closed et
-   `check-watchtower-unit-policy.py` restent comme garde-fou) et Renovate devient
-   la seule source. Reste à réactiver l'App Renovate sur le dépôt
+   `check-watchtower-unit-policy.py` restent comme garde-fou) : Renovate reste
+   **seule autorité pour les changements d'images versionnés**. Un observateur
+   indépendant (DIUN / Watchtower maintenu en mode notification seule) peut
+   compléter les alertes de dérive, jamais redéployer les conteneurs ; étude
+   et préflight sans déploiement dans `docs/watchtower-service-units.md`.
+   Reste à réactiver l'App Renovate sur le dépôt
    (github.com/settings/installations → Renovate → ajouter nabla-compose) : étape
    du propriétaire, `NOT_RUN` (navigateur de l'agent non connecté à GitHub).
    Vaultwarden 1.37.5 est `CODED` (78415e6e) mais pas déployé (voir le point
