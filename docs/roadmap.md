@@ -228,10 +228,14 @@ ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
    `CODED` (075b9a99) : `pre-commit` requis et branche à jour obligatoire sur
    nabla-compose ; plan et apply OpenTofu `NOT_RUN`. Les 50 autres dépôts gérés
    n'ont pas de job pre-commit sur leurs PR : l'y ajouter avant de l'exiger.
-2. **Remettre une source de mises à jour des images.** Renovate est configuré
-   mais inactif sur le dépôt et Watchtower reste `planned` en surveillance
-   seule : réactiver l'App Renovate. Vaultwarden 1.37.5 est `CODED` (78415e6e)
-   mais pas déployé (voir le point Secrets du P0 Cloudflare).
+2. **Remettre une source de mises à jour des images.** Décision du 21/11 :
+   Watchtower est retiré (`apps/watchtower` supprimé ; les labels fail-closed et
+   `check-watchtower-unit-policy.py` restent comme garde-fou) et Renovate devient
+   la seule source. Reste à réactiver l'App Renovate sur le dépôt
+   (github.com/settings/installations → Renovate → ajouter nabla-compose) : étape
+   du propriétaire, `NOT_RUN` (navigateur de l'agent non connecté à GitHub).
+   Vaultwarden 1.37.5 est `CODED` (78415e6e) mais pas déployé (voir le point
+   Secrets du P0 Cloudflare).
 
 ## Historique minimal : problèmes à ne pas reproduire
 

@@ -1811,18 +1811,6 @@
       "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval."
     },
     {
-      "id": "watchtower",
-      "entityRef": "component:default/watchtower",
-      "name": "Watchtower",
-      "group": "security",
-      "sourcePath": "apps/watchtower/compose.yml",
-      "composeService": "watchtower",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers."
-    },
-    {
       "id": "wazuh-dashboard",
       "entityRef": "component:default/wazuh-dashboard",
       "name": "Wazuh Dashboard",

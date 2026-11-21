@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 61 ; planifiées : 25.
+Apps : 90 ; actives : 61 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -13,9 +13,9 @@ Apps : 91 ; actives : 61 ; planifiées : 25.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 26 |
-| `NO_DEPLOY_PATH` | 18 |
+| `NO_DEPLOY_PATH` | 17 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 45 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -111,5 +111,4 @@ Apps : 91 ; actives : 61 ; planifiées : 25.
 | `traefik` | active | custom-apps.yml | `cpool/traefik` (app-state) | legacy | ❌ | traefik | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `uptimekuma` | planned | ❌ | `cpool/uptimekuma` (app-state) | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `vaultwarden` | active | custom-apps.yml | `cpool/vaultwarden` (critical) | n/a | ❌ | — | — | diagnose-vaultwarden-cli.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `watchtower` | planned | ❌ | — | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `wazuh` | active | custom-apps.yml | `cpool/secrets` (critical)<br>`cpool/wazuh` (databases) | legacy | ❌ | — | — | diagnose-wazuh.sh | apps/wazuh/config/<br>bootstrap-wazuh.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |

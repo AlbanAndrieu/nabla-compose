@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:7ccefedef40e59f4e972d3eb68922de14aa1fe6f4791b8a38eaed7b793867e8f",
+  "catalogRevision": "sha256:f97f8862aca8c48b38e742f419ce5cd8cc8b5d8ab953899b557787e46cf31698",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -9375,40 +9375,6 @@
           "containerService": "bitwarden-api",
           "provider": "truenas-app",
           "source": "apps/vaultwarden/compose.yml#services/bitwarden-api"
-        }
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/watchtower",
-      "kind": "Component",
-      "metadata": {
-        "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-        "labels": {
-          "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
-        },
-        "name": "watchtower",
-        "tags": [
-          "security"
-        ],
-        "title": "Watchtower"
-      },
-      "sourcePath": "apps/watchtower/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "experimental",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "image-update-auditor"
-      },
-      "x-nabla": {
-        "runtime": {
-          "composeProfiles": [
-            "manual-audit"
-          ],
-          "containerService": "watchtower",
-          "provider": "truenas-app",
-          "source": "apps/watchtower/compose.yml#services/watchtower"
         }
       }
     },

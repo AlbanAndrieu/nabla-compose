@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:7ccefedef40e59f4e972d3eb68922de14aa1fe6f4791b8a38eaed7b793867e8f",
+  "catalogRevision": "sha256:f97f8862aca8c48b38e742f419ce5cd8cc8b5d8ab953899b557787e46cf31698",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -135,7 +135,6 @@
     "uptimekuma": "component:default/uptimekuma",
     "vaultwarden": "component:default/vaultwarden",
     "vaultwarden-rest-api": "component:default/vaultwarden-rest-api",
-    "watchtower": "component:default/watchtower",
     "wazuh-dashboard": "component:default/wazuh-dashboard",
     "wazuh-forwarder": "component:default/wazuh-forwarder",
     "wazuh-indexer": "component:default/wazuh-indexer",
@@ -3421,24 +3420,6 @@
     },
     {
       "category": "security",
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-      "id": "watchtower",
-      "kind": "image-update-auditor",
-      "name": "Watchtower",
-      "presentationRole": "support",
-      "runtime": {
-        "containerService": "watchtower",
-        "networks": [
-          "docker-proxy",
-          "intranet"
-        ],
-        "provider": "truenas-app"
-      },
-      "sourcePath": "apps/watchtower/compose.yml",
-      "status": "planned"
-    },
-    {
-      "category": "security",
       "description": "Logical Wazuh security platform composed of manager, indexer, dashboard and forwarding workloads.",
       "icon": "🛡️",
       "id": "wazuh",
@@ -3551,7 +3532,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:771291cc350b12634398ccfcac451613e310937084adaf24de7d5d3317620d04",
+  "operatorRevision": "sha256:1d6a09326f9967cda0b689cc08b0afc26efe88c716cbeb1e3f1155d14721f41f",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -6919,26 +6900,6 @@
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/watchtower/compose.yml:watchtower.x-nabla.runtime.containerService"
-      ],
-      "source": "watchtower",
-      "strength": "required",
-      "target": "docker",
-      "type": "hostedBy"
-    },
-    {
-      "description": "Watchtower lists containers and images through the allowlisted, POST-disabled Docker API proxy.",
-      "evidence": [
-        "apps/watchtower/compose.yml:DOCKER_HOST"
-      ],
-      "source": "watchtower",
-      "strength": "required",
-      "target": "docker-socket-proxy",
-      "type": "consumesApi"
-    },
-    {
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
         "apps/wazuh/compose.yml:wazuh.dashboard.x-nabla.runtime.containerService"
       ],
       "source": "wazuh-dashboard",
@@ -10092,25 +10053,6 @@
         "protect"
       ],
       "sourcePath": "apps/vaultwarden/compose.yml"
-    },
-    {
-      "category": "security",
-      "composeService": "watchtower",
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-      "id": "watchtower",
-      "kind": "image-update-auditor",
-      "name": "Watchtower",
-      "presentationRole": "support",
-      "runtime": {
-        "containerService": "watchtower",
-        "networks": [
-          "docker-proxy",
-          "intranet"
-        ],
-        "provider": "truenas-app"
-      },
-      "sourcePath": "apps/watchtower/compose.yml",
-      "status": "planned"
     },
     {
       "category": "security",

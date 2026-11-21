@@ -17,7 +17,7 @@ services:
       CONTAINERS: 1
       EVENTS: 1
       INFO: 1
-      # Read-only image metadata for manual Watchtower audit; POST stays disabled.
+      # Read-only image metadata; POST stays disabled.
       IMAGES: 1
       NETWORKS: 1
       PING: 1
