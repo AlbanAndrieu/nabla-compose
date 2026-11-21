@@ -126,7 +126,7 @@ Vérifié le 18/11 depuis la workstation : bail `172.17.0.57` avec la passerelle
 
 Reste à vérifier (`NOT_VERIFIED`) :
 
-- DNS que le R7000 distribue par DHCP et qu'il utilise lui-même (cible : Pi-hole `172.17.0.24`, puis Quad9 en secours) ;
+- DNS du R7000 (décidé le 21/11, Q6) : dans *Internet Setup*, « Use These DNS Servers » avec Pi-hole `172.17.0.24` en principal et la Freebox `192.168.1.254` en secondaire. Le R7000 distribue sa propre adresse par DHCP et relaie vers ces deux serveurs : si Pi-hole tombe, le LAN résout encore les noms publics (pas `*.int`). Réglage dans l'interface web du routeur, qui n'a ni API ni script : étape du propriétaire, `NOT_RUN`. Réception : `dig @172.17.0.1 hello.int.albandrieu.com` → `172.17.0.24`, puis Pi-hole arrêté, `dig @172.17.0.1 example.org` répond toujours ;
 - Remote Management, UPnP et WPS désactivés ;
 - statut de support du R7000, modèle ancien : il reste derrière le NAT de la Freebox ;
 - adresse Internet du R7000 fixée sur la Freebox (`freebox-edge.py pin-wan --wan-mac <MAC> --wan-ip <ip>`, sans `--dmz`) ;
@@ -145,7 +145,7 @@ Appliqué par l'API avec l'app « Nabla edge », chaque réglage relu après éc
 
 **État : `DEPLOYED` pour le R7000 et la workstation, en attente pour TrueNAS.** En IPv6, il n'y a pas de NAT : chaque machine a une adresse publique. Ce sont les pare-feu, et non le NAT, qui empêchent les entrées depuis Internet.
 
-Plan d'adressage (Free attribue 8 préfixes `/64`, de `2a01:e0a:a17:3c00::/64` à `…:3c07::/64`) :
+Plan d'adressage (`<préfixe Free>` est le début du /56 délégué, lisible dans la Freebox et volontairement absent du dépôt ; Free attribue 8 préfixes `/64`, de `<préfixe Free>:3c00::/64` à `…:3c07::/64`) :
 
 | Préfixe | Usage |
 | --- | --- |
@@ -155,9 +155,9 @@ Plan d'adressage (Free attribue 8 préfixes `/64`, de `2a01:e0a:a17:3c00::/64` �
 
 1. **Freebox, fait le 20/11** : `ipv6_firewall` et `ipv6_prefix_firewall` à `true` (les entrées depuis Internet sont refusées, y compris vers les préfixes délégués) ; délégation `…:3c01::/64` avec next hop `fe80::120c:6bff:fe62:128f`, le link-local du WAN du R7000 (EUI-64 de sa MAC `…:8F`, confirmé par la Freebox).
 2. **R7000, fait le 20/11** (`https://172.17.0.1/start.htm`, ADVANCED > Advanced Setup > IPv6), type `Fixed` :
-   - WAN : `2a01:e0a:a17:3c00::2/64` ;
-   - passerelle : **`2a01:e0a:a17:3c00::1`**. Le R7000 refuse une passerelle link-local (« il doit s'agir d'une adresse de monodiffusion globale »), et `…:3c00:8e97:eaff:fe39:b37b` (EUI-64 de la Freebox) ne répond pas ;
-   - LAN : `2a01:e0a:a17:3c01::1/64`, `Auto Config` (SLAAC).
+   - WAN : `<préfixe Free>:3c00::2/64` ;
+   - passerelle : **`<préfixe Free>:3c00::1`**. Le R7000 refuse une passerelle link-local (« il doit s'agir d'une adresse de monodiffusion globale »), et `…:3c00:8e97:eaff:fe39:b37b` (EUI-64 de la Freebox) ne répond pas ;
+   - LAN : `<préfixe Free>:3c01::1/64`, `Auto Config` (SLAAC).
 
    Pièges rencontrés : dans les champs à 8 cases, `fe80::8e97:…` s'écrit `FE80:0000:0000:0000:8E97:…` (les zéros de `::` sont au milieu, pas à la fin). Le firmware V1.0.12.216 n'a pas d'option « IPv6 Filtering ». Son tableau de bord peut afficher « Internet non connecté » alors que l'IPv4 et l'IPv6 passent ; on se fie aux contrôles ci-dessous.
 3. **Workstation, vérifié le 20/11** : adresses `…:3c01:` en SLAAC (stable et temporaire), route par défaut vers `fe80::120c:6bff:fe62:128e` (LAN du R7000), `curl -6 https://ipv6.google.com` → 200, `tracepath -6` : R7000, puis `…:3c00::1`, puis le réseau de Free. ufw filtre aussi l'IPv6 (`IPV6=yes`, entrée refusée par défaut).
