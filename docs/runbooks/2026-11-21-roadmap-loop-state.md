@@ -20,7 +20,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | 1 | 21/11 | 21/11 | après la passe 3 |
 | 2 | 21/11 | 21/11 | après la passe 3 |
 | 3 | 21/11 | 21/11 | fait : skill (e863e844), refactorisation (lot 3a), docs |
-| 4 | 21/11 | en cours | après la passe 6 |
+| 4 | 21/11 | 21/11 | après la passe 6 |
+| 5 | 21/11 | 21/11 | après la passe 6 ; questions posées à l'issue de cette passe |
 
 ## Journal
 
@@ -66,6 +67,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | nabla-site-alban passe 1 : `master` rouge réparé (next 16.4.6), retrait pfSense affiché, garde H17 (aucun lecteur V1/legacy) | TESTED | c34eab0, 3d71fb8, da026a6, 79789e3 ; `quality:agent:publish` PASS (`QG_PUBLISH_PROOF_OK`) dans un clone propre ; poussé par l'utilisateur (YubiKey), PR Draft #336 |
 | fastapi-sample passe 2 : `composeProfiles` accepté (état `on_demand`), jauge `nabla_startup_phase_duration_seconds` (F08) | TESTED | #452 à 8e710b42 (ded6e023, be256bd3) ; L2 et L3 verts (rapport du sous-agent, tête vérifiée sur GitHub) ; déploiement `NOT_RUN` |
 | H17 suite : `composeProfiles` dans `entities.json` | CODED | dérivé de `profiles:` dans Compose, 9 entités ; le Sample déployé l'ignore (projection limitée à `provider/appId/containerService/networks`) ; `services.json` attend le déploiement de #452 |
+| Passe 5 : re-test | fait (11:41) | 0 alerte active (`TrueNASHostIOPressureHigh` éteinte avec la fin du test SMART) ; Gatus 68/68 ; Prometheus 11 cibles DOWN sur 38 : 10 `planned`, plus `keycloak` (`active`, App `STOPPED` depuis au moins 14 h, activation bloquée par V1). La passe 4 aurait dû le relever : sa mention « aucune cible non `planned` en panne » était fausse ; Vaultwarden `locked` ; les 5 PR `MERGEABLE`, CI verte |
+| F14 (1) Sample : un job `exited` n'est pas un échec | vérifié | middleware TrueNAS `ix_apps/query.py` l. 266 : `exited` avec `ExitCode != 0` → `crashed` (App `CRASHED`), donc `exited` = code 0 ; en direct `defectdojo-initializer` `exited`, App `RUNNING` ; mise en œuvre demandée sur fastapi-sample#452 |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
