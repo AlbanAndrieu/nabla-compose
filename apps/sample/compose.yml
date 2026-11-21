@@ -84,9 +84,9 @@ services:
         - target: traefik
           type: exposedBy
           strength: optional
-          description: Traefik hosts the optional public FastAPI canary; no private sample.int router is registered.
+          description: Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.
           evidence:
-            - apps/sample/compose.yml:traefik.http.routers.fastapi-sample-public
+            - apps/sample/compose.yml:traefik.http.routers.fastapi-sample
         - target: cloudflared
           type: exposedBy
           strength: optional
