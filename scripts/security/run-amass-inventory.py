@@ -237,6 +237,8 @@ def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[l
         scope = ",".join(domains)
         try:
             config = postgres_config(os.environ, work)
+            if os.environ.get("GITHUB_ACTIONS") == "true" and config is not None:
+                return [], 0, "EXTERNAL_PERSISTENCE_FORBIDDEN"
             if mode == "active" and config is None and os.environ.get("GITHUB_ACTIONS") != "true":
                 return [], 0, "POSTGRES_CONFIGURATION_REQUIRED"
             # The GitHub-hosted *external* vantage uses ephemeral Amass storage.
