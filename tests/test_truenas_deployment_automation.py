@@ -213,9 +213,8 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     updater = (ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh").read_text(
         encoding="utf-8",
     )
-    assert "pfsense_auth_smoke" in updater
-    assert "--url https://home.albandrieu.com:10443" in updater
-    assert "deployment remains accepted because pfSense is optional diagnostic evidence" in updater
+    # pfSense was retired on 18/11: its RBAC smoke could only warn.
+    assert "pfsense" not in updater.lower()
     assert 'release_ref=false' in updater
     assert '[[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]]' in updater
     assert "pull-only mode requires a version ref" in updater
