@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded passive Amass inventory. No discovery names in public artifacts."""
+"""Bounded Amass inventory from explicit vantage; no names in public artifacts."""
 from __future__ import annotations
 
 import argparse
@@ -181,7 +181,67 @@ def command(args: list[str], env: dict[str, str], cwd: Path, timeout: int) -> bo
         return False
 
 
-def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
+def postgres_config(source: dict[str, str], work: Path) -> Path | None:
+    """Write nonsecret Amass options; keep DB credentials only in process env.
+
+    Amass v5 recognizes AMASS_DB_* directly when options.database is absent.
+    The previous URI-based YAML stored the password (even in a 0600 file).
+    """
+    user, password = source.get("AMASS_DB_USER"), source.get("AMASS_DB_PASSWORD")
+    host, name, ca = (
+        source.get("AMASS_DB_HOST"), source.get("AMASS_DB_NAME"), source.get("AMASS_PG_CA")
+    )
+    port = source.get("AMASS_DB_PORT", "5432")
+    if not any((user, password, host, name, ca)):
+        return None
+    if not all((user, password, host, name, ca)) or name != "assetdb":
+        raise ValueError("incomplete Amass shared PostgreSQL configuration")
+    if port != "5432":
+        raise ValueError("Amass must use the approved shared PostgreSQL port")
+    if not Path(ca).is_file():
+        raise ValueError("Amass PostgreSQL CA missing")
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", user):
+        raise ValueError("invalid PostgreSQL role")
+    if not re.fullmatch(r"[a-zA-Z0-9.-]{1,253}", host):
+        raise ValueError("invalid PostgreSQL host")
+    if source.get("PGSSLMODE", "verify-full") != "verify-full":
+        raise ValueError("PostgreSQL TLS verification must not be downgraded")
+    if source.get("PGSSLROOTCERT", ca) != ca:
+        raise ValueError("PostgreSQL trusted CA must match the mounted certificate")
+    config = work / "amass-config.yaml"
+    config.write_text(
+        "options:\n"
+        "  bruteforce:\n    enabled: false\n"
+        "  alterations:\n    enabled: false\n"
+        "  rigid_boundaries: true\n",
+        encoding="utf-8",
+    )
+    config.chmod(0o600)
+    return config
+
+
+def postgres_runtime_env(source: dict[str, str]) -> dict[str, str]:
+    """Pass Amass DB connection parameters directly to its child processes."""
+    return {
+        **{key: source[key] for key in
+           ("AMASS_DB_USER", "AMASS_DB_PASSWORD", "AMASS_DB_HOST", "AMASS_DB_NAME")},
+        "AMASS_DB_PORT": "5432",
+        "PGSSLMODE": "verify-full",
+        "PGSSLROOTCERT": source["AMASS_PG_CA"],
+    }
+
+
+def enum_arguments(domains: list[str], mode: str) -> list[str]:
+    if mode not in ("passive", "active"):
+        raise ValueError("unknown Amass mode")
+    base = ["enum", "-rigid", "-nocolor", "-timeout",
+            "8" if mode == "active" else "2", "-d", ",".join(domains)]
+    if mode == "active":
+        base.extend(["-active", "-p", "80,443"])
+    return base
+
+
+def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[list[dict], int, str]:
     # Amass v5 starts a loopback engine on :4000. Do not reuse LiteLLM or
     # another engine. Only run in a dedicated VM / ephemeral hosted runner.
     if port_in_use():
@@ -194,6 +254,19 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
         env = {"HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config"),
                "PATH": os.defpath, "NO_COLOR": "1"}
         scope = ",".join(domains)
+        try:
+            config = postgres_config(os.environ, work)
+            if os.environ.get("GITHUB_ACTIONS") == "true" and config is not None:
+                return [], 0, "EXTERNAL_PERSISTENCE_FORBIDDEN"
+            if mode == "active" and config is None and os.environ.get("GITHUB_ACTIONS") != "true":
+                return [], 0, "POSTGRES_CONFIGURATION_REQUIRED"
+            # The GitHub-hosted *external* vantage uses ephemeral Amass storage.
+            # It MUST NOT be permitted to access the TrueNAS PostgreSQL server.
+            if config is not None:
+                env["AMASS_CONFIG"] = str(config)
+                env.update(postgres_runtime_env(os.environ))
+        except (OSError, ValueError):
+            return [], 0, "POSTGRES_CONFIGURATION_INCOMPLETE"
         try:
             version = subprocess.run(
                 [str(binary), "-version"], env=env, cwd=work, timeout=5,
@@ -220,7 +293,7 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
             # Passive is the v5 default. Rigid disables scope expansion;
             # no active/ports/brute/alteration flags. Hard timeout is external.
             completed = command(
-                [str(binary), "enum", "-rigid", "-nocolor", "-timeout", "2", "-d", scope],
+                [str(binary), *enum_arguments(domains, mode)],
                 env, work, 600,
             )
         finally:
@@ -248,13 +321,14 @@ def discover(binary: Path, domains: list[str]) -> tuple[list[dict], int, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--amass", required=True, type=Path)
+    parser.add_argument("--mode", choices=("passive", "active"), default="passive")
     parser.add_argument("--output", required=True, type=Path, help="counts only")
     parser.add_argument("--private-output", type=Path, help="dedicated private VM only")
     args = parser.parse_args()
     if args.private_output and os.environ.get("GITHUB_ACTIONS") == "true":
         parser.error("private candidate export is forbidden on GitHub-hosted workflow")
     domains = load_domains()
-    candidates, rejected, status = discover(args.amass, domains)
+    candidates, rejected, status = discover(args.amass, domains, args.mode)
     catalog_summary: dict = {"status": "INCOMPLETE_CATALOG"}
     enriched = candidates
     conflicts = []
@@ -277,9 +351,18 @@ def main() -> int:
         "schema_version": 1,
         "scanner": "amass",
         "scanner_version": VERSION,
+        "scan_mode": args.mode,
+        "asset_database": (
+            "ephemeral-external" if os.environ.get("GITHUB_ACTIONS") == "true"
+            else "shared-postgresql/assetdb" if args.mode == "active" else "unspecified"
+        ),
         "checked_at": checked_at,
         "source_revision": os.environ.get("GITHUB_SHA"),
-        "vantage": "github-hosted" if os.environ.get("GITHUB_ACTIONS") == "true" else "isolated-vm-unverified",
+        "vantage": (
+            "external-github-hosted" if os.environ.get("GITHUB_ACTIONS") == "true"
+            else "truenas-internal" if os.environ.get("CTEM_RUNTIME") == "truenas"
+            else "isolated-vm-unverified"
+        ),
         "status": status,
         "scope": domains,
         "counts": {d: sum(row["domain"] == d for row in candidates) for d in domains},

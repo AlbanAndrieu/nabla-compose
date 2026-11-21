@@ -61,8 +61,15 @@ command: bash /mnt/cpool/compose/nabla-compose/scripts/cron.sh /mnt/cpool/compos
 ```
 
 The cron helper owns Git synchronization, an hourly runtime report and the
-gated FastAPI Sample refresh. It never redeploys a TrueNAS App and does not
-start/replace Doco-CD. Each run mails a short report:
+gated FastAPI Sample refresh. **Opt-in CTEM** (`NABLA_CRON_CTEM_AMASS_ENABLED=true`)
+adds the weekly bounded active Amass job on Sunday at 05:00 appliance local time;
+`NABLA_CRON_CTEM_MAIL_ENABLED=true` separately archives the latest eligible
+GitHub App `public-mail-deep.json` into PostgreSQL on Monday at 08:00 (after the 04:41 UTC external scan window).
+Both reuse this same hourly Cron task, not creating another scheduler. It invokes
+`sudo -n` only for the reviewed CTEM runner; private results stay root-only,
+while the Cron mail contains counts/status only. The cron never redeploys a TrueNAS App
+and does not start/replace Doco-CD. See the
+[CTEM runbook](runbooks/ctem-external-exposure.md). Each run mails a short report:
 
 - the commits pulled (no git progress) and the redeploy plan of the TrueNAS
   Apps they touch ([below](#redeploying-only-the-apps-a-change-touches)); the
@@ -120,7 +127,7 @@ command and its next execution. The script keeps the existing safety
 controls: dangling images only, age ≥168 h, exclusive lock, reboot-phase guard,
 and no volume/container/network pruning.
 
-This keeps the existing `scripts/cron.sh` single-purpose and prevents routine
+This keeps the Docker maintenance job distinct from `scripts/cron.sh` and prevents routine
 Git synchronization from mutating the Docker store.
 
 Contract:

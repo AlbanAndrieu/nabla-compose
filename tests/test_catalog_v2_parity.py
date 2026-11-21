@@ -481,6 +481,42 @@ class CatalogV2ParityTests(unittest.TestCase):
             ],
         )
 
+    def test_lan_named_split_dns_has_no_public_tunnel_parity(self) -> None:
+        """Retired public URL and private DNS alias may coexist in the V2 model."""
+        entity = {
+            "kind": "Component",
+            "entityRef": "component:default/ollama-gpu",
+            "metadata": {"name": "ollama-gpu"},
+            "x-nabla": {
+                "exposure": [{
+                    "name": "lan",
+                    "hostnames": ["ollama-gpu.albandrieu.com"],
+                    "visibility": "lan",
+                    "gatewayRef": "resource:default/truenas",
+                    "access": {"required": False},
+                    "backend": {
+                        "host": "172.17.0.24",
+                        "port": 30323,
+                        "appProtocol": "https",
+                    },
+                }],
+            },
+        }
+        legacy = {
+            "id": "ollama-gpu",
+            "external": False,
+            "internalHost": "172.17.0.24",
+            "internalPort": 30323,
+            "internalSecure": True,
+        }
+        self.assertEqual(route_intent_parity([legacy], [entity]), [])
+        # Do not treat a matching backend as permission to resurrect a public route.
+        entity["x-nabla"]["exposure"][0]["visibility"] = "public"
+        self.assertIn(
+            "ollama-gpu: 0 matching v2 routes on component:default/ollama-gpu",
+            route_intent_parity([legacy], [entity]),
+        )
+
     def test_relation_duplication_is_reported_as_transition_debt(self) -> None:
         entities = [
             {

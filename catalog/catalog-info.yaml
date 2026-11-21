@@ -1237,15 +1237,15 @@ spec:
   system: system:default/nabla-homelab
 x-nabla:
   exposure:
-    - name: public
+    - name: lan
       hostnames:
         - ollama-gpu.albandrieu.com
       protocol: HTTPS
-      visibility: public
-      gatewayRef: resource:default/cloudflare-tunnel
+      visibility: lan
+      gatewayRef: resource:default/truenas
       backend: https://172.17.0.24:30323
       access:
-        required: true
+        required: false
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component

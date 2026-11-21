@@ -22,6 +22,10 @@
     "nabla-site-bababou": {
       "allow": ["ZAP Scan"],
       "hosts": ["www.bababou.com", "bababou.com"]
+    },
+    "ctem-mail": {
+      "allow": ["Generic Findings Import"],
+      "hosts": ["albandrieu.com", "albanandrieu.com", "bababou.com"]
     }
   },
   "deny": ["BetterLeaks", "GitGuardian", "Secret Scan", "Unverified Scan"],
