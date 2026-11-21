@@ -31,6 +31,40 @@ permissions:
   contents: read
 
 jobs:
+  catalog-v2-render:
+    name: Regenerate canonical catalog V2 artifacts for review
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          submodules: false
+      - name: Install pinned YAML parser
+        run: python3 -m pip install --disable-pip-version-check 'PyYAML==6.0.2'
+      - name: Render v2 artifacts from Backstage and native Compose
+        run: |
+          python3 scripts/generate-catalog-v2-artifacts.py --output-dir "${RUNNER_TEMP}/ctem-catalog-v2"
+          python3 - <<'PY'
+          import json, pathlib, os
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ctem-catalog-v2"
+          paths = sorted(root.glob("*.json"))
+          assert len(paths) >= 4, "expected complete V2 artifact set"
+          entity = json.loads((root / "entities.json").read_text())
+          ollama = [e for e in entity["entities"] if e["entityRef"] == "component:default/ollama-gpu"]
+          assert len(ollama) == 1
+          exposures = ollama[0].get("x-nabla", {}).get("exposure", [])
+          assert exposures and not any(e.get("visibility") == "public" for e in exposures)
+          print("V2 source projection validated; no raw artifacts in logs")
+          PY
+      - name: Upload generated standard catalog (for branch reconciliation only)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ctem-catalog-v2-generated
+          path: ${{ runner.temp }}/ctem-catalog-v2/*.json
+          retention-days: 1
+          if-no-files-found: error
+
   offline-ctem:
     runs-on: ubuntu-latest
     timeout-minutes: 5
