@@ -83,6 +83,8 @@ class RestoreContract(unittest.TestCase):
             calls.append(command)
             if 'psql' in command:
                 return '0'
+            if 'logs' in command:
+                return 'PostgreSQL init process complete; ready for start up.'
             return ''
         with patch.object(module.shutil, 'which', return_value='/usr/bin/docker'), \
              patch.object(module, 'run', side_effect=fake_run), \

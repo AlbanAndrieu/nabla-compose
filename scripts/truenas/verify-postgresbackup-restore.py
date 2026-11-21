@@ -107,13 +107,17 @@ def test_restore(archive: Path, timeout: int) -> int:
              '-c', 'listen_addresses='], timeout=60)
         for attempt in range(60):
             try:
-                run(['docker', 'exec', name, 'pg_isready', '-q', '-U', 'postgres'],
-                    timeout=5)
-                break
+                # The entrypoint answers pg_isready from a temporary initdb server, then
+                # restarts it: wait for the final server or createdb races the restart.
+                if 'init process complete' in run(['docker', 'logs', name], timeout=5):
+                    run(['docker', 'exec', name, 'pg_isready', '-q', '-U', 'postgres'],
+                        timeout=5)
+                    break
             except RuntimeError:
-                if attempt == 59:
-                    raise RuntimeError('isolated_postgres_not_ready') from None
-                time.sleep(1)
+                pass
+            if attempt == 59:
+                raise RuntimeError('isolated_postgres_not_ready')
+            time.sleep(1)
         run(['docker', 'exec', '-u', 'postgres', name, 'createdb',
              '-U', 'postgres', '-T', 'template0', 'restore_validation'])
         with archive.open('rb') as stream:
