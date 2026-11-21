@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CTEM: count trusted honeypot visits from Traefik JSON logs without exporting IPs.
 
 Read-only, no API, no DNS or network access, no raw log or header publication.
