@@ -9,7 +9,9 @@ case "${mode}" in
     python3 -m pytest -q \
       tests/test_crowdsec_appsec_waf_contract.py \
       tests/test_traefik_crowdsec_bouncer_contract.py \
-      tests/test_fastapi_traefik_canary_contract.py
+      tests/test_fastapi_traefik_canary_contract.py \
+      tests/test_crowdsec_appsec_diagnostic_contract.py \
+      tests/test_crowdsec_appsec_runtime_diagnostic.py
     echo "appsec_static_contract=TESTED"
     ;;
   --runtime)
