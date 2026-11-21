@@ -127,3 +127,8 @@ jobs:
         run: |
           bash scripts/security/run-ctem-amass-truenas.sh --check
           python3 scripts/security/pull-ctem-mail-artifact.py --check
+      - name: Enforce reconciled LAN-only exposure policy from canonical V2
+        run: |
+          # Now that source and all four generated V2 artifacts agree, any new
+          # publicly declared LAN-only hostname is a blocking policy violation.
+          python3 scripts/security/audit-ctem-catalog-policy.py
