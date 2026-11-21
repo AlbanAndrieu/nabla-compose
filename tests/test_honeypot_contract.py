@@ -71,6 +71,7 @@ class HoneypotContract(unittest.TestCase):
         conf = (APP / "apache/honeypot.conf").read_text(encoding="utf-8")
         assert 'Alias /login /opt/honeypot/static/login.html' in conf
         assert "<LimitExcept GET HEAD>" in conf
+        assert "LimitRequestBody 1024" in conf
         assert "Require all denied" in conf
         assert "LogFormat \"%a %t %m %U %H %>s %b\" honeypot_metadata" in conf
         assert "CustomLog ${APACHE_LOG_DIR}/access.log combined" not in conf
