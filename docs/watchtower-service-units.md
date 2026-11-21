@@ -6,7 +6,44 @@
 > `scripts/security/check-watchtower-unit-policy.py` stay as a guard against an
 > unreviewed update controller. The rest of this page is kept as history.
 
-Status: proposed / NOT deployed. The old `containrrr/watchtower` was archived on 2025-12-17; use maintained `nickfedor/watchtower:1.23.1` (2026-10-13), whose exact tag was verified on Docker Hub. Verify image digest, signatures and Docker API compatibility before a manual start.
+## Decision: Renovate for rollout, optional observer for runtime drift (2026-11-21)
+
+**Renovate owns image upgrades in Git**, with pinned tags/digests, review, CI and
+explicit TrueNAS deployment after backup and smoke tests. No runtime controller
+may recreate a TrueNAS container directly from an updated registry tag.
+`containrrr/watchtower` is archived and must not return to production.
+A maintained Watchtower fork can be evaluated separately, but does not bypass
+the same security review of Docker API access, image provenance and upstream
+maintenance.
+
+**Optional complementary capability**: notify when the deployed image digest
+differs from the reviewed repository or when a newer upstream image exists.
+Prefer a registry watcher such as DIUN for *notifications only* after a
+read-only, separate credential/network review. Do not equate this to a
+reconciliation or deployment controller.
+
+**Why the former Watchtower POC was not a solution for registry monitoring:**
+`WATCHTOWER_MONITOR_ONLY=true` + `WATCHTOWER_NO_PULL=true` together with a
+Docker socket proxy refusing POST avoids mutation, but cannot be relied on to
+discover all new upstream digests. Removing `NO_PULL` merely to obtain
+notifications conflicts with the read-only boundary: Docker image pulls mutate
+host state and require a Docker API capability not intended for this POC.
+Do not reintroduce `apps/watchtower/compose.yml` without an approved isolated
+design and regression tests. Retain the fail-closed label audit.
+
+**Acceptance for any future observer**: no container recreation, no Docker POST
+or broad socket access, no exposure on the public network, no secrets in
+Compose/logs, duplicate-alert suppression, explicit observe-only deployment
+unit allowlist and evidence of real registry freshness. Rollout remains
+versioned in Git and never triggered from a public PR.
+
+## Historical POC (NOT deployed)
+
+The old `containrrr/watchtower` was archived on 2025-12-17; a maintained
+`nickfedor/watchtower` fork was evaluated but not deployed. Historical
+configuration and candidate versions below are **not deployment instructions**.
+Verify image digests, signatures and Docker API compatibility from current
+sources before any new proof of concept.
 
 ## Safety baseline (2026-10-16)
 
