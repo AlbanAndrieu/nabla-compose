@@ -33,6 +33,34 @@ Après adoption, ne plus modifier ces objets dans le dashboard : la dérive
 serait écrasée au prochain apply. Le module voisin
 [`cloudflare-ops`](../cloudflare-ops/README.md) reste dédié à un tunnel séparé.
 
+## Honeypot : record A supprimé et bascule Traefik préparée (21/11)
+
+Le propriétaire a supprimé le A historique
+`login.albandrieu.com → 82.66.4.247`. Le nom n'a
+désormais **aucune résolution publique observée** par
+`dig @1.1.1.1` ; l'App répond `ok` en LAN :31090.
+Le CNAME `login.albandrieu.com` →
+`${var.tunnel_id}.cfargotunnel.com`, proxifié, est déjà
+déclaré dans `dns-policy.yaml:new_tunnel_hostnames` ;
+`honeypot_login` conserve la politique Access
+`Everyone bypass`. **Aucun apply n'est effectué par cette PR.**
+
+Un nouveau flag `honeypot_tunnel_via_traefik` vaut false :
+le Tunnel reste direct vers 31090. Après réception du
+routeur Traefik (peer cloudflared exact, SNI
+`traefik.int.albandrieu.com` vérifié, Host
+`login.albandrieu.com`, WAF/AppSec et chemins POST 403),
+un plan ciblé peut faire passer **uniquement ce hostname**
+à `https://traefik:443`. Revenir à false est le rollback.
+Aucun CAPTCHA ne doit masquer toutes les visites de
+Project Honey Pot ; décisions CrowdSec progressives seulement.
+
+**Ordre requis :** préflight état Garage / imports, vérifier
+`CNAME login` absent, accepter l'intégralité du plan DNS/Access/Tunnel
+partagé, apply contrôlé, réception `/healthz` depuis l'extérieur
+sans visiter `/`, puis déploiement et tests Traefik.
+[Runbook](../../apps/honeypot/README.md).
+
 ## Jeton API (hors dépôt)
 
 `CLOUDFLARE_API_TOKEN` vient de Vaultwarden, n'est jamais écrit dans un
