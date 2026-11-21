@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MAIL_SCOPE = ROOT / "config/security/public-mail-domains.json"
+DOJO_POLICY = ROOT / "config/security/defectdojo-allowed-imports.json"
 CONTROLS = {
     "spf_valid": ("Invalid SPF configuration", "Medium"),
     "dmarc_valid": ("Invalid DMARC configuration", "Medium"),
@@ -29,20 +30,26 @@ def project(data: dict, domains: set[str], now: datetime | None = None) -> dict:
     current = now or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or not timedelta(0) <= current - timestamp <= timedelta(days=14):
         raise ValueError("checkdmarc evidence not fresh")
-    if set(data.get("scope", [])) != domains:
+    owned = {row["name"] for row in json.loads(MAIL_SCOPE.read_text(encoding="utf-8"))["domains"]}
+    declared_scope = data.get("scope")
+    if (not isinstance(declared_scope, list) or len(declared_scope) != len(owned)
+            or set(declared_scope) != owned or not domains or not domains <= owned):
         raise ValueError("checkdmarc reviewed domain scope mismatch")
     rows = mail.get("results")
-    if not isinstance(rows, list) or len(rows) != len(domains):
+    if not isinstance(rows, list) or len(rows) != len(owned):
         raise ValueError("incomplete checkdmarc domain results")
     seen = set()
     findings = []
     for row in rows:
-        if not isinstance(row, dict) or row.get("domain") not in domains:
+        if not isinstance(row, dict) or row.get("domain") not in owned:
             raise ValueError("unreviewed mail domain")
         domain = row["domain"]
         if domain in seen:
             raise ValueError("duplicate checkdmarc domain")
         seen.add(domain)
+        if domain not in domains:
+            # Broader owned-domain coverage is evidence, not approval for Dojo import.
+            continue
         problems = []
         for field, (title, severity) in CONTROLS.items():
             if row.get(field) is False:
@@ -63,7 +70,7 @@ def project(data: dict, domains: set[str], now: datetime | None = None) -> dict:
                 "active": True,
                 "verified": False,
             })
-    if seen != domains:
+    if seen != owned:
         raise ValueError("missing checkdmarc domain")
     return {
         "name": "Nabla CTEM mail authentication",
@@ -84,8 +91,12 @@ def main() -> int:
     src = args.input
     if src.is_symlink() or not src.is_file() or src.stat().st_size > 2_000_000:
         p.error("expected bounded regular report")
-    domains = {row["name"] for row in json.loads(MAIL_SCOPE.read_text())["domains"]}
-    report = project(json.loads(src.read_text()), domains)
+    policy = json.loads(DOJO_POLICY.read_text(encoding="utf-8"))
+    spec = policy.get("producers", {}).get("ctem-mail", {})
+    if not policy.get("defaultDeny") or spec.get("allow") != ["Generic Findings Import"]:
+        p.error("CTEM-mail DefectDojo policy invalid")
+    domains = set(spec.get("hosts", []))
+    report = project(json.loads(src.read_text(encoding="utf-8")), domains)
     if not report["findings"]:
         print("CTEM mail: no actionable reviewed findings; no DefectDojo upload")
         return 0
