@@ -72,6 +72,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         # Retain provenance/branch, executable-bit and secret-scan checks.
         self.assertNotIn("QG_LARGE_DELETION", text)
         self.assertNotIn("reviewed-large-deletions.tsv", text)
+        self.assertFalse((ROOT / "config/quality/reviewed-large-deletions.tsv").exists())
         self.assertNotIn("is_reviewed_large_deletion", text)
         self.assertNotIn("check_destructive_diff", text)
         self.assertNotIn("QUALITY_ALLOW_LARGE_DELETION", text)
