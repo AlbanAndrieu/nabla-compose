@@ -41,10 +41,12 @@ jobs:
           persist-credentials: false
           submodules: false
       - name: Install pinned YAML parser
-        run: python3 -m pip install --disable-pip-version-check 'PyYAML==6.0.2'
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/ctem-venv"
+          "${RUNNER_TEMP}/ctem-venv/bin/pip" install --disable-pip-version-check 'PyYAML==6.0.2'
       - name: Render v2 artifacts from Backstage and native Compose
         run: |
-          python3 scripts/generate-catalog-v2-artifacts.py --output-dir "${RUNNER_TEMP}/ctem-catalog-v2"
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --output-dir "${RUNNER_TEMP}/ctem-catalog-v2"
           python3 - <<'PY'
           import json, pathlib, os
           root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ctem-catalog-v2"
