@@ -103,6 +103,12 @@ if ((rc == 0)) && [[ -f "${REPORTS}/candidates-${timestamp}.json" ]]; then
     --private "${REPORTS}/candidates-${timestamp}.json" \
     --output "${REPORTS}/ctem-amass-${timestamp}.html" || rc=3
 fi
+# Optional non-sensitive publication to existing www NFS export; never copy
+# candidates-*.json, the private HTML inventory, or PostgreSQL credentials.
+if ((rc == 0)) && [[ "${CTEM_WEB_PUBLISH_APPROVED:-}" == YES ]]; then
+  python3 "${ROOT}/scripts/security/publish-ctem-web-summary.py" \
+    --source "${summary}" --apply || rc=3
+fi
 if ((rc != 0)); then
   echo "ctem_amass=INCOMPLETE; exit=${rc}; no automatic DefectDojo finding" >&2
   exit "${rc}"
