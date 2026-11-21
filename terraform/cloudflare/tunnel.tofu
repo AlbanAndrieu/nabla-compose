@@ -16,7 +16,7 @@ locals {
     # TrueNAS administration: Access-protected public 443 to HTTPS LAN 7000.
     # Keep origin certificate verification and the TrueNAS hostname for SNI.
     {
-      hostname       = "truenas.albandrieu.com"
+      hostname = "truenas.albandrieu.com"
       origin_request = {
         origin_server_name = "truenas.albandrieu.com"
       }
