@@ -171,6 +171,40 @@ racine comme une source web durcie. Le déploiement de l'Alias
 `NOT_VERIFIED`. Voir
 [runbook commun workstation/TrueNAS](workstation-truenas-report-sharing-and-honeypot.md).
 
+### CTEM Honeypot — source de preuves de trafic (21/11)
+
+La découverte Amass inventorie les surfaces, tandis que le honeypot
+observe les **requêtes effectives** depuis un autre point de mesure.
+Ces deux catégories d'évidence ne doivent pas être fusionnées en
+vulnérabilités ou en personnes identifiées.
+
+- Service LAN `172.17.0.24:31090/healthz` = `ok` selon le propriétaire ;
+  nom `login.albandrieu.com` non résolu après suppression du record A
+  périmé. CNAME Tunnel attendu sous OpenTofu, non appliqué ici.
+- Traefik `honeypot-public` (GET) /
+  `honeypot-login-attempt` (POST), CrowdSec AppSec et quotas sont
+  **CODED, NOT_DEPLOYED**. Le switch Tunnel reste false.
+- Les tentatives `POST /login` reçoivent 403 côté Apache et
+  aucun identifiant n'est stocké. Le scénario CrowdSec de 5 POST
+  regroupés par IP est **versionné mais non monté** ; revue en
+  simulation avant tout ban.
+- `scripts/security/summarize-honeypot-traefik.py` fournit un
+  compteur agrégé privé (méthode, chemin allowlisté, classe de
+  réponse, visiteurs réseau distincts), **sans IP, User-Agent,
+  query string, cookies, JWT, body ou FQDN découvert** ; seules
+  les entrées Traefik du honeypot dont le pair TCP appartient au
+  réseau cloudflared déclaré sont admises. `/healthz` ne compte pas.
+  Ne pas confondre `unique_source_count` et personnes physiques.
+- Conserver les logs bruts sous contrôle d'accès sur TrueNAS ; pas
+  d'export nominatif vers la workstation `/reports`, GitHub,
+  DefectDojo sans triage ou la page publique du site.
+
+**Recette :** publier d'abord le CNAME avec l'App Tunnel direct,
+valider HTTP 200 `/healthz` depuis l'extérieur, ensuite déployer
+le routeur Traefik et tester source IP, TLS/SNI et AppSec sans
+`-k`, puis seulement proposer la bascule.
+[Procédure détaillée](../../apps/honeypot/README.md).
+
 ### Visualisation privée des actifs Amass
 
 Le runner TrueNAS produit après scan **achevé** :
