@@ -44,7 +44,7 @@ permissions:
 jobs:
   catalog-v2-render:
     name: Regenerate canonical catalog V2 artifacts for review
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/ctem-v2-policy-audit-20261121' }}
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.head.ref == 'feat/ctem-v2-policy-audit-20261121' || github.event.pull_request.head.ref == 'feat/ctem-vantage-isolated-20261121') }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -62,6 +62,8 @@ jobs:
           "${RUNNER_TEMP}/ctem-venv/bin/pip" install --disable-pip-version-check 'PyYAML==6.0.2'
       - name: Render v2 artifacts from Backstage and native Compose
         run: |
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-service-topology.py
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-service-consumers.py
           "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --output-dir "${RUNNER_TEMP}/ctem-catalog-v2"
           python3 - <<'PY'
           import json, pathlib, os
@@ -92,15 +94,23 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-          test "${TARGET_REF}" = "feat/ctem-v2-policy-audit-20261121"
+          case "${TARGET_REF}" in
+            feat/ctem-v2-policy-audit-20261121|feat/ctem-vantage-isolated-20261121) ;;
+            *) echo "Unexpected target branch" >&2; exit 2 ;;
+          esac
           cp "${RUNNER_TEMP}"/ctem-catalog-v2/*.json catalog/generated/
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-service-topology.py --check
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-service-consumers.py --check
           "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --check
           # Source JSON contracts are authored, not generated. Format them with
           # the exact pinned Biome version used by the canonical pre-commit hook.
           npm exec --yes --package=@biomejs/biome@2.4.12 -- biome check --write \
             catalog/homelab-services.json \
             config/security/defectdojo-allowed-imports.json
-          git add -- catalog/generated/*.json catalog/homelab-services.json config/security/defectdojo-allowed-imports.json
+          git add -- catalog/service-topology.json catalog/services.json \
+            catalog/generated/*.json apps/homarr/generated/apps.json \
+            apps/gatus/config/config.yml apps/autokuma/static/generated-monitors.json \
+            catalog/homelab-services.json config/security/defectdojo-allowed-imports.json
           if git diff --cached --quiet; then
             echo "Canonical V2 artifacts already synchronized"
             exit 0
@@ -109,7 +119,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(ctem): regenerate canonical Backstage V2 artifacts"
           # Fast-forward only: refuse if the human-edited PR moved meanwhile.
-          git push origin HEAD:refs/heads/feat/ctem-v2-policy-audit-20261121
+          git push origin "HEAD:refs/heads/${TARGET_REF}"
 
   offline-ctem:
     runs-on: ubuntu-latest
