@@ -25,8 +25,21 @@ def evidence(vantage="truenas-internal", counts=None, revision=REV, status="OBSE
         "scan_mode": "active", "status": status, "vantage": vantage,
         "source_revision": SHA, "checked_at": (NOW - timedelta(hours=2)).isoformat(),
         "scope": DOMAINS, "counts": counts or dict.fromkeys(DOMAINS, 3),
+        "asset_database": "ephemeral-external",
+        "rejected_count": 0,
+        "finding_semantics": "ASSET_CANDIDATES_NOT_VULNERABILITIES",
         "catalogReconciliation": {
             "status": "OBSERVED_NOT_CERTIFIED", "catalogRevision": revision,
+            "catalogEntityCount": 200, "catalogHostnameCount": 100,
+            "catalogHostnamesMissingGithubProject": 0,
+            "catalogLanOnlyPolicyConflicts": 0,
+            "matchedCandidatesMissingGithubProject": 0,
+            "semantics": "DECLARED_INTENT_ONLY_NOT_RUNTIME_OR_VULNERABILITY_PROOF",
+            "candidateMatchCounts": {
+                "MATCHED_PUBLIC_INTENT": 3 * len(DOMAINS),
+                "LAN_ONLY_POLICY_REVIEW": 0, "NON_PUBLIC_INTENT_REVIEW": 0,
+                "AMBIGUOUS_ENTITY_REVIEW": 0, "UNMAPPED_REVIEW": 0,
+            },
         }
     }
 
@@ -102,6 +115,13 @@ class VantageTests(unittest.TestCase):
             PULL["unpack"](zip_report({**report, "source_revision": "0"*40}), SHA)
         with self.assertRaises(ValueError):
             PULL["unpack"](zip_report({**report, "candidates": [{"hostname":"secret"}]}), SHA)
+        with self.assertRaises(ValueError):
+            PULL["unpack"](zip_report({**report, "extra_hostnames": ["secret.example"]}), SHA)
+        poisoned = json.loads(json.dumps(report))
+        poisoned["catalogReconciliation"]["privateTargets"] = ["secret.example"]
+        with self.assertRaises(ValueError):
+            PULL["unpack"](zip_report(poisoned), SHA)
+
 
     def test_artifact_name_and_expiry(self):
         one = {"name": "public-amass-summary-77", "expired": False,
