@@ -56,9 +56,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('TARGETED_LABEL="Local loop"', text)
         self.assertIn("Agent local loop passed", text)
         self.assertIn("full repository unit/contract suite is deferred", text)
-        self.assertGreaterEqual(
+        # A single diff-scope pass remains after deleting large-deletion policy.
+        self.assertEqual(
             text.count('"${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD"'),
-            2,
+            1,
         )
         self.assertIn("generator_scope_changed=false", text)
         self.assertIn(
