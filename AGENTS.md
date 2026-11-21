@@ -73,6 +73,7 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 - Remote/API-only: bounded offline checks and static review, a Draft PR with expected-SHA writes; **never claim** that L2/L3 or runtime ran. Preserve CI/SAST/SCA/secret scanning; no invented PASS or disabled gate to save credits.
 - Do not start the full Compose stack to validate. For service modifications use the dedicated catalog/Compose contract; for operational acceptance use task-specific read-only probes before any authorized mutation.
 - Record remaining work in [docs/roadmap-portfolio.md](docs/roadmap-portfolio.md) and [docs/roadmap.md](docs/roadmap.md); include what changed, checks **actually** executed and missing proofs. Preserve old wrappers while consumers/tests still use them.
+- Implementing or advancing the roadmap follows [`nabla-roadmap-loop`](.agents/skills/nabla-roadmap-loop/SKILL.md): owner-approved homelab sprint mode (21/11/2026), one PR per repository, questions after five passes, a reconciliation cycle every third pass.
 
 ## OpenCode and smaller-model execution
 
