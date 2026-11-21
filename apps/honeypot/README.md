@@ -49,6 +49,11 @@ un navigateur soumet un corps vide. Les POST forgés par des robots
 rencontrent le 403 Apache et ne sont ni journalisés dans le corps
 ni transmis au script PHP. Les logs Apache enregistrent seulement
 IP, date, méthode, chemin **sans query string** et statut.
+Depuis la révision 21/11, Apache exclut aussi les requêtes exactes
+`/healthz` de son **access log** via `SetEnvIf` ; Docker/Gatus conservent
+leur résultat HTTP 200. Les 30-secondes de sondes qui remplissaient
+le journal avec `127.0.0.1` ne sont donc plus comptées comme visites
+après redéploiement. Les logs déjà produits restent inchangés.
 
 ## Plan de publication progressif, pas exécuté
 
