@@ -81,7 +81,12 @@ jobs:
           test "${TARGET_REF}" = "feat/ctem-v2-policy-audit-20261121"
           cp "${RUNNER_TEMP}"/ctem-catalog-v2/*.json catalog/generated/
           "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --check
-          git add -- catalog/generated/*.json
+          # Source JSON contracts are authored, not generated. Format them with
+          # the exact pinned Biome version used by the canonical pre-commit hook.
+          npm exec --yes --package=@biomejs/biome@2.4.12 -- biome check --write \
+            catalog/homelab-services.json \
+            config/security/defectdojo-allowed-imports.json
+          git add -- catalog/generated/*.json catalog/homelab-services.json config/security/defectdojo-allowed-imports.json
           if git diff --cached --quiet; then
             echo "Canonical V2 artifacts already synchronized"
             exit 0
