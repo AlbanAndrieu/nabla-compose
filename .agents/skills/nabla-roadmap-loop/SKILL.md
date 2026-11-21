@@ -74,6 +74,32 @@ Every third pass, run a reconciliation cycle, in this order:
 3. Docs: update the runbooks and READMEs the changes made stale.
 4. Refactor: remove the dead code and duplication the passes exposed, with tests.
 
+## Pitfalls the passes hit
+
+- Never edit the clone while the pre-push gate runs: it fails on a dirty
+  tree. Run it in the background and work on runtime checks or another
+  repository meanwhile.
+- Services of one TrueNAS App share one x-nabla `status`; keep an optional
+  service on a Compose profile instead (`dsomm-baseline`).
+- Root on TrueNAS (`systemd-run`): set `HOME` and pass `safe.directory`
+  through `GIT_CONFIG_COUNT/KEY_0/VALUE_0`, or root git refuses the checkout.
+- Ansible against TrueNAS: `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`
+  (no `ControlPersist`) reuses the YubiKey ControlMaster of `~/.ssh/config`.
+- Sample's TrueNAS observer needs its diagnostics key:
+  `sudo bash scripts/truenas/read-sample-observer.sh [path]` on the host.
+- IO pressure: read the txg cadence in `/proc/spl/kstat/zfs/cpool/txgs`
+  before blaming the top writer. A txg every second or less means forced
+  syncs (overlay copy-up through `O_TMPFILE`, fsync storms); a SMART long test
+  on one disk slows every raidz2 read.
+- Over `ssh host '…'`, `pkill -f PATTERN` matches the remote shell itself, and
+  `sudo tail $(ls …)` waits on stdin when the glob fails: add `< /dev/null`.
+- A Compose `tmpfs` mount is `root:700`: chown it in the root entrypoint when
+  the process drops privileges (ntopng).
+- A consumer that forbids extra fields (Sample's `DeclaredService`) must
+  accept a new catalog field and ship before the generator emits it.
+- Once only credential-blocked items remain, a pass re-tests the blocker and
+  moves on: do not investigate the same item again.
+
 ## Keep state outside the context
 
 Track the pass counter, the current item and the parked questions in
