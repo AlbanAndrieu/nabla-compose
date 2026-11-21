@@ -74,6 +74,8 @@ class HoneypotContract(unittest.TestCase):
         assert "LimitRequestBody 1024" in conf
         assert "Require all denied" in conf
         assert "LogFormat \"%a %t %m %U %H %>s %b\" honeypot_metadata" in conf
+        assert 'SetEnvIf Request_URI "^/healthz$" honeypot_skip_health_log' in conf
+        assert "env=!honeypot_skip_health_log" in conf
         assert "CustomLog ${APACHE_LOG_DIR}/access.log combined" not in conf
 
     def test_login_burst_scenario_remains_explicitly_unmounted(self):
