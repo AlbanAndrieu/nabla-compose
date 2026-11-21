@@ -18,8 +18,8 @@ import stat
 
 MAX_BYTES = 8_000_000
 MAX_ROWS = 20_000
-REVISION = re.compile(r"sha256:[a-f0-9]{64}\\Z")
-DNS = re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\Z")
+REVISION = re.compile(r"sha256:[a-f0-9]{64}\Z")
+DNS = re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z")
 
 
 def private_json(path: Path) -> dict:
