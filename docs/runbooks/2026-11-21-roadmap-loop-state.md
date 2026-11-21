@@ -10,7 +10,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | nabla-compose | [#430](https://github.com/AlbanAndrieu/nabla-compose/pull/430) |
 | fastapi-sample | [#452](https://github.com/AlbanAndrieu/fastapi-sample/pull/452) |
 | nabla-openclaw | [#26](https://github.com/AlbanAndrieu/nabla-openclaw/pull/26) |
-| nabla-site-alban | branche `feat/roadmap-20261121` (79789e3), PR Draft à ouvrir dès que le master SSH GitHub est rouvert |
+| nabla-site-alban | [#336](https://github.com/AlbanAndrieu/nabla-site-alban/pull/336) |
 | ansible-workstation | [#38](https://github.com/AlbanAndrieu/ansible-workstation/pull/38) |
 
 ## Compteur
@@ -63,7 +63,9 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | FastAPI Sample 1.39.0 (master da6ef747) sur TrueNAS | DEPLOYED | `update-fastapi-sample.sh` (`systemd-run`, `HOME=/root`), `Result=success`, observateur et Prometheus/Gatus OK ; build de 1 h, ralenti par le test SMART de la nuit |
 | Readiness TrueNAS stricte | ACCEPTED | `diagnose-service-readiness.py --check --strict` : HEALTHY=8, WARN=0, BLOCKED=0 (LiteLLM 25b78deb, Sample attesté) |
 | Smoke RBAC pfSense retiré de `update-fastapi-sample.sh` (pfSense retiré le 18/11) | CODED | il ne pouvait plus que lever un WARN |
-| nabla-site-alban passe 1 : `master` rouge réparé (next 16.4.6), retrait pfSense affiché, garde H17 (aucun lecteur V1/legacy) | TESTED | c34eab0, 3d71fb8, da026a6, 79789e3 ; `quality:agent:publish` PASS (`QG_PUBLISH_PROOF_OK`) dans un clone propre ; push bloqué par l'invite YubiKey (master GitHub expiré) |
+| nabla-site-alban passe 1 : `master` rouge réparé (next 16.4.6), retrait pfSense affiché, garde H17 (aucun lecteur V1/legacy) | TESTED | c34eab0, 3d71fb8, da026a6, 79789e3 ; `quality:agent:publish` PASS (`QG_PUBLISH_PROOF_OK`) dans un clone propre ; poussé par l'utilisateur (YubiKey), PR Draft #336 |
+| fastapi-sample passe 2 : `composeProfiles` accepté (état `on_demand`), jauge `nabla_startup_phase_duration_seconds` (F08) | TESTED | #452 à 8e710b42 (ded6e023, be256bd3) ; L2 et L3 verts (rapport du sous-agent, tête vérifiée sur GitHub) ; déploiement `NOT_RUN` |
+| H17 suite : `composeProfiles` dans `entities.json` | CODED | dérivé de `profiles:` dans Compose, 9 entités ; le Sample déployé l'ignore (projection limitée à `provider/appId/containerService/networks`) ; `services.json` attend le déploiement de #452 |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
