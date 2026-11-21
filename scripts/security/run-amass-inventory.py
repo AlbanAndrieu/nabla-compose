@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded passive Amass inventory. No discovery names in public artifacts."""
+"""Bounded Amass inventory from explicit vantage; no names in public artifacts."""
 from __future__ import annotations
 
 import argparse
@@ -237,8 +237,10 @@ def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[l
         scope = ",".join(domains)
         try:
             config = postgres_config(os.environ, work)
-            if mode == "active" and config is None:
+            if mode == "active" and config is None and os.environ.get("GITHUB_ACTIONS") != "true":
                 return [], 0, "POSTGRES_CONFIGURATION_REQUIRED"
+            # The GitHub-hosted *external* vantage uses ephemeral Amass storage.
+            # It MUST NOT be permitted to access the TrueNAS PostgreSQL server.
             if config is not None:
                 env["AMASS_CONFIG"] = str(config)
         except (OSError, ValueError):
@@ -328,10 +330,17 @@ def main() -> int:
         "scanner": "amass",
         "scanner_version": VERSION,
         "scan_mode": args.mode,
-        "asset_database": "shared-postgresql/assetdb" if args.mode == "active" else "unspecified",
+        "asset_database": (
+            "ephemeral-external" if os.environ.get("GITHUB_ACTIONS") == "true"
+            else "shared-postgresql/assetdb" if args.mode == "active" else "unspecified"
+        ),
         "checked_at": checked_at,
         "source_revision": os.environ.get("GITHUB_SHA"),
-        "vantage": "github-hosted" if os.environ.get("GITHUB_ACTIONS") == "true" else "isolated-vm-unverified",
+        "vantage": (
+            "external-github-hosted" if os.environ.get("GITHUB_ACTIONS") == "true"
+            else "truenas-internal" if os.environ.get("CTEM_RUNTIME") == "truenas"
+            else "isolated-vm-unverified"
+        ),
         "status": status,
         "scope": domains,
         "counts": {d: sum(row["domain"] == d for row in candidates) for d in domains},
