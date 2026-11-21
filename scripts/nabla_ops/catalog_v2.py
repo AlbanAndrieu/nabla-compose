@@ -1010,10 +1010,11 @@ def route_intent_parity(
         routes = (by_ref[ref].get("x-nabla") or {}).get("exposure") or []
         url = urlsplit(str(row["tunnelUrl"])) if row.get("tunnelUrl") else None
         if url is not None:
+            default_port = {"https": 443, "http": 80}.get(url.scheme)
             candidates = [
                 route for route in routes
                 if url.hostname in (route.get("hostnames") or [])
-                and route.get("port") == (url.port if url.port not in (80, 443) else None)
+                and (route.get("port") or default_port) == (url.port or default_port)
             ]
         else:
             # A legacy row without tunnelUrl means *no public route*. The
