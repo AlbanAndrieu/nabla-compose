@@ -14,7 +14,9 @@ COMP = runpy.run_path(str(ROOT / "scripts/security/compare-ctem-amass-vantages.p
 NOW = datetime(2026, 11, 21, 12, tzinfo=timezone.utc)
 SHA = "a" * 40
 REV = "sha256:" + "b" * 64
-DOMAINS = ["albanandrieu.com", "albandrieu.com", "bababou.com"]
+DOMAINS = sorted(row["name"] for row in json.loads(
+    (ROOT / "config/security/public-mail-domains.json").read_text(encoding="utf-8")
+)["domains"])
 
 
 def evidence(vantage="truenas-internal", counts=None, revision=REV, status="OBSERVED_NOT_CERTIFIED"):
