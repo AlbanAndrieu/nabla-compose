@@ -72,6 +72,10 @@ services:
       traefik.http.routers.nexus-private.entrypoints: websecure
       traefik.http.routers.nexus-private.tls.certresolver: letsencrypt
       traefik.http.routers.nexus-private.service: nexus-private
+      # Defense in depth: inspect the socket peer, never spoofable X-Forwarded-For.
+      # The public Cloudflare tunnel does not join these trusted workstation LANs.
+      traefik.http.routers.nexus-private.middlewares: nexus-private-lan-only
+      traefik.http.middlewares.nexus-private-lan-only.ipallowlist.sourcerange: "172.17.0.0/24,192.168.1.0/24"
       traefik.http.services.nexus-private.loadbalancer.server.scheme: http
       traefik.http.services.nexus-private.loadbalancer.server.port: "8081"
 

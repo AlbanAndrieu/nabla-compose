@@ -430,3 +430,29 @@ resource "cloudflare_zero_trust_access_application" "fastapi_github_webhook" {
     prevent_destroy = true
   }
 }
+
+# TrueNAS administration must be gated by Access identity; local login remains.
+resource "cloudflare_zero_trust_access_application" "truenas_admin" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "truenas.albandrieu.com"
+    },
+  ]
+  domain = "truenas.albandrieu.com"
+  name   = "truenas-admin"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+  ]
+  session_duration = "8h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

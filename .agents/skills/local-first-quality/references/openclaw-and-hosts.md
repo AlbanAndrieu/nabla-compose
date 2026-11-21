@@ -19,8 +19,8 @@ TrueNAS and SSH from the workstation. `status` is read-only.
 
 ## OpenClaw diagnostics and updates
 
-- For `global-install-failed`, use `just openclaw-update-npm-triage`. Report
-  fixed error categories, prefix state and versions; never copy a raw npm log.
+- Gateway diagnostics and updates live in `nabla-openclaw`; the Workstation
+  Gateway tooling was removed from Compose on 2026-11-21. Never copy a raw npm log.
 - Separate npm exit failures, OpenClaw configuration errors, plugin cooldowns
   and model HTTP 429 responses.
 - For an active Gateway, prefer native `config.get` + `config.patch` with

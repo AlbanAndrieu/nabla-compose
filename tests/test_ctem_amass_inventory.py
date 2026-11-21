@@ -3,6 +3,8 @@ from pathlib import Path
 import runpy
 import tempfile
 import unittest
+from unittest import mock
+import subprocess
 
 MODULE = runpy.run_path(str(Path(__file__).resolve().parents[1] /
                             "scripts/security/run-amass-inventory.py"))
@@ -29,6 +31,27 @@ class AmassInventoryTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 MODULE["private_write"](path, {"count": 2})
+
+    def test_enum_failure_is_not_reported_as_empty_success(self):
+        fake = ["amass", "enum", "-d", "example.com"]
+        with mock.patch.object(MODULE["subprocess"], "run",
+                               side_effect=subprocess.TimeoutExpired(fake, 480)):
+            self.assertEqual(
+                MODULE["enumeration_outcome"](fake, {}, Path(".")),
+                "ENUM_TIMEOUT",
+            )
+        with mock.patch.object(MODULE["subprocess"], "run",
+                               return_value=subprocess.CompletedProcess(fake, 2)):
+            self.assertEqual(
+                MODULE["enumeration_outcome"](fake, {}, Path(".")),
+                "ENUM_FAILED",
+            )
+        with mock.patch.object(MODULE["subprocess"], "run",
+                               return_value=subprocess.CompletedProcess(fake, 0)):
+            self.assertEqual(
+                MODULE["enumeration_outcome"](fake, {}, Path(".")),
+                "COMPLETE",
+            )
 
     def test_scope_uses_reviewed_owned_domains(self):
         # The 20 zones of the Cloudflare account (public-mail-domains.json).

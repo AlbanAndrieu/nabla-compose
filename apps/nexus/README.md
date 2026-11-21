@@ -4,6 +4,17 @@ Data: `/mnt/cpool/nexus3` (dataset `cpool/nexus3`, snapshot class
 `recreatable`: one monthly snapshot kept 3 months plus one yearly kept 1 year, see
 [`docs/truenas-zfs-snapshot-policy.md`](../../docs/truenas-zfs-snapshot-policy.md)).
 
+## Private HTTPS and workstation package caches (21 November 2026)
+
+The existing Traefik `nexus-private` router is opt-in and now restricts its
+socket peers to the workstation LANs. Its [post-pfSense reception runbook](../../docs/runbooks/nexus-private-dns-ingress.md)
+requires working split DNS, trusted TLS/SNI, an independent WAN denial probe
+and a reviewed TrueNAS redeploy before enabling any APT/npm/PyPI/Docker client.
+
+The image and repository data remain under Compose/OpenTofu ownership. The
+workstation consumer is tracked in
+[ansible-workstation #39](https://github.com/AlbanAndrieu/ansible-workstation/pull/39).
+
 ## Purge of never-used artifacts (to enable when the Java services are back)
 
 Nexus keeps every proxied component forever. Purge what is never downloaded,

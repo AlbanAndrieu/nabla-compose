@@ -181,6 +181,26 @@ def command(args: list[str], env: dict[str, str], cwd: Path, timeout: int) -> bo
         return False
 
 
+def enumeration_outcome(
+    args: list[str], env: dict[str, str], cwd: Path, timeout: int = 480
+) -> str:
+    """Distinguish timeout, failed exit and launch without logging private assets.
+
+    The 2026-11-19 outside-in run hit the old 600s budget and only exposed
+    ENUM_INCOMPLETE. Keep incomplete scans failing (exit 3) but actionable.
+    """
+    try:
+        result = subprocess.run(
+            args, env=env, cwd=cwd, timeout=timeout, check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired:
+        return "ENUM_TIMEOUT"
+    except OSError:
+        return "ENUM_NOT_STARTED"
+    return "COMPLETE" if result.returncode == 0 else "ENUM_FAILED"
+
+
 def postgres_config(source: dict[str, str], work: Path) -> Path | None:
     """Write nonsecret Amass options; keep DB credentials only in process env.
 
@@ -292,9 +312,9 @@ def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[l
                 return [], 0, "ENGINE_NOT_READY"
             # Passive is the v5 default. Rigid disables scope expansion;
             # no active/ports/brute/alteration flags. Hard timeout is external.
-            completed = command(
+            outcome = enumeration_outcome(
                 [str(binary), *enum_arguments(domains, mode)],
-                env, work, 600,
+                env, work,
             )
         finally:
             if engine.poll() is None:
@@ -304,8 +324,8 @@ def discover(binary: Path, domains: list[str], mode: str = "passive") -> tuple[l
                 except subprocess.TimeoutExpired:
                     engine.kill()
                     engine.wait(timeout=5)
-        if not completed:
-            return [], 0, "ENUM_INCOMPLETE"
+        if outcome != "COMPLETE":
+            return [], 0, outcome
         names = work / "names.txt"
         if not command([str(binary), "subs", "-names", "-nocolor",
                         "-d", scope, "-o", str(names)], env, work, 90):

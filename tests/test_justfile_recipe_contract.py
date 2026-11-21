@@ -35,14 +35,6 @@ class JustfileContracts(unittest.TestCase):
         self.assertEqual(duplicates("sample:\n    echo one\n\nsample:\n    echo two\n"),
                          {"sample": [1, 4]})
 
-    def test_digest_recipe_retains_both_contract_suites(self):
-        raw = JUSTFILE.read_text(encoding="utf-8")
-        anchor = "openclaw-digest-gitops-test:"
-        self.assertEqual(raw.count("\n" + anchor + "\n"), 1)
-        body = raw.split(anchor + "\n", 1)[1].split("\n\n", 1)[0]
-        self.assertIn("test_openclaw_digest_gitops_policy.py", body)
-        self.assertIn("test_openclaw_digest_gitops.py", body)
-
     @unittest.skipUnless(shutil.which("just"), "just binary not available in runner")
     def test_justfile_parses(self):
         result = subprocess.run(["just", "--list"], cwd=ROOT,

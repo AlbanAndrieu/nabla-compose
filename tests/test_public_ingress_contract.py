@@ -74,7 +74,8 @@ class PublicIngressContractTests(unittest.TestCase):
 
         self.assertNotIn("autoxpose.", compose)
         self.assertNotIn("Host(`sample.albandrieu.com`)", compose)
-        self.assertNotIn("fastapi-sample-public", compose)
+        # The public Traefik router is the opt-in canary (H04/F17): AppSec must run first.
+        self.assertIn("fastapi-sample-public.middlewares=crowdsec-appsec@file,", compose)
 
     def test_private_int_routes_do_not_enable_autoxpose(self) -> None:
         for compose_path in (ROOT / "apps").glob("*/compose.yml"):

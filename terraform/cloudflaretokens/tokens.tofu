@@ -21,6 +21,14 @@ locals {
     [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
     [for name in local.opentofu_zone_permissions : name if !contains(keys(local.zone_group_ids), name)],
   )
+  # CrowdSec Cloudflare Worker bouncer (apps/crowdsec/cloudflare-worker-bouncer.yaml):
+  # the permissions its documentation lists, on albandrieu.com only.
+  bouncer_account_permissions = ["Turnstile Sites Write", "Workers KV Storage Write", "Workers Scripts Write", "Account Settings Read", "Account Analytics Read"]
+  bouncer_zone_permissions    = ["DNS Read", "Workers Routes Write", "Zone Read"]
+  bouncer_missing_permissions = concat(
+    [for name in local.bouncer_account_permissions : name if !contains(keys(local.account_group_ids), name)],
+    [for name in local.bouncer_zone_permissions : name if !contains(keys(local.zone_group_ids), name)],
+  )
 }
 
 resource "cloudflare_account_token" "opentofu" {
@@ -70,4 +78,46 @@ output "opentofu_token" {
 output "opentofu_token_id" {
   description = "Token identifier, to inspect its policies in the dashboard."
   value       = cloudflare_account_token.opentofu.id
+}
+
+# The bouncer runs on TrueNAS behind the same Freebox WAN address as the operator,
+# so it reuses the operator client-IP list.
+resource "cloudflare_account_token" "crowdsec_bouncer" {
+  account_id = var.account_id
+  name       = "nabla-crowdsec-cloudflare-bouncer"
+  expires_on = var.opentofu_token_expires_on
+
+  policies = [
+    {
+      effect            = "allow"
+      permission_groups = [for name in local.bouncer_account_permissions : { id = local.account_group_ids[name][0] }]
+      resources         = jsonencode({ "com.cloudflare.api.account.${var.account_id}" = "*" })
+    },
+    {
+      effect            = "allow"
+      permission_groups = [for name in local.bouncer_zone_permissions : { id = local.zone_group_ids[name][0] }]
+      resources         = jsonencode({ "com.cloudflare.api.account.zone.${var.zone_id}" = "*" })
+    },
+  ]
+
+  condition = {
+    request_ip = {
+      in = var.opentofu_token_client_ips
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(local.bouncer_missing_permissions) == 0
+      error_message = "Unknown permission group names: ${join(", ", local.bouncer_missing_permissions)}"
+    }
+  }
+}
+
+# Pipe `tofu output -raw crowdsec_bouncer_token` into the bouncer runtime secret
+# (CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN) and Vaultwarden, never to a terminal.
+output "crowdsec_bouncer_token" {
+  description = "CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN value (sensitive)."
+  value       = cloudflare_account_token.crowdsec_bouncer.value
+  sensitive   = true
 }

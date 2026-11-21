@@ -34,8 +34,7 @@ appel LAPI par IP. Si le plugin ne se télécharge pas au démarrage
 (`plugins.traefik.io` injoignable), Traefik désactive les plugins et
 continue : seuls les routeurs qui portent le middleware échouent.
 
-**Exposition de la clé.** L'API Traefik `api.insecure` (port 8080, LAN, sans
-authentification) affiche la configuration rendue du plugin, donc la clé.
+**Exposition de la clé.** Ancienne API Traefik `api.insecure` (port 8080, sans authentification) : affiche la configuration rendue du plugin, donc potentiellement la clé. Le correctif IaC sur la PR canary supprime :8080 et place `api@internal` derrière BasicAuth privé ; **NON DÉPLOYÉ**.
 Une clé de bouncer ne peut que lire les décisions ; la révoquer avec
 `cscli bouncers delete TRAEFIK` si elle fuit. Ne jamais activer
 `providers.file.debugLogGeneratedTemplate`, qui écrirait la clé dans les logs.
@@ -93,7 +92,7 @@ le nouveau chemin d'entrée (voir
      awk -F= '$1 == "CROWDSEC_BOUNCER_LAPI_KEY" {print $1 "=PRESENT"}'
    ```
 
-   Le tableau de bord (`http://172.17.0.24:8080`) doit lister le middleware
+   Le tableau de bord durci (`https://traefik.int.albandrieu.com/dashboard/`, BasicAuth) doit lister le middleware
    `crowdsec@file`.
 
 3. **Redéployer CrowdSec** : `deploy-crowdsec.sh --check`, puis `--apply`,
@@ -158,6 +157,78 @@ versionné la planifie :
 f=/mnt/cpool/traefik/logs/access.log
 sudo mv "$f" "$f.1" && sudo docker kill -s USR1 traefik
 ```
+
+## IP client derrière Cloudflare Tunnel (21/11/2026)
+
+Sans réglage, Traefik ne voit que des IP privées : cloudflared atteint le port publié de l'hôte et le NAT Docker
+le masque derrière la passerelle `172.16.56.1`, partagée par tous les conteneurs. La whitelist des IP privées
+de CrowdSec ignorait donc 100 % du trafic (361/361 le 20/11). Chemin retenu (CODED, déploiement NOT_RUN) :
+
+1. Traefik rejoint le réseau de l'App cloudflared (`ix-cloudflared_default`, 10.200.2.0/24) et la route canary
+   du Tunnel vise `https://traefik:443` : le pair TCP vu par Traefik est cloudflared lui-même.
+2. Le point d'entrée `websecure` ne fait confiance aux `X-Forwarded-*` que depuis 10.200.2.0/24 ; ailleurs,
+   Traefik les remplace. FastAPI reçoit donc le `X-Forwarded-For` posé par Cloudflare.
+3. Les deux instances du plugin (`crowdsec`, `crowdsec-appsec`) décident sur `Cf-Connecting-Ip`, cru seulement
+   depuis la même plage : décisions et WAF portent sur l'IP publique.
+4. L'access log garde l'en-tête `Cf-Connecting-Ip` ; le parser
+   `parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml` remplace `source_ip` quand `ClientHost`
+   est dans 10.200.2.0/24, avant la GeoIP et la whitelist (ordre des fichiers dans l'étape).
+5. Les rate limits de la route publique comptent par client (`ipstrategy.depth=1`), plus par cloudflared.
+
+Le blocage en périphérie est confié au bouncer Cloudflare de CrowdSec (décision du 21/11), en complément.
+Limite : si l'App cloudflared recrée son réseau sur un autre sous-réseau, la confiance tombe en échec fermé
+(IP privées de nouveau, aucune usurpation possible) et la route canary vers `traefik` casse : contrat
+`tests/test_tunnel_client_ip_contract.py`. Recette après bascule : une requête publique doit apparaître dans
+`cscli alerts list`/`cscli decisions list` avec son IP publique, et `ClientHost` dans 10.200.2.0/24.
+
+## Bouncer Cloudflare Worker (21/11/2026, CODED)
+
+Le service `cloudflare-worker-bouncer` (profil `cloudflare-bouncer`, image
+épinglée par digest) pousse les décisions de la LAPI vers un Worker et un
+namespace KV Cloudflare. Les IP bannies sont arrêtées en bordure, avant le Tunnel.
+Les routes protégées (`cloudflare-worker-bouncer.yaml`) sont les seuls hôtes
+dont l'application Access laisse passer sans connexion : fastapi-sample,
+keycloak, login, joplin et vaultwarden. Traefik et CrowdSec continuent de voir
+l'IP publique via `Cf-Connecting-Ip` (section précédente) : la détection reste
+locale, la remédiation part en bordure.
+
+- **Jeton** : `cloudflare_account_token.crowdsec_bouncer` dans
+  [`terraform/cloudflaretokens`](../../terraform/cloudflaretokens/tokens.tofu),
+  limité à la zone albandrieu.com et à l'adresse WAN.
+- **Secrets** : `CROWDSEC_CLOUDFLARE_BOUNCER_LAPI_KEY` (`cscli bouncers add
+  cloudflare-worker-bouncer`) et `CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN`
+  (`tofu output -raw crowdsec_bouncer_token`, sans affichage) vont dans l'élément
+  Vaultwarden `nabla/prod/crowdsec` du manifeste. Le rendu les écrit dans le même
+  `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` que la LAPI : c'est un
+  compromis assumé, puisque les deux conteneurs appartiennent à la même App.
+- **Plan gratuit** : 1 000 écritures KV par jour. La config ne synchronise donc
+  que les décisions `crowdsec` et `cscli`, sans la blocklist communautaire. Le
+  plafond est de 100 000 requêtes Worker par jour.
+- **Fail Open (manuel)** : le bouncer crée les routes en Fail Closed et aucune
+  API publique ne permet de changer ce mode. Après le premier démarrage, passer
+  chaque route en Fail Open dans le dashboard (Workers Routes, *Request limit
+  failure mode*). Sinon, un quota épuisé renvoie une erreur à tous les visiteurs.
+- **Activation** (`NOT_RUN`) : appliquer le jeton, ranger les deux valeurs,
+  relancer le rendu des secrets, puis lancer `docker compose --profile cloudflare-bouncer up -d
+  cloudflare-worker-bouncer` dans l'App crowdsec. Contrôler ensuite avec
+  `cscli decisions add --ip 198.51.100.7 --duration 5m` puis `--type captcha`.
+- **Retrait** : lancer `crowdsec-cloudflare-worker-bouncer -d` dans le
+  conteneur. Cette commande supprime le Worker, le KV, les routes et le widget
+  Turnstile.
+
+## WAF AppSec — pilote FastAPI TrueNAS (21/11/2026)
+
+**CODED, NOT_DEPLOYED.** Test offline via `bash scripts/truenas/diagnose-crowdsec-appsec.sh --check` ; preflight Docker read-only via `sudo bash scripts/truenas/diagnose-crowdsec-appsec.sh --runtime`. Réutilisation du moteur CrowdSec 1.8.1 et du plugin Traefik épinglé v1.8.1. Les collections `crowdsecurity/appsec-virtual-patching` et `crowdsecurity/appsec-generic-rules` alimentent `crowdsecurity/appsec-default` via `acquis.d/appsec.yaml`. Le moteur écoute `0.0.0.0:7422` **uniquement dans le conteneur**, sans port hôte, sur le réseau Docker existant `traefik_network`. Le répertoire `acquis.d` est monté en lecture seule ; aucun secret n'y est écrit.
+
+Le middleware `crowdsec-appsec@file` est un **deuxième profil du même plugin** et combine le streaming LAPI (bans IP) avec la vérification AppSec. Seuls les deux routeurs canary du hostname `fastapi-sample.albandrieu.com` l'utilisent, incluant le webhook GitHub. Les autres routes restent sur le bouncer IP ou sans middleware, inchangées. L'échec/indisponibilité AppSec entraîne un refus **sur le canary seulement** ; l'ancien chemin direct du tunnel continue de servir la production tant que `fastapi_sample_tunnel_via_traefik=false`. Après la bascule, une panne AppSec rendra FastAPI public indisponible jusqu'au rollback : c'est un choix de sécurité assumé.
+
+**Règle canary de blocage contrôlé** : `appsec-rules/nabla/fastapi-canary.yaml` et `appsec-configs/nabla/fastapi-canary.yaml` sont montés en lecture seule dans l'espace de nom `nabla`, sans écraser les règles du Hub. Une seule requête **GET** sur le chemin exact `/__nabla_appsec_canary_7de17a3fb1134292` doit retourner **403** via le routeur public FastAPI (test depuis conteneur éphémère sur `traefik_network` pour éviter de faire bannir la workstation). Le contrôle négatif `/health` doit rester conforme aux règles Access et à l'état FastAPI. La règle ne demande aucun payload hostile ni secret, ne sert à aucun usage métier et pourra être retirée après réception du moteur.
+
+**Admission avant bascule** : contrôle `cscli collections list`, `cscli metrics show appsec`, socket local `7422`, plugin actif, test officiel `/crowdsec-test-NtktlJHV4TfBSK3wvlhiOBnl` (déclenche un événement mais **n'est pas un test de blocage HTTP**), véritable test de règle WAF sur cible canary isolée avec requêtes bénignes témoins, et absence de faux positif sur `/api`, `/api/ui/session` et `POST /webhooks/github` signé. Le test de blocage doit comparer route protégée/canary et route LAN non protégée avec métadonnées sans secret. Valider journal/compteurs et capacité mémoire (limite actuelle 384 MiB) pendant charge. **Ne jamais utiliser un exploit réel ni publier les JWT/HMAC dans un rapport**. Aucune exécution réelle de ces contrôles n'a été faite.
+
+**Rollback immédiat** : d'abord laisser/revenir au tunnel direct `:8091`; puis seulement remplacer le middleware du canary par `crowdsec@file`. Retirer `acquis.d/appsec.yaml` et collections seulement après preuve qu'aucun client ne les utilise. Ne jamais ouvrir `7422` en TCP sur TrueNAS ou Internet.
+
+Sources : https://docs.crowdsec.net/docs/appsec/quickstart/traefik/ et https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin .
 
 ## Réception des règles PF chargées — 30 octobre 2026
 

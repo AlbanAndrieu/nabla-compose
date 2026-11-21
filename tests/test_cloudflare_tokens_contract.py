@@ -26,7 +26,17 @@ def test_opentofu_token_has_exactly_the_apply_permissions() -> None:
     assert sorted(re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', default)) == sorted(
         re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', shared))
     assert len(re.findall(r'"[0-9a-f]{32}"', shared)) == 18
-    assert text.count('effect            = "allow"') == 2
+    assert text.count('effect            = "allow"') == 4
+
+
+def test_crowdsec_bouncer_token_is_scoped_to_the_main_zone() -> None:
+    text = source()
+    block = text.split('resource "cloudflare_account_token" "crowdsec_bouncer"', 1)[1].split("\n}\n", 1)[0]
+    assert '"com.cloudflare.api.account.zone.${var.zone_id}" = "*"' in block
+    assert "in = var.opentofu_token_client_ips" in block
+    assert "length(local.bouncer_missing_permissions) == 0" in block
+    assert ('bouncer_zone_permissions    = ["DNS Read", "Workers Routes Write", "Zone Read"]') in text
+    assert re.search(r'output "crowdsec_bouncer_token" \{[^}]*sensitive\s*=\s*true', text, re.S)
 
 
 def test_client_ips_come_from_the_operator_and_value_is_sensitive() -> None:
