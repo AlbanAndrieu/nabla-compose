@@ -157,6 +157,20 @@ du jeton Access, ou un mécanisme équivalent, serait nécessaire pour
 une publication hors LAN. Ne pas créer de timer supplémentaire avant
 validation des ACL NFS et Apache.
 
+**Réception Apache/NFS du 21/11 :** les deux `findmnt -T` fournis par
+l'opérateur prouvent le montage NFSv4.2 `/media/www` sur
+`nabla:/mnt/cpool/www`. Les liens symboliques des sites historiques
+`/var/www/nabla-site-apache` et `/var/www/nabla-site-bababou`
+continuent donc à dépendre du NFS. Cela ne démontre **pas** le déploiement
+du miroir CTEM local : `apache2ctl -S` ne montre que les VirtualHosts
+80 et 8082, sans listener 8087 visible. `getfacl` sur le
+`public` historique révèle `group::rwx` pour `www-data` :
+il faut réviser les droits d'écriture avant de considérer cette
+racine comme une source web durcie. Le déploiement de l'Alias
+`/reports`, du listener LAN 8087 et de la copie locale demeure
+`NOT_VERIFIED`. Voir
+[runbook commun workstation/TrueNAS](workstation-truenas-report-sharing-and-honeypot.md).
+
 ### Visualisation privée des actifs Amass
 
 Le runner TrueNAS produit après scan **achevé** :
