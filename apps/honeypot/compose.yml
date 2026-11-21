@@ -62,7 +62,7 @@ services:
       # Cf-Connecting-Ip forwarded headers; cloudflared currently sits on this /24.
       traefik.enable: "true"
       traefik.docker.network: traefik_network
-      traefik.http.routers.honeypot-public.rule: 'Host(`login.albandrieu.com`)'
+      traefik.http.routers.honeypot-public.rule: "Host(`login.albandrieu.com`)"
       traefik.http.routers.honeypot-public.entrypoints: websecure
       traefik.http.routers.honeypot-public.tls: "true"
       traefik.http.routers.honeypot-public.service: honeypot
@@ -74,7 +74,7 @@ services:
       traefik.http.middlewares.honeypot-public-rate.ratelimit.burst: "20"
       traefik.http.middlewares.honeypot-public-rate.ratelimit.sourcecriterion.ipstrategy.depth: "1"
       # Distinct POST budget; no credentials are accepted or retained by Apache.
-      traefik.http.routers.honeypot-login-attempt.rule: 'Host(`login.albandrieu.com`) && Path(`/login`) && Method(`POST`)'
+      traefik.http.routers.honeypot-login-attempt.rule: "Host(`login.albandrieu.com`) && Path(`/login`) && Method(`POST`)"
       traefik.http.routers.honeypot-login-attempt.entrypoints: websecure
       traefik.http.routers.honeypot-login-attempt.tls: "true"
       traefik.http.routers.honeypot-login-attempt.priority: "1000"
