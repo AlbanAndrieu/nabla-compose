@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Compare local TrueNAS and outside-in Amass reports without publishing hostnames.
 
 The outside-in source is a GitHub Actions counts-only artifact. Its results
