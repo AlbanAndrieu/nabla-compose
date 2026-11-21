@@ -529,6 +529,8 @@ if [[ "${image_source}" == "local-build" ]]; then
         printf 'Reusing local Docker base/dependency cache; set FASTAPI_SAMPLE_REFRESH_BASE_IMAGES=true for a security refresh.\n'
     fi
     build_args+=(fastapi-sample)
+    # Stamp the exact commit: a local build of a moving ref otherwise reports build_revision=null.
+    export FASTAPI_SAMPLE_BUILD_REVISION="${target}"
 
     step '3/6' 'Build image before replacing runtime'
     guard_dockerhub_base_build

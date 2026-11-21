@@ -16,6 +16,9 @@ services:
       context: ../fastapi-sample
       dockerfile: Dockerfile
       target: production
+      args:
+        # /v2/version reports it as build_revision; set by update-fastapi-sample.sh.
+        BUILD_REVISION: ${FASTAPI_SAMPLE_BUILD_REVISION:-}
     container_name: fastapi-sample
     restart: unless-stopped
     mem_limit: 1280m
