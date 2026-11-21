@@ -31,8 +31,11 @@ class AmassInventoryTests(unittest.TestCase):
                 MODULE["private_write"](path, {"count": 2})
 
     def test_scope_uses_reviewed_owned_domains(self):
-        self.assertEqual(MODULE["load_domains"](),
-                         ["albanandrieu.com", "albandrieu.com", "bababou.com"])
+        # The 20 zones of the Cloudflare account (public-mail-domains.json).
+        domains = MODULE["load_domains"]()
+        self.assertEqual(len(domains), 20)
+        self.assertLessEqual({"albanandrieu.com", "albandrieu.com", "bababou.com",
+                              "papoyou.net"}, set(domains))
 
 
 class CatalogReconciliationTests(unittest.TestCase):

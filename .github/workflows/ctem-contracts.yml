@@ -1,0 +1,142 @@
+name: CTEM offline contracts
+
+# Intentionally no scanning: PR checks must never enumerate external assets.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ctem-contracts.yml"
+      - "scripts/security/run-amass-inventory.py"
+      - "scripts/security/audit-ctem-catalog-policy.py"
+      - "scripts/security/run-ctem-amass-truenas.sh"
+      - "scripts/truenas/bootstrap-ctem-amass-db.sh"
+      - "scripts/cron.sh"
+      - "tests/test_ctem_amass_active.py"
+      - "tests/test_ctem_amass_html.py"
+      - "scripts/security/render-ctem-amass-html.py"
+      - ".github/workflows/external-attack-surface.yml"
+      - "scripts/security/store-ctem-summary.py"
+      - "scripts/security/pull-ctem-mail-artifact.py"
+      - "scripts/security/github_actions_artifact_api.py"
+      - "tests/test_ctem_mail_artifact.py"
+      - "scripts/security/project-ctem-mail-findings.py"
+      - "scripts/security/validate-defectdojo-report.py"
+      - "config/security/defectdojo-allowed-imports.json"
+      - "tests/test_ctem_report_pipeline.py"
+      - "config/security/ctem/amass-job.compose.yml"
+      - "tests/test_ctem_amass_inventory.py"
+      - "tests/test_ctem_catalog_policy.py"
+      - "tests/test_ctem_amass_truenas.py"
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-v2-render:
+    name: Regenerate canonical catalog V2 artifacts for review
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/ctem-v2-policy-audit-20261121' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+          submodules: false
+      - name: Install pinned YAML parser
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/ctem-venv"
+          "${RUNNER_TEMP}/ctem-venv/bin/pip" install --disable-pip-version-check 'PyYAML==6.0.2'
+      - name: Render v2 artifacts from Backstage and native Compose
+        run: |
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --output-dir "${RUNNER_TEMP}/ctem-catalog-v2"
+          python3 - <<'PY'
+          import json, pathlib, os
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ctem-catalog-v2"
+          paths = sorted(root.glob("*.json"))
+          assert len(paths) >= 4, "expected complete V2 artifact set"
+          entity = json.loads((root / "entities.json").read_text())
+          ollama = [e for e in entity["entities"] if e["entityRef"] == "component:default/ollama-gpu"]
+          assert len(ollama) == 1
+          exposures = ollama[0].get("x-nabla", {}).get("exposure", [])
+          assert exposures and not any(e.get("visibility") == "public" for e in exposures)
+          print("V2 source projection validated; no raw artifacts in logs")
+          PY
+      - name: Validate legacy LAN route parity before V2 migration acceptance
+        run: |
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/audit-service-catalog-v2-parity.py --check
+      - name: Upload generated standard catalog (for branch reconciliation only)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ctem-catalog-v2-generated
+          path: ${{ runner.temp }}/ctem-catalog-v2/*.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Apply V2 generated artifacts to the source PR branch
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          TARGET_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          test "${TARGET_REF}" = "feat/ctem-v2-policy-audit-20261121"
+          cp "${RUNNER_TEMP}"/ctem-catalog-v2/*.json catalog/generated/
+          "${RUNNER_TEMP}/ctem-venv/bin/python" scripts/generate-catalog-v2-artifacts.py --check
+          # Source JSON contracts are authored, not generated. Format them with
+          # the exact pinned Biome version used by the canonical pre-commit hook.
+          npm exec --yes --package=@biomejs/biome@2.4.12 -- biome check --write \
+            catalog/homelab-services.json \
+            config/security/defectdojo-allowed-imports.json
+          git add -- catalog/generated/*.json catalog/homelab-services.json config/security/defectdojo-allowed-imports.json
+          if git diff --cached --quiet; then
+            echo "Canonical V2 artifacts already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(ctem): regenerate canonical Backstage V2 artifacts"
+          # Fast-forward only: refuse if the human-edited PR moved meanwhile.
+          git push origin HEAD:refs/heads/feat/ctem-v2-policy-audit-20261121
+
+  offline-ctem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Python and shell syntax
+        run: |
+          python3 -m py_compile \
+            scripts/security/audit-ctem-catalog-policy.py \
+            scripts/security/run-amass-inventory.py \
+            scripts/security/run-amass-inventory.py \
+            scripts/security/store-ctem-summary.py \
+            scripts/security/pull-ctem-mail-artifact.py \
+            scripts/security/render-ctem-amass-html.py \
+            scripts/security/project-ctem-mail-findings.py \
+            scripts/security/validate-defectdojo-report.py
+          bash -n scripts/security/run-ctem-amass-truenas.sh
+          bash -n scripts/truenas/bootstrap-ctem-amass-db.sh
+          bash -n scripts/cron.sh
+      - name: CTEM contract tests (no network or appliance)
+        run: |
+          python3 -m unittest \
+            tests.test_ctem_amass_inventory \
+            tests.test_ctem_catalog_policy \
+            tests.test_ctem_amass_truenas \
+            tests.test_ctem_amass_active \
+            tests.test_ctem_amass_html \
+            tests.test_ctem_report_pipeline \
+            tests.test_ctem_mail_artifact -v
+      - name: Offline Cron and container preflights
+        run: |
+          bash scripts/security/run-ctem-amass-truenas.sh --check
+          python3 scripts/security/pull-ctem-mail-artifact.py --check
+      - name: Enforce reconciled LAN-only exposure policy from canonical V2
+        run: |
+          # Now that source and all four generated V2 artifacts agree, any new
+          # publicly declared LAN-only hostname is a blocking policy violation.
+          python3 scripts/security/audit-ctem-catalog-policy.py

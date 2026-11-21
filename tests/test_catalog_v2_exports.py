@@ -111,6 +111,7 @@ x-nabla:
       primaryEndpoint: component:default/api
 services:
   api:
+    profiles: [api]
     labels:
       com.albandrieu.nabla.entity-ref: component:default/api
     ports:
@@ -160,6 +161,7 @@ services:
                 "provider": "truenas-app",
                 "appId": "api-app",
                 "containerService": "api",
+                "composeProfiles": ["api"],
                 "source": "apps/api/compose.yml#services/api",
             },
         )
@@ -212,6 +214,7 @@ services:
             expected = {key: row["runtime"][key] for key in ("provider", "appId", "containerService") if key in row["runtime"]}
             projected = dict(runtime_by_ref[ref] or {})
             projected.pop("source", None)
+            projected.pop("composeProfiles", None)  # services.json keeps it out until Sample accepts it.
             self.assertEqual(projected, expected, ref)
             checked += 1
         self.assertGreater(checked, 100)

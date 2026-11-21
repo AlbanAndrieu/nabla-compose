@@ -25,8 +25,10 @@ to `/mnt/cpool/secrets/runtime/ntopng/.env.secrets` and mounted as a Compose
 secret (not in Docker `Config.Env`); a password changed in the UI is reset to
 the Vaultwarden value at the next start.
 
-Persistent data: `/mnt/cpool/ntopng` (RRD time series) and
-`/mnt/cpool/ntopng/redis`.
+Persistent data: `/mnt/cpool/ntopng` (configuration, category lists) and
+`/mnt/cpool/ntopng/redis`. The RRD time series (`/var/lib/ntopng/0` and `-1`)
+live in a tmpfs since 21/11: they caused most of the pool's small writes, and
+their history restarts empty with the container.
 
 ## Out of scope without a licence
 

@@ -291,6 +291,8 @@ def project_route_intent(
                     )
                 target["runtime"] = {
                     **{key: runtime[key] for key in _RUNTIME_FIELDS if runtime.get(key)},
+                    # Derived from Compose, never authored: Sample reports a profiled service as on_demand.
+                    **({"composeProfiles": list(service["profiles"])} if service.get("profiles") else {}),
                     "source": source,
                 }
 

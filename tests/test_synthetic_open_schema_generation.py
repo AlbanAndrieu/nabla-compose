@@ -41,8 +41,9 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
     # published on the Internet (owner decision). 2026-11-13: AdGuard Home is
     # LAN-only (owner decision); its tunnel route was removed. 2026-11-17: Nexus
     # keeps its public route behind Access (owner decision). 2026-11-19: Ollama
-    # is LAN-only (#418).
-    assert public_count == 32
+    # is LAN-only (#418). 2026-11-20: the honeypot is public on login, without
+    # Access (owner decision).
+    assert public_count == 33
     assert len(by_kind["DnsCheck"]) == public_count
     assert len(by_kind["TlsCheck"]) == public_count
     assert len(by_kind["HttpCheck"]) == public_count

@@ -12,7 +12,7 @@ TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdoj
 API="http://172.17.0.24:31085/api/v2/reimport-scan/"
 TRANSPORT=(--proto '=http')
 # FastAPI native image imports use verified TLS/SNI at the existing LAN ingress.
-if [[ "${SERVICE_ID}" == fastapi-sample-image ]]; then
+if [[ "${SERVICE_ID}" == fastapi-sample-image || "${SERVICE_ID}" == ctem-mail ]]; then
   API="https://defectdojo.int.albandrieu.com/api/v2/reimport-scan/"
   TRANSPORT=(--proto '=https' --resolve 'defectdojo.int.albandrieu.com:443:172.17.0.24')
 fi
@@ -25,7 +25,7 @@ size="$(stat -c %s "${REPORT}")"
 [[ "${SERVICE_ID}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || fail "DEFECTDOJO_SERVICE_ID required"
 [[ "${ENGAGEMENT}" =~ ^[1-9][0-9]*$ ]] || fail "existing DEFECTDOJO_ENGAGEMENT_ID required (no auto-create)"
 case "${SCAN_TYPE}" in
-  "Trivy Scan"|"CodeQL Scan"|"Semgrep JSON Report"|"Nuclei Scan"|"ZAP Scan") ;;
+  "Trivy Scan"|"CodeQL Scan"|"Semgrep JSON Report"|"Nuclei Scan"|"ZAP Scan"|"Generic Findings Import") ;;
   *) fail "unsupported parser; verify in the installed edition" ;;
 esac
 python3 "$(dirname -- "${BASH_SOURCE[0]}")/validate-defectdojo-report.py" \

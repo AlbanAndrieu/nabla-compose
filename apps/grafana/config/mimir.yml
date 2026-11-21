@@ -16,6 +16,9 @@ compactor:
   sharding_ring:
     kvstore:
       store: memberlist
+limits:
+  # Without it blocks are kept forever (4.4 GiB on 21/11); Loki keeps 30 days.
+  compactor_blocks_retention_period: 90d
 distributor:
   ring:
     instance_addr: 127.0.0.1

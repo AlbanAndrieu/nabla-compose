@@ -144,6 +144,35 @@ resource "cloudflare_zero_trust_access_application" "vaultwarden_admin" {
 
 # Joplin sync clients cannot complete an interactive Access login: Joplin's own
 # authentication protects the server (roadmap decision, 10/11/2026).
+# Honeypot on login (owner decision, 20/11/2026): the trap must be reachable by
+# anyone, collectors included. Without an Access app the account answers 403
+# error code 1050 (Default-Deny) and the page is never seen. The tunnel route
+# refuses with 404 until the honeypot App runs (tunnel.tofu).
+resource "cloudflare_zero_trust_access_application" "honeypot_login" {
+  account_id           = var.account_id
+  app_launcher_visible = false
+  destinations = [
+    {
+      type = "public"
+      uri  = "login.albandrieu.com"
+    },
+  ]
+  domain = "login.albandrieu.com"
+  name   = "honeypot-login"
+  policies = [
+    {
+      id         = local.access_policy_everyone_bypass_id
+      precedence = 1
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "cloudflare_zero_trust_access_application" "joplin" {
   account_id           = var.account_id
   app_launcher_visible = false

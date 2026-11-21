@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 
+import pytest
 import yaml
 
 
@@ -212,9 +213,8 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     updater = (ROOT / "scripts" / "truenas" / "update-fastapi-sample.sh").read_text(
         encoding="utf-8",
     )
-    assert "pfsense_auth_smoke" in updater
-    assert "--url https://home.albandrieu.com:10443" in updater
-    assert "deployment remains accepted because pfSense is optional diagnostic evidence" in updater
+    # pfSense was retired on 18/11: its RBAC smoke could only warn.
+    assert "pfsense" not in updater.lower()
     assert 'release_ref=false' in updater
     assert '[[ "${REF}" =~ ^v?[0-9]+[.][0-9]+[.][0-9]+$ ]]' in updater
     assert "pull-only mode requires a version ref" in updater
@@ -290,7 +290,22 @@ def _git(cwd: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def test_cron_reports_runtime_and_gates_fastapi_on_cloud_health(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("health", "expected"),
+    [
+        pytest.param(
+            '{"status":"healthy","components":{"api":{"status":"healthy"}}}',
+            "update-fastapi-sample.sh ran",
+            id="healthy-cloud-updates",
+        ),
+        pytest.param(
+            '{"status":"degraded","components":{"api":{"status":"healthy"},"sensor":{"status":"unhealthy"}}}',
+            "FastAPI Cloud is not fully healthy (status=degraded, failing: sensor)",
+            id="degraded-cloud-skips",
+        ),
+    ],
+)
+def test_cron_reports_runtime_and_gates_fastapi_on_cloud_health(tmp_path: Path, health: str, expected: str) -> None:
     origin = tmp_path / "origin.git"
     seed = tmp_path / "seed"
     checkout = tmp_path / "checkout"
@@ -324,7 +339,14 @@ def test_cron_reports_runtime_and_gates_fastapi_on_cloud_health(tmp_path: Path) 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _stub(bin_dir, "logger", "exit 0")
-    _stub(bin_dir, "sudo", 'echo "sudo must not run: $*" >&2; exit 97')
+    _stub(
+        bin_dir,
+        "sudo",
+        """case "$*" in
+  *update-fastapi-sample.sh) echo "update-fastapi-sample.sh ran" ;;
+  *) echo "sudo must not run: $*" >&2; exit 97 ;;
+esac""",
+    )
     _stub(
         bin_dir,
         "midclt",
@@ -339,19 +361,22 @@ def test_cron_reports_runtime_and_gates_fastapi_on_cloud_health(tmp_path: Path) 
   inspect) echo "/ix-foo-web-1|ix-foo|$(date -u +%Y-%m-%dT%H:%M:%S.000000000Z)|0" ;;
 esac""",
     )
+    # Like FastAPI Cloud since fastapi-sample #447: only these routes are anonymous.
     _stub(
         bin_dir,
         "curl",
         """for arg in "$@"; do url="$arg"; done
 case "$url" in
-  */healthz) echo '{"status":"degraded","components":{"api":{"status":"healthy"}},"checks":{"openstack_me":{"reachable":false}}}' ;;
-  *) printf 200 ;;
+  */health) printf '%s\\n' "$FAKE_HEALTH" ;;
+  */livez | */v2/version) printf 200 ;;
+  *) printf 401 ;;
 esac""",
     )
 
     env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
         "HOME": str(tmp_path),
+        "FAKE_HEALTH": health,
         "NABLA_CRON_LOCK_FILE": str(tmp_path / "cron.lock"),
         "NABLA_CRON_FASTAPI_REMOTE": str(sample_remote),
         "NABLA_CRON_LOG_DIR": str(tmp_path / "logs"),
@@ -376,6 +401,7 @@ esac""",
     assert "TrueNAS Apps: RUNNING=1, STOPPED=1" in out
     assert "Apps not RUNNING: bar (STOPPED)" in out
     assert "ix-foo-web-1: TrueNAS App foo" in out
-    assert "FastAPI Cloud is not fully healthy (status=degraded, failing: openstack_me)" in out
+    assert expected in out
+    assert ("update-fastapi-sample.sh ran" in out) == (expected == "update-fastapi-sample.sh ran")
     assert "sudo must not run" not in result.stderr
     assert _git(checkout, "rev-parse", "HEAD") == _git(seed, "rev-parse", "HEAD")

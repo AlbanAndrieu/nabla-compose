@@ -83,6 +83,26 @@ variable "home_dns_a_create_approved" {
   default     = false
 }
 
+variable "albanandrieu_zone_id" {
+  description = "albanandrieu.com zone identifier (mail records only, mail.tofu)."
+  type        = string
+}
+
+variable "mail_spf_record_ids" {
+  description = "Live id of each apex SPF TXT record of mail.tofu, keyed by domain (import-first)."
+  type        = map(string)
+}
+
+variable "mail_zone_ids" {
+  description = "Zone id (not a secret) of each owned zone other than albandrieu.com and albanandrieu.com, keyed by domain (mail.tofu)."
+  type        = map(string)
+}
+
+variable "mail_dmarc_record_ids" {
+  description = "Live id of each existing _dmarc TXT record of mail.tofu, keyed by domain (import-first)."
+  type        = map(string)
+}
+
 variable "fastapi_github_webhook_edge_ready" {
   description = "Explicitly enable the webhook path Access exception only after receiver and exact host/path/method/GitHub hook IP WAF acceptance."
   type        = bool

@@ -1,0 +1,16 @@
+// MTA-STS policy host (RFC 8461), rendered by mail.tofu: one static policy per
+// mta-sts.<domain> custom domain. No origin, no binding, no state.
+const POLICIES = ${policies};
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const policy = POLICIES[url.hostname];
+    if (policy === undefined || url.pathname !== "/.well-known/mta-sts.txt") {
+      return new Response("Not found\n", { status: 404 });
+    }
+    return new Response(policy, {
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  },
+};

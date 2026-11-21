@@ -61,8 +61,15 @@ command: bash /mnt/cpool/compose/nabla-compose/scripts/cron.sh /mnt/cpool/compos
 ```
 
 The cron helper owns Git synchronization, an hourly runtime report and the
-gated FastAPI Sample refresh. It never redeploys a TrueNAS App and does not
-start/replace Doco-CD. Each run mails a short report:
+gated FastAPI Sample refresh. **Opt-in CTEM** (`NABLA_CRON_CTEM_AMASS_ENABLED=true`)
+adds the weekly bounded active Amass job on Sunday at 05:00 appliance local time;
+`NABLA_CRON_CTEM_MAIL_ENABLED=true` separately archives the latest eligible
+GitHub App `public-mail-deep.json` into PostgreSQL on Monday at 08:00 (after the 04:41 UTC external scan window).
+Both reuse this same hourly Cron task, not creating another scheduler. It invokes
+`sudo -n` only for the reviewed CTEM runner; private results stay root-only,
+while the Cron mail contains counts/status only. The cron never redeploys a TrueNAS App
+and does not start/replace Doco-CD. See the
+[CTEM runbook](runbooks/ctem-external-exposure.md). Each run mails a short report:
 
 - the commits pulled (no git progress) and the redeploy plan of the TrueNAS
   Apps they touch ([below](#redeploying-only-the-apps-a-change-touches)); the
@@ -120,7 +127,7 @@ command and its next execution. The script keeps the existing safety
 controls: dangling images only, age ≥168 h, exclusive lock, reboot-phase guard,
 and no volume/container/network pruning.
 
-This keeps the existing `scripts/cron.sh` single-purpose and prevents routine
+This keeps the Docker maintenance job distinct from `scripts/cron.sh` and prevents routine
 Git synchronization from mutating the Docker store.
 
 Contract:
@@ -139,10 +146,13 @@ Contract:
    `NABLA_CRON_FASTAPI_TIMEOUT`, default 50 min, private log under
    `/mnt/cpool/var/nabla/ops-logs/`) only when the FastAPI Sample checkout is
    behind its remote `master` **and** `https://fastapi-sample.fastapicloud.dev`
-   is fully healthy: `/livez` and `/readyz` answer 200 and `/healthz` reports
-   `status: healthy` with every component healthy. A `degraded` cloud (for
-   example one failing `checks.*` integration) skips the update and the mail
-   names the failing checks. `NABLA_CRON_FASTAPI_UPDATE=false` disables it.
+   is fully healthy on its anonymous routes: `/livez` and `/v2/version` answer
+   200 and `/health` reports `status: healthy` with every component healthy,
+   the contract `update-fastapi-sample.sh` also checks locally after the
+   redeploy. `/readyz` and `/healthz` are private diagnostics since
+   fastapi-sample #447 (`X-Diagnostics-Key`), so the cron no longer verifies
+   the cloud dependencies. A `degraded` cloud skips the update and the mail
+   names the failing components. `NABLA_CRON_FASTAPI_UPDATE=false` disables it.
 
 When the operator checks out a feature branch such as
 `refactor/sample-nabla-service-foundation`, cron intentionally becomes a no-op.
