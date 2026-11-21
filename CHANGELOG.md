@@ -1,3 +1,10 @@
+# [0.110.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.109.0...0.110.0) (2026-11-21)
+
+
+### Features
+
+* **edge:** prepare FastAPI TrueNAS Traefik/CrowdSec canary with reversible Tunnel switch ([#432](https://github.com/AlbanAndrieu/nabla-compose/issues/432)) ([c3877e1](https://github.com/AlbanAndrieu/nabla-compose/commit/c3877e1160e11bdc8b7841ac917d0fad02306e13)), closes [#431](https://github.com/AlbanAndrieu/nabla-compose/issues/431)
+
 # [0.109.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.108.0...0.109.0) (2026-11-21)
 
 
