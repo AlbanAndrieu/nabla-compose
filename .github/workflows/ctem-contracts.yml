@@ -11,6 +11,9 @@ on:
       - "scripts/truenas/bootstrap-ctem-amass-db.sh"
       - "scripts/cron.sh"
       - "tests/test_ctem_amass_active.py"
+      - "tests/test_ctem_amass_html.py"
+      - "scripts/security/render-ctem-amass-html.py"
+      - ".github/workflows/external-attack-surface.yml"
       - "scripts/security/store-ctem-summary.py"
       - "scripts/security/pull-ctem-mail-artifact.py"
       - "scripts/security/github_actions_artifact_api.py"
@@ -43,6 +46,7 @@ jobs:
             scripts/security/run-amass-inventory.py \
             scripts/security/store-ctem-summary.py \
             scripts/security/pull-ctem-mail-artifact.py \
+            scripts/security/render-ctem-amass-html.py \
             scripts/security/project-ctem-mail-findings.py \
             scripts/security/validate-defectdojo-report.py
           bash -n scripts/security/run-ctem-amass-truenas.sh
@@ -55,6 +59,7 @@ jobs:
             tests.test_ctem_catalog_policy \
             tests.test_ctem_amass_truenas \
             tests.test_ctem_amass_active \
+            tests.test_ctem_amass_html \
             tests.test_ctem_report_pipeline \
             tests.test_ctem_mail_artifact -v
       - name: Offline Cron and container preflights
