@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/ctem-contracts.yml"
       - "scripts/security/run-amass-inventory.py"
+      - "scripts/security/pull-ctem-amass-artifact.py"
+      - "scripts/security/compare-ctem-amass-vantages.py"
+      - "tests/test_ctem_amass_vantage_comparison.py"
       - "scripts/security/audit-ctem-catalog-policy.py"
       - "scripts/security/run-ctem-amass-truenas.sh"
       - "scripts/truenas/bootstrap-ctem-amass-db.sh"
@@ -112,6 +115,8 @@ jobs:
           python3 -m py_compile \
             scripts/security/audit-ctem-catalog-policy.py \
             scripts/security/run-amass-inventory.py \
+            scripts/security/pull-ctem-amass-artifact.py \
+            scripts/security/compare-ctem-amass-vantages.py \
             scripts/security/run-amass-inventory.py \
             scripts/security/store-ctem-summary.py \
             scripts/security/pull-ctem-mail-artifact.py \
@@ -130,11 +135,13 @@ jobs:
             tests.test_ctem_amass_active \
             tests.test_ctem_amass_html \
             tests.test_ctem_report_pipeline \
-            tests.test_ctem_mail_artifact -v
+            tests.test_ctem_mail_artifact \
+            tests.test_ctem_amass_vantage_comparison -v
       - name: Offline Cron and container preflights
         run: |
           bash scripts/security/run-ctem-amass-truenas.sh --check
           python3 scripts/security/pull-ctem-mail-artifact.py --check
+          python3 scripts/security/pull-ctem-amass-artifact.py --check
       - name: Enforce reconciled LAN-only exposure policy from canonical V2
         run: |
           # Now that source and all four generated V2 artifacts agree, any new
