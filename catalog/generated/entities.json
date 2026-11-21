@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:d8c2d483ca616bc606010de7285d7a750118779a454063209ac687d397a4bf49",
+  "catalogRevision": "sha256:4c78cf73d4623b53b8e30309b5dc96fb832b46644bccf53763d5b6cad3731519",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -543,6 +543,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "apisix"
+          ],
           "containerService": "apisix",
           "provider": "truenas-app",
           "source": "apps/apisix/compose.yml#services/apisix"
@@ -934,6 +937,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "cartography",
           "provider": "truenas-app",
           "source": "apps/cartography/compose.yml#services/cartography"
@@ -2208,6 +2214,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "dsomm-baseline",
           "provider": "truenas-app",
           "source": "apps/dsomm/compose.yml#services/dsomm-baseline"
@@ -3137,6 +3146,9 @@
       "x-nabla": {
         "runtime": {
           "appId": "hermes-agent",
+          "composeProfiles": [
+            "hermes"
+          ],
           "containerService": "hermes",
           "provider": "truenas-app",
           "source": "apps/hermes/compose.yml#services/hermes"
@@ -5770,6 +5782,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "security"
+          ],
           "containerService": "opensearch-security",
           "provider": "truenas-app",
           "source": "apps/opensearch/compose.yml#services/opensearch-security"
@@ -5858,6 +5873,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "containerService": "scorecard",
           "provider": "truenas-app",
           "source": "apps/scorecard/compose.yml#services/scorecard"
@@ -6685,6 +6703,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual"
+          ],
           "provider": "host",
           "source": "apps/postgresbackup/compose.yml#services/postgresbackup"
         }
@@ -9356,6 +9377,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "manual-audit"
+          ],
           "containerService": "watchtower",
           "provider": "truenas-app",
           "source": "apps/watchtower/compose.yml#services/watchtower"
@@ -9420,6 +9444,9 @@
       },
       "x-nabla": {
         "runtime": {
+          "composeProfiles": [
+            "forwarding"
+          ],
           "containerService": "wazuh-forwarder",
           "provider": "truenas-app",
           "source": "apps/wazuh/compose.yml#services/wazuh-forwarder"
