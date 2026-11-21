@@ -109,10 +109,15 @@ fournit une stack multi-services ; elle n'est pas installée telle quelle ici.
   `/mnt/cpool/secrets/runtime/ctem-amass/.env.secrets` avec
   `AMASS_DB_USER=amass`, `AMASS_DB_NAME=assetdb`,
   `AMASS_DB_HOST=172.17.0.24`, `AMASS_DB_PASSWORD=<secret>`.
-  Il faut préalablement vérifier le SAN de la CA PostgreSQL pour
-  `sslmode=verify-full` (CA :
-  `/mnt/cpool/secrets/runtime/postgres/tls/ca.crt`). Aucune valeur
-  réelle de secret ne figure dans ce runbook.
+  La configuration YAML éphémère d'Amass **ne contient aucun URI ni
+  mot de passe**. La CLI v5 lit les variables `AMASS_DB_*` directement
+  depuis l'environnement restreint du processus, comme prévu par
+  [la documentation officielle](https://owasp-amass.github.io/docs/configuration/#environment-variables-for-engine-and-database).
+  Le lanceur impose également `PGSSLMODE=verify-full` et
+  `PGSSLROOTCERT=/pg-ca/ca.crt` (pilote PostgreSQL), à valider sur
+  l'appliance avant d'accepter la connexion, le SAN et la CA du serveur.
+  CA montée depuis `/mnt/cpool/secrets/runtime/postgres/tls/ca.crt`.
+  Aucune valeur réelle de secret ne figure dans ce runbook.
 
 Procédure après fusion, checkout propre et provisioning du secret via
 Vaultwarden (pas d'installation `apt` sur TrueNAS) :
