@@ -16,7 +16,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 
 | Passe | Début | Fin | Réconciliation |
 |---|---|---|---|
-| 1 | 21/11 | en cours | après la passe 3 |
+| 1 | 21/11 | 21/11 | après la passe 3 |
+| 2 | 21/11 | en cours | après la passe 3 |
 
 ## Journal
 
@@ -45,6 +46,9 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Tempête IO : `usermod` de `paperless-ngx` (copy-up overlay, une synchro txg par fichier) | App arrêtée | pool de 1 070 à 269 écritures/s, txg revenus à 5 s ; suite au point 12 du plan de performance |
 | H10 : recette post-upgrade TrueNAS 27.0.0-RC.1 | PARTIAL | VMs Talos sur l'API `vm.*` ; readiness : seul Sample en WARN (`build_revision` absent jusqu'à la prochaine mise à jour) ; diagnostic FastAPI en 401 attendu ; smoke CSI `--apply` vert depuis TrueNAS (provision, RWX entre deux workers, reclaim ZFS/NFS prouvé) ; MCP `truenas-readonly` « Connection closed » dans cette session |
 | Keycloak et Joplin : activation | bloqué (V1) | aucun fichier de secrets runtime (`/mnt/cpool/keycloak/.env.secrets`, `/mnt/cpool/secrets/runtime/joplin/`) ; source Vaultwarden verrouillée |
+| H09 : TLS PostgreSQL côté serveur | constaté | `pg_hba_file_rules` : seul `hostssl`/`scram-sha-256` pour le réseau ; TLSv1.3 minimum ; `pg_stat_ssl` : 8 clients réseau tous en TLSv1.3 |
+| H17 : réception du catalogue V2 dans Sample | ACCEPTED (critère du 16/11) | sonde à clé 6fb919e4 : un seul `binding_conflict` (`sentry-edge`), aucune App arrêtée en `declared_only` |
+| Noms publics `keycloak` (403) et `joplin` (502 par le Tunnel, App absente) | constaté | à revoir à l'activation de Joplin |
 | NetBox (H08) | constaté | App `RUNNING`, conteneurs `healthy` depuis 2 jours, statut `active` |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
@@ -67,3 +71,5 @@ Nouvelles :
 - **O1 — Slack d'OpenClaw** (passe nabla-openclaw) : le canal OpenClaw porte-t-il les notifications du control plane FastAPI, en sortie seule ?
 - **O2 — identité GitHub de la devbox** : App dédiée ou compte machine ?
 - **O3 — Vercel FinOps** : export JSON du tableau *Usage*.
+- **P1 — pre-commit sur les 50 autres dépôts** : ajouter le workflow partout représente 50 nouvelles PR à relire ; tous les dépôts, ou seulement les actifs (liste à fixer) ?
+- **P2 — paperless-ngx** : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS), ou migration en Custom App ? (point 12 du plan de performance)
