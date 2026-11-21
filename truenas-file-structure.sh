@@ -291,8 +291,8 @@ services:
   #     - /var/run/docker.sock:/var/run/docker.sock
   #     - /mnt/${CONFIG_POOL}/dozzle/${CONFIG_DIR}:/data
 
-  # Watchtower now has a single declarative owner: apps/watchtower/compose.yml.
-  # Do not generate an unrestricted second controller here.
+  # Watchtower was retired on 2026-11-21: Renovate opens image-update PRs.
+  # Do not generate an unrestricted update controller here.
     # security_opt:
     #   - apparmor=unconfined
 

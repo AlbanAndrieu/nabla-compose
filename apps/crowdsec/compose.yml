@@ -106,7 +106,7 @@ services:
       - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
         required: false
     environment:
-      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik
+      COLLECTIONS: crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules
       # pfSense evidence on 2026-10-10 showed an internal leaky-bucket spin:
       # 19,899,999 failed sends / 19,900,000 attempts with sigclosed=0.
       # Keep the rest of the pfSense collection while removing only this scenario.
@@ -125,7 +125,13 @@ services:
       - crowdsec_config:/etc/crowdsec
       - crowdsec_data:/var/lib/crowdsec/data
       - ./acquis.d:/etc/crowdsec/acquis.d:ro
+      # Owned 'nabla' namespaces; never shadow the operator's other Hub rules.
+      - ./appsec-rules/nabla:/etc/crowdsec/appsec-rules/nabla:ro
+      - ./appsec-configs/nabla:/etc/crowdsec/appsec-configs/nabla:ro
+      # AppSec acquis.d/appsec.yaml is mounted by the SAME read-only directory.
+      # AppSec 7422 is Docker-network-only: never list it under `ports`.
       - ./config.yaml.local:/etc/crowdsec/config.yaml.local:ro
+      - ./parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml:/etc/crowdsec/parsers/s02-enrich/00-nabla-traefik-cloudflare-client-ip.yaml:ro
       - type: bind
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
         target: /logs/suricata
@@ -135,6 +141,45 @@ services:
     # traefik_network only lets the Traefik bouncer reach crowdsec:8080; the
     # LAPI stays LAN-bound and is never routed by Traefik (no traefik.enable).
     networks: ["default", "traefik_network"]
+
+  # Edge remediation (21/11/2026): opt-in profile until the token is applied and
+  # the Worker routes are switched to Fail Open by hand (no public API).
+  cloudflare-worker-bouncer:
+    profiles: ["cloudflare-bouncer"]
+    logging: *nabla-logging
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/crowdsec-cloudflare-bouncer
+    image: crowdsecurity/cloudflare-worker-bouncer:v0.0.18@sha256:5a736b48156c0b75f900f0e6cc937b6d74b2015fe8ab240154b7059531637c9a
+    container_name: crowdsec-cloudflare-bouncer
+    restart: unless-stopped
+    mem_limit: 128m
+    read_only: true
+    cap_drop: [all]
+    security_opt: [no-new-privileges:true]
+    # Same rendered runtime file as crowdsec (nabla/prod/crowdsec): adds
+    # CROWDSEC_CLOUDFLARE_BOUNCER_LAPI_KEY and CLOUDFLARE_CROWDSEC_BOUNCER_TOKEN.
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:2112/metrics",
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - ./cloudflare-worker-bouncer.yaml:/etc/crowdsec/bouncers/crowdsec-cloudflare-worker-bouncer.yaml:ro
+    depends_on:
+      crowdsec:
+        condition: service_healthy
 
 networks:
   traefik_network:

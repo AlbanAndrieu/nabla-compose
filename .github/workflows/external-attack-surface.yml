@@ -364,6 +364,33 @@ jobs:
           python3 scripts/security/run-amass-inventory.py \
             --amass "${RUNNER_TEMP}/amass" --mode "${mode}" \
             --output public-amass-summary.json
+      - name: Summarize discovery outcome without private hostnames
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = Path("public-amass-summary.json")
+          status = "NOT_RUN"
+          candidates = 0
+          if report.is_file():
+              try:
+                  summary = json.loads(report.read_text(encoding="utf-8"))
+                  status = str(summary.get("status", "INVALID_REPORT"))
+                  counts = summary.get("counts", {})
+                  if isinstance(counts, dict):
+                      candidates = sum(int(value) for value in counts.values()
+                                       if isinstance(value, int) and value >= 0)
+              except (ValueError, OSError, TypeError):
+                  status = "INVALID_REPORT"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("## Amass owned-domain discovery\n\n")
+              out.write(f"Status: {status} · asset candidates: {candidates}\n\n")
+              if status != "OBSERVED_NOT_CERTIFIED":
+                  out.write("INCOMPLETE — no clean inventory or zero-findings claim.\n")
+          PY
       - name: Upload counts only, never discovered names or raw graph
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

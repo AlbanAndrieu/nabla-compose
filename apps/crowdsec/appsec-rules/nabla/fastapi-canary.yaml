@@ -1,0 +1,24 @@
+---
+# Benign, exact-path test only. The WAF should block this route (HTTP 403)
+# before it reaches FastAPI. No exploit string, credentials or CI traffic.
+name: nabla/fastapi-canary
+description: "Nabla FastAPI TrueNAS AppSec blocking canary"
+rules:
+  - and:
+      - zones:
+          - METHOD
+        match:
+          type: equals
+          value: GET
+      - zones:
+          - URI
+        match:
+          type: equals
+          value: /__nabla_appsec_canary_7de17a3fb1134292
+labels:
+  type: exploit
+  service: http
+  confidence: 1
+  spoofable: 0
+  behavior: "http:scan"
+  label: "Nabla controlled AppSec canary"

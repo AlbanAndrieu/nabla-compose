@@ -630,6 +630,6 @@ validated. The current runtime configuration is not yet isolated by purpose.
 - [ ] Ensure no actual consumer configuration or index is changed until
       runtime endpoint reachability and isolation are verified.
 
-See `ops/openclaw-workstation/NFS-BACKUP.md` for the OpenClaw embedding
+See [nabla-openclaw](https://github.com/AlbanAndrieu/nabla-openclaw) for the OpenClaw embedding
 policy. This section describes a **target design**; it
 does not claim the shared fallback is currently enabled.

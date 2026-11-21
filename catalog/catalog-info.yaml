@@ -258,19 +258,13 @@ x-nabla:
     - name: public
       hostnames:
         - truenas.albandrieu.com
-      port: 7000
+      port: 443
       protocol: HTTPS
       visibility: public
-      gatewayRef: resource:default/pfsense-haproxy
+      gatewayRef: resource:default/cloudflare-tunnel
       backend: https://172.17.0.24:7000
       access:
-        required: false
-      riskAcceptance:
-        id: truenas-public-admin
-        status: accepted
-        reason: "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately."
-        control: tls-and-api-auth
-        reviewAfter: null
+        required: true
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource

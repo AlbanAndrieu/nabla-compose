@@ -55,6 +55,7 @@ la [roadmap Homelab](roadmap.md).
 
 Les procédures détaillées sont conservées dans
 [les incidents et diagnostics OpenClaw](incidents/2026-11-06-migrations-retour-experience.md)
-et la [roadmap Workstation archivée](openclaw-workstation-roadmap.md).
+et la [roadmap nabla-openclaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md)
+(la roadmap Workstation et ses outils ont été retirés le 21/11).
 Une ancienne section « NO-GO / aucun Gateway TrueNAS » n'a plus de valeur
 opérationnelle. Aucune activité en production n'est déclenchée par cette page.

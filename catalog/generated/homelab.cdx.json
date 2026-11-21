@@ -118,6 +118,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/crowdsec-cloudflare-bouncer"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/cyberbro"
     },
     {
@@ -874,10 +878,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "component:default/watchtower"
-    },
-    {
-      "dependsOn": [],
       "ref": "component:default/wazuh-dashboard"
     },
     {
@@ -999,7 +999,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:8b9cfdd8a14666e42dcdd764edb314bfde85012086ab8f92cb814087b6c5b339"
+        "value": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1007,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:8b9cfdd8-a146-66e4-2dcd-d764edb314bf",
+  "serialNumber": "urn:uuid:b9e6915e-8eb6-eca4-9cf9-25ca2908e33f",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1619,6 +1619,32 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-agent"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/crowdsec-cloudflare-bouncer",
+      "name": "CrowdSec Cloudflare Worker bouncer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/crowdsec-cloudflare-bouncer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/crowdsec/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -5897,33 +5923,6 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "deprecated"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/watchtower",
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
-      "name": "Watchtower",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/watchtower"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/watchtower/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "image-update-auditor"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "experimental"
         }
       ]
     },

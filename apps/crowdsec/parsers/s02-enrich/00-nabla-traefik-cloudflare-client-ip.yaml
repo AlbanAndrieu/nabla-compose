@@ -1,0 +1,16 @@
+---
+# Behind Cloudflare Tunnel, Traefik logs cloudflared as ClientHost. Use the client IP
+# set by the Cloudflare edge, only when the socket peer is cloudflared's network
+# (the only range Traefik trusts forwarded headers from). The 00- prefix runs it first
+# in s02-enrich, before GeoIP and the private-IP whitelist.
+name: nabla/traefik-cloudflare-client-ip
+description: "Traefik behind Cloudflare Tunnel: source_ip from Cf-Connecting-Ip"
+filter: >-
+  evt.Meta.log_type == 'http_access-log'
+  && evt.Unmarshaled.traefik != nil
+  && evt.Unmarshaled.traefik["request_Cf-Connecting-Ip"] != nil
+  && IsIP(TrimSpace(evt.Unmarshaled.traefik["request_Cf-Connecting-Ip"]))
+  && IpInRange(evt.Meta.source_ip, "10.200.2.0/24")
+statics:
+  - meta: source_ip
+    expression: TrimSpace(evt.Unmarshaled.traefik["request_Cf-Connecting-Ip"])

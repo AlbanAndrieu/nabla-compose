@@ -53,7 +53,7 @@
       "phase": "repository_ready",
       "requires": ["secrets-runtime"],
       "artifacts": [
-        "scripts/workstation/check-openclaw-litellm-memory-config.py",
+        "scripts/truenas/provision-openclaw-litellm-keys.py",
         "docs/roadmap.md"
       ],
       "acceptance": [

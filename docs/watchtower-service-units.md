@@ -1,5 +1,11 @@
 # Watchtower, logical services and controlled upgrades
 
+> **Retired on 2026-11-21.** `apps/watchtower` is removed: Renovate opens the
+> image-update PRs, reviewed and deployed like any other change. The fail-closed
+> `com.centurylinklabs.watchtower.enable` labels and
+> `scripts/security/check-watchtower-unit-policy.py` stay as a guard against an
+> unreviewed update controller. The rest of this page is kept as history.
+
 Status: proposed / NOT deployed. The old `containrrr/watchtower` was archived on 2025-12-17; use maintained `nickfedor/watchtower:1.23.1` (2026-10-13), whose exact tag was verified on Docker Hub. Verify image digest, signatures and Docker API compatibility before a manual start.
 
 ## Safety baseline (2026-10-16)

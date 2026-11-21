@@ -9,7 +9,7 @@ recovery logic.
 
 **Statut : diagnostic ouvert, retour d'Internet non prouvé.** L'opérateur
 confirme la Freebox fibre en bridge, l'adresse publique Free
-`82.66.4.247` et le préfixe IPv6 `2a01:e0a:a17:3c00::/64`.
+`82.66.4.247` et le préfixe IPv6 `<préfixe Free>:3c00::/64`.
 L'adresse privée `10.52.47.193` affichée ailleurs dans Freebox OS
 n'est pas l'adresse WAN publique. L'ADSL indiqué DOWN ne suffit pas
 à diagnostiquer une panne de la fibre.
@@ -87,7 +87,7 @@ Le DNS direct et le reverse PTR Free sont des sujets distincts.
 - Vérifier dans Freebox OS les routes /64 IPv6 et le **next hop**
   vers pfSense. Le WAN peut légitimement n'avoir qu'une link-local
   `fe80::` si Free route un préfixe LAN vers lui.
-- Vérifier si `2a01:e0a:a17:3c00::/64` est **réellement routé**
+- Vérifier si `<préfixe Free>:3c00::/64` est **réellement routé**
   vers le LAN pfSense ; ne pas attribuer le même /64 à plusieurs
   interfaces. Contrôles read-only :
   `netstat -rn -f inet6`, `ifconfig mvneta0.4091`,

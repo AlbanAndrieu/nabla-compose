@@ -13,6 +13,15 @@ locals {
       }
       service = "https://172.17.0.24:30120"
     },
+    # TrueNAS administration: Access-protected public 443 to HTTPS LAN 7000.
+    # Keep origin certificate verification and the TrueNAS hostname for SNI.
+    {
+      hostname = "truenas.albandrieu.com"
+      origin_request = {
+        origin_server_name = "truenas.albandrieu.com"
+      }
+      service = "https://172.17.0.24:7000"
+    },
     {
       hostname       = "prometheus.albandrieu.com"
       origin_request = {}
@@ -194,9 +203,16 @@ locals {
       service        = "http://172.17.0.24:31028"
     },
     {
-      hostname       = "fastapi-sample.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:8091"
+      hostname = "fastapi-sample.albandrieu.com"
+      # Opt-in canary; unchanged direct origin by default. SNI verifies the
+      # existing internal certificate while Host selects the public router.
+      # "traefik" resolves on cloudflared's own network (Traefik joins
+      # ix-cloudflared_default), so Traefik sees cloudflared as the socket peer.
+      origin_request = {
+        origin_server_name = var.fastapi_sample_tunnel_via_traefik ? "sample.int.albandrieu.com" : null
+        http_host_header   = var.fastapi_sample_tunnel_via_traefik ? "fastapi-sample.albandrieu.com" : null
+      }
+      service = var.fastapi_sample_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:8091"
     },
     {
       hostname       = "openrag.albandrieu.com"
@@ -247,6 +263,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
     cloudflare_zero_trust_access_application.fastapi_sample,
     cloudflare_zero_trust_access_application.fastapi_sample_api,
     cloudflare_zero_trust_access_application.honeypot_login,
+    cloudflare_zero_trust_access_application.truenas_admin,
   ]
 
   lifecycle {

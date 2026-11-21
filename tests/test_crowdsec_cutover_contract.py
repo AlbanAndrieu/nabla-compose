@@ -23,7 +23,8 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertEqual("crowdsecurity/crowdsec:v1.8.1", service["image"])
         self.assertEqual("firewallservices/pf-scan-multi_ports", service["environment"]["DISABLE_SCENARIOS"])
         self.assertEqual(
-            "crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik",
+            "crowdsecurity/pfsense crowdsecurity/suricata crowdsecurity/traefik"
+            " crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules",
             service["environment"]["COLLECTIONS"],
         )
         self.assertIn("healthcheck", service)

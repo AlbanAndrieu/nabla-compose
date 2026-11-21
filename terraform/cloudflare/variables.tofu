@@ -108,3 +108,9 @@ variable "fastapi_github_webhook_edge_ready" {
   type        = bool
   default     = false
 }
+
+variable "fastapi_sample_tunnel_via_traefik" {
+  description = "Canary public-origin cutover: false keeps 8091; true requires prior Traefik CrowdSec/LAPI/TLS/real-IP/WAF acceptance."
+  type        = bool
+  default     = false
+}

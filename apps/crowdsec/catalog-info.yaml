@@ -30,3 +30,22 @@ spec:
   lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: crowdsec-cloudflare-bouncer
+  title: CrowdSec Cloudflare Worker bouncer
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - security
+    - cloudflare
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/crowdsec

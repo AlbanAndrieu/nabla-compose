@@ -220,6 +220,17 @@
       "syncEligible": false
     },
     {
+      "id": "crowdsec-cloudflare-bouncer",
+      "entityRef": "component:default/crowdsec-cloudflare-bouncer",
+      "name": "CrowdSec Cloudflare Worker bouncer",
+      "group": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "composeService": "cloudflare-worker-bouncer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "cyberbro",
       "entityRef": "component:default/cyberbro",
       "name": "Cyberbro",
@@ -1725,7 +1736,7 @@
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "traefik",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:80",
+      "href": "https://traefik.int.albandrieu.com",
       "syncEligible": true,
       "description": "Internal reverse proxy for repository-managed homelab services."
     },
@@ -1798,18 +1809,6 @@
       "href": null,
       "syncEligible": false,
       "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval."
-    },
-    {
-      "id": "watchtower",
-      "entityRef": "component:default/watchtower",
-      "name": "Watchtower",
-      "group": "security",
-      "sourcePath": "apps/watchtower/compose.yml",
-      "composeService": "watchtower",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
-      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers."
     },
     {
       "id": "wazuh-dashboard",

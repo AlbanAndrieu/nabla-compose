@@ -135,9 +135,8 @@ hermes-opus-routing-test:
 
 # Offline model alias contract and optional authenticated TrueNAS inventory.
 openclaw-truenas-model-keys-test:
-    python3 -m py_compile scripts/workstation/ensure-openclaw-truenas-litellm-tunnel.py scripts/workstation/preflight-truenas-litellm-openclaw.py scripts/workstation/openclaw-route-metadata.py tests/test_openclaw_truenas_ssh_tunnel.py tests/test_truenas_litellm_openclaw_preflight.py tests/test_openclaw_route_metadata.py
+    python3 -m py_compile scripts/workstation/ensure-openclaw-truenas-litellm-tunnel.py scripts/workstation/preflight-truenas-litellm-openclaw.py tests/test_openclaw_truenas_ssh_tunnel.py tests/test_truenas_litellm_openclaw_preflight.py
     python3 -m unittest discover -s tests -p 'test_truenas_litellm_openclaw_preflight.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_truenas_ssh_tunnel.py' -v
 
 # Always safe and offline: compare intended model names to git-declared TrueNAS routing.
@@ -179,94 +178,6 @@ openclaw-truenas-master-env-check:
 # Never use if format check says looks_like_reference, empty or invalid.
 openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
     python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY --allow-nonstandard-master
-
-# Read-only 429 attribution: OpenClaw auth cooldown vs LiteLLM budget/key.
-# No chat, embeddings, RPM reset, systemd restart or secret disclosures.
-openclaw-429-triage-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py scripts/workstation/diagnose-openclaw-model-cooldowns.py tests/test_openclaw_model_cooldowns.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_model_cooldowns.py' -v
-
-# Inference-free. CLI models status MAY query provider usage metadata.
-# --admin only queries hashed virtual key metadata on loopback LiteLLM.
-openclaw-429-triage:
-    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
-    python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
-    python3 scripts/workstation/openclaw-route-metadata.py
-
-# Lightweight path when LiteLLM master key is not exported.
-openclaw-429-triage-no-admin:
-    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
-    python3 scripts/workstation/diagnose-openclaw-litellm-429.py
-    python3 scripts/workstation/openclaw-route-metadata.py
-
-# Job definition audit only: GET cron metadata, never run/edit the job or models.
-# A nonzero check is expected until the live job has an explicit integer --top.
-openclaw-digest-top-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-digest-top.py tests/test_openclaw_digest_top.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_digest_top.py' -v
-
-openclaw-digest-top-check:
-    python3 scripts/workstation/diagnose-openclaw-digest-top.py
-
-# Offline static policy + GitOps reconcile tests; no cron writes or model calls.
-openclaw-digest-gitops-test:
-    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
-    python3 -m py_compile scripts/workstation/reconcile-openclaw-digest-cron.py tests/test_openclaw_digest_gitops.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops.py' -v
-
-# Native cron-agent session cleanup; report is redacted, no direct SQLite edits.
-openclaw-cron-session-maintenance-test:
-    python3 -m py_compile scripts/workstation/openclaw-cron-session-maintenance.py tests/test_openclaw_cron_session_maintenance.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_cron_session_maintenance.py' -v
-
-openclaw-cron-session-maintenance-check:
-    python3 scripts/workstation/openclaw-cron-session-maintenance.py --check
-
-# Opt-in, native Gateway maintenance; only agent 'cron', not the main agent.
-openclaw-cron-session-maintenance-apply:
-    python3 scripts/workstation/openclaw-cron-session-maintenance.py --apply
-
-# Read-only cron-parent session catalog: no transcript output or SQLite mutation.
-openclaw-cron-parent-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-cron-parent.py tests/test_openclaw_cron_parent.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_cron_parent.py' -v
-
-openclaw-cron-parent-check:
-    python3 scripts/workstation/diagnose-openclaw-cron-parent.py
-
-# Historical schedules retained as a reviewed proposal; heartbeat stays dormant.
-openclaw-legacy-heartbeat-test:
-    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
-
-# Local-only: inventory historical HEARTBEAT copies by metadata, never extract archive.
-openclaw-heartbeat-copies-test:
-    python3 -m py_compile scripts/workstation/inspect-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_copies.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_copies.py' -v
-
-openclaw-heartbeat-copies-check:
-    python3 scripts/workstation/inspect-openclaw-heartbeat-copies.py --check
-
-# No content reads, no file mode changes. Explicit mode-only apply is separate.
-openclaw-heartbeat-modes-test:
-    python3 -m py_compile scripts/workstation/secure-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_mode_repair.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_mode_repair.py' -v
-
-openclaw-heartbeat-modes-check:
-    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --check
-
-# Opt-in permission-only change to owner 0600 on three existing, verified files.
-# This never extracts or changes the archive content or Gateway/session state.
-openclaw-heartbeat-modes-apply:
-    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --apply
-
-# Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
-openclaw-nabla-migration-test:
-    python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_nabla_migration_audit.py' -v
-
-openclaw-nabla-migration-check:
-    python3 scripts/workstation/audit-openclaw-nabla-migration.py --check
 
 # Classify only the known auth error; never disable LiteLLM model authentication.
 litellm-workstation-auth-contracts:
@@ -310,23 +221,6 @@ litellm-fastapi-runtime-keys-check:
 litellm-workstation-upstream-auth-check:
     sudo python3 scripts/truenas/diagnose-workstation-litellm-upstream-auth.py --check
 
-# OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
-openclaw-cron-secret-plan-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_cron_env_contract.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_cron_secret_cutover.py' -v
-
-# Plan-only verification for importing the existing cron dotenv secret to a file.
-openclaw-cron-file-cutover-check:
-    python3 scripts/workstation/cutover-openclaw-cron-secret.py --check
-
-# Explicitly authorized mutation: key file, private backups, native SecretRef apply.
-# No Gateway restart, no deletion from dotenv, no paid Actions.
-openclaw-cron-file-cutover:
-    python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
-
-# Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Wi-Fi path diagnostic moved to ansible-workstation: `mise run workstation-wifi-path`.
 
 # P0 manual recovery via direct LAN SSH (no WAN DNS, pfREST or firewall mutation).
@@ -472,6 +366,9 @@ crowdsec-bouncer-config-test:
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
     python3 -m py_compile scripts/workstation/audit-crowdsec-pf-rules.py tests/test_crowdsec_pf_rules_audit.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
+    # Route canary, plugin and AppSec acquisition contracts are part of
+    # the existing CrowdSec quality gate, not an isolated unrun test.
+    bash scripts/quality/run-pytest-local.sh -q tests/test_traefik_crowdsec_bouncer_contract.py tests/test_crowdsec_appsec_waf_contract.py tests/test_fastapi_traefik_canary_contract.py tests/test_traefik_secure_admin_metrics_contract.py
 
 # Workstation only: verify loaded PF rules, not just populated CrowdSec tables.
 # Audit can prove root "block in quick" presence; cannot prove WAN packet drops.
@@ -598,20 +495,6 @@ pfsense-unbound-check:
 # Read-only WhatsApp Web IPv4/IPv6 edge path, with no browser-session access.
 whatsapp-web-path-check:
     bash scripts/workstation/diagnose-whatsapp-web-path.sh --check
-
-# Operator-only: requires private cron-plan.json on the Ubuntu workstation.
-openclaw-cron-secret-plan-check:
-    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py
-
-# Compare two native dry-runs, with ephemeral owner-private no-scrub plan.
-# Read-only for OpenClaw runtime; exit 2 is expected while scrub remains unsafe.
-openclaw-cron-secret-plan-compare:
-    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub
-
-# Opt-in read-only presence hints from the projected dotenv and current Gateway PID.
-# Never proves a restart-safe source; intended exit code is 2.
-openclaw-cron-secret-plan-provenance:
-    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub --inspect-gateway-env
 
 # Print operator commands only. Does not contact TrueNAS or start migrations.
 migration-20261024-commands:
@@ -1162,7 +1045,6 @@ openclaw-truenas-virtual-keys-status:
 openclaw-truenas-virtual-keys-test:
     python3 -m py_compile scripts/truenas/dispatch-openclaw-litellm-keys.py scripts/truenas/provision-openclaw-litellm-keys.py tests/test_openclaw_litellm_execution_dispatch.py
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
 
 # These commands never change TrueNAS services or send credentials.
 protected-http-diagnostics:
@@ -1182,250 +1064,6 @@ litellm-truenas-generic-alignment-test:
     python3 -m unittest discover -s tests -p 'test_litellm_truenas_generic_alignment.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
 
-# Workstation-only. Validate both policies and safe backup/install semantics offline.
-openclaw-morning-briefing-test:
-    python3 -m py_compile scripts/workstation/openclaw-heartbeat-gitops.py tests/test_openclaw_briefing_gitops.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_briefing_gitops.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
-
-# Compare source policy and briefing to the live OpenClaw workspace.
-openclaw-morning-briefing-check:
-    python3 scripts/workstation/openclaw-heartbeat-gitops.py --check
-    python3 scripts/workstation/openclaw-heartbeat-gitops.py --briefing-check
-
-# Deploy the reviewed heartbeat policy and daily briefing with local private backups.
-# No cron/automation created; no gateway restart or embedding rebuild.
-openclaw-morning-briefing-apply:
-    python3 scripts/workstation/openclaw-heartbeat-gitops.py --apply
-    python3 scripts/workstation/openclaw-heartbeat-gitops.py --briefing-apply
-
-# Local-only, read-only 429 collection: workstation LiteLLM spend API and
-# redacted OpenClaw/systemd/Docker counters. No user exports or model calls.
-openclaw-429-auto:
-    python3 scripts/workstation/diagnose-openclaw-429-auto.py --hours 2
-
-# Hermetic contracts; no CI credits, model calls, or service restart.
-openclaw-429-fix-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-429-auto.py scripts/workstation/repair-openclaw-429.py tests/test_openclaw_429_auto.py tests/test_openclaw_429_repair.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_429_auto.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_429_repair.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
-
-# Preflight only: validate that cron's existing scoped key permits GPT-4.1.
-openclaw-429-fix-plan:
-    python3 scripts/workstation/repair-openclaw-429.py
-
-# Explicit one-shot fix on the Workstation. Back up, isolate cron key, cap
-# global concurrency, then restart/recheck Gateway or roll back.
-# Never touches memory.search, virtual-key budgets, or TrueNAS LiteLLM.
-openclaw-429-fix-apply:
-    python3 scripts/workstation/repair-openclaw-429.py --apply --restart-gateway
-
-# Single Workstation entrypoint. Tests + preflight gate the one-shot
-# mutation. Diagnostic is optional evidence, not a reason to block local fix.
-# No remote CI, no budget changes, no embedding reindex.
-openclaw-429-fix-all:
-    just openclaw-429-fix-test
-    just openclaw-429-fix-plan
-    just openclaw-429-fix-apply
-    python3 scripts/workstation/openclaw-route-metadata.py
-    python3 scripts/workstation/diagnose-openclaw-429-auto.py --hours 2 || echo 'WARN: 429 evidence unavailable; runtime fix already processed'
-
-# Inspect the exact npm debug log from the failed 2026-10-25 OpenClaw update.
-# Read-only; output is limited to known error categories and version metadata.
-openclaw-update-npm-triage:
-    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log
-
-openclaw-update-npm-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-update-npm.py tests/test_openclaw_update_npm_diagnostic.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_update_npm_diagnostic.py' -v
-
-# Workstation-only recovery gate. No npm install, no GitHub CI, no LLM request.
-openclaw-update-recovery-local:
-    just openclaw-update-npm-test
-    just openclaw-429-fix-test
-    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log || echo 'WARN: npm update root cause not verified; do not rerun update blindly'
-
-# Install the patched Node runtime into the existing user-owned mise store.
-# Explicit mutation: downloads only Node, not OpenClaw; does not change
-# system Node, npm prefix, Gateway unit, config, or any embeddings.
-openclaw-node24-runtime-install:
-    MISE_SAFE=1 mise lock node@24.22.1
-    mise install --locked node@24.22.1
-    mise exec node@24.22.1 -- node --version
-
-# Rootless OpenClaw 2026.10.7 recovery on the existing Ubuntu Workstation.
-# No CI, no model calls, and no edits to TrueNAS LiteLLM or memory embeddings.
-openclaw-upgrade-local-test:
-    python3 -m py_compile scripts/workstation/upgrade-openclaw-mise.py tests/test_upgrade_openclaw_mise.py
-    python3 -m unittest discover -s tests -p 'test_upgrade_openclaw_mise.py' -v
-    bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_upgrade_openclaw_mise.py' -v"
-
-# Read-only service and package owner inspection.
-openclaw-upgrade-local-plan:
-    python3 scripts/workstation/upgrade-openclaw-mise.py --plan
-
-# Side-by-side npm install under the NEW mise Node prefix; old Gateway stays up.
-openclaw-upgrade-local-stage:
-    python3 scripts/workstation/upgrade-openclaw-mise.py --stage
-
-# Explicit maintenance action: stop Gateway, create consistent state backup,
-# install dedicated systemd override and start new OpenClaw version.
-# On migration failure, retain backup for manual recovery.
-openclaw-upgrade-local-activate:
-    python3 scripts/workstation/upgrade-openclaw-mise.py --activate
-
-# No billable request; check installed package, systemd owner, /readyz,
-# Doctor lint and main/cron memory statuses.
-openclaw-upgrade-local-verify:
-    python3 scripts/workstation/upgrade-openclaw-mise.py --verify
-
-# One explicit operator workflow: offline contracts, inspect, isolated npm
-# staging, backed-up maintenance cutover, then redacted functional checks.
-# May stop/restart the user Gateway; does NOT run model inference.
-openclaw-upgrade-local-all:
-    just openclaw-upgrade-local-test
-    just openclaw-upgrade-local-plan
-    just openclaw-upgrade-local-stage
-    just openclaw-upgrade-local-activate
-    just openclaw-upgrade-local-verify
-
-# OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
-# No project backup, no CI runner, no LiteLLM model requests.
-openclaw-gateway-node-test:
-    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py tests/test_openclaw_gateway_doctor_lint.py scripts/workstation/diagnose-openclaw-gateway-listener.py tests/test_openclaw_gateway_listener.py scripts/workstation/diagnose-openclaw-state-owner.py tests/test_openclaw_state_owner.py
-    bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
-    python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_service_failure.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_state_owner.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_doctor_lint.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_start_once.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_listener.py' -v
-    bash -n scripts/workstation/start-openclaw-gateway-once.sh
-    bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
-
-# Read-only. Distinguish HTTP liveness, startup and admission readiness
-# without exposing channel identities, database contents or secrets.
-openclaw-gateway-readiness:
-    python3 scripts/workstation/diagnose-openclaw-gateway-readiness.py
-
-# Read-only TCP listener, IPv4/IPv6 loopback and UI root diagnosis.
-# Does not restart the Gateway, probe models or expose raw responses.
-openclaw-gateway-listener:
-    python3 scripts/workstation/diagnose-openclaw-gateway-listener.py
-
-# Read-only classification of failed systemd process and recent journal.
-# Exposes only fixed codes; never prints actual log lines or credentials.
-openclaw-gateway-service-failure:
-    python3 scripts/workstation/diagnose-openclaw-gateway-service-failure.py
-
-# Read-only: correlate last logged state owner with live /proc PID and
-# fuser owners of SQLite, WAL and SHM. Historical logs alone are not proof.
-openclaw-state-owner:
-    python3 scripts/workstation/diagnose-openclaw-state-owner.py
-
-# Read-only, no repairs or model requests: parse pinned OpenClaw Doctor
-# structured lint as sanitized categories for EX_CONFIG 78.
-openclaw-gateway-doctor-lint:
-    python3 scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py
-
-# Explicit one-time operator recovery after exit 78. No retry or npm.
-# Run only after checking Doctor's structured findings; active units
-# are diagnosed, not stopped or restarted.
-openclaw-gateway-start-once:
-    bash scripts/workstation/start-openclaw-gateway-once.sh --once
-
-# Explicit scoped hardening when the Node 24.22.1 npm package is
-# group-writable because of workstation umask 0002. Never chmod shared
-# paths or reinstall packages. Requires an owned user systemd drop-in.
-openclaw-gateway-package-permissions:
-    python3 scripts/workstation/repair-openclaw-gateway-node.py --harden-installed-permissions
-
-# Read-only: print a fixed error category if package verification fails.
-openclaw-gateway-node-plan:
-    python3 scripts/workstation/repair-openclaw-gateway-node.py --select-installed-plan
-
-# The next step does NOT invoke npm or openclaw update. It selects the
-# existing, independently validated OpenClaw 2026.10.7 installation
-# under mise Node 24.22.1 for the managed systemd Gateway.
-# No project backup, model request, new staged installation or CI.
-openclaw-gateway-select-installed:
-    bash scripts/workstation/recover-openclaw-managed-gateway.sh --apply
-
-# Backwards-compatible recipe name; the operation is package selection,
-# not a package-manager update. Retained for existing workstation commands.
-openclaw-gateway-node-update:
-    just openclaw-gateway-select-installed
-
-# OpenClaw local-first runtime drift gate: no update, restart or inference.
-openclaw-runtime-alignment-test:
-    python3 -m py_compile scripts/workstation/check-openclaw-runtime-alignment.py scripts/workstation/observe-openclaw-rate-limits.py tests/test_openclaw_recovery_gates.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_recovery_gates.py' -v
-
-openclaw-runtime-alignment-check:
-    python3 scripts/workstation/check-openclaw-runtime-alignment.py
-
-# Structured Gateway journal events only; unstructured 429 strings are UNKNOWN.
-openclaw-rate-limit-evidence-check:
-    python3 scripts/workstation/observe-openclaw-rate-limits.py
-
-# Explicit opt-in: private 0700 state + 0600 allowlisted JSONL, no raw logs.
-openclaw-rate-limit-evidence-capture:
-    python3 scripts/workstation/observe-openclaw-rate-limits.py --capture
-
-# Both operations are audit/plan-only; never mutate cron or session SQLite.
-openclaw-cron-recovery-test:
-    python3 -m py_compile scripts/workstation/plan-openclaw-cron-recovery.py tests/test_openclaw_cron_recovery_plan.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_cron_recovery_plan.py' -v
-    just openclaw-digest-top-test
-    just openclaw-cron-parent-test
-
-openclaw-cron-recovery-plan:
-    python3 scripts/workstation/plan-openclaw-cron-recovery.py
-
-# Compact fail-independent read-only report. A failed probe never hides others.
-openclaw-recovery-readonly-test:
-    python3 -m py_compile tests/test_openclaw_recovery_runner.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_recovery_runner.py' -v
-
-openclaw-recovery-readonly:
-    bash scripts/workstation/openclaw-recovery-readonly.sh
-
-# Pinned runtime discovery: remains accurate after an explicitly reviewed Node upgrade.
-openclaw-runtime-paths-test:
-    python3 -m py_compile scripts/workstation/openclaw_runtime_paths.py tests/test_openclaw_runtime_paths.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_runtime_paths.py' -v
-
-# Run existing focused suites locally (no CI, gateway, model requests or state writes).
-openclaw-recovery-quality:
-    just openclaw-host-context-test
-    just openclaw-digest-gitops-test
-    just openclaw-litellm-dual-logs-test
-    just openclaw-heartbeat-restore-test
-    just openclaw-runtime-paths-test
-    just openclaw-runtime-alignment-test
-    just openclaw-429-triage-test
-    just openclaw-digest-top-test
-    just openclaw-cron-parent-test
-    just openclaw-cron-recovery-test
-    just openclaw-cron-session-maintenance-test
-    just openclaw-recovery-readonly-test
-
-# Both LiteLLM log surfaces; user journal/docker locally, fixed SSH TrueNAS:9922.
-# No prompts or secrets printed, no sudo, remote writes, inference or restarts.
-openclaw-litellm-dual-logs-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-dual-logs.py tests/test_openclaw_litellm_dual_logs.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_dual_logs.py' -v
-
-openclaw-litellm-dual-logs-check:
-    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2
-
-# Recovered legacy behavior inventory, candidate native heartbeat NOT deployed.
-openclaw-heartbeat-restore-test:
-    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_restoration.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
-
 # Local-first migration contracts. Never changes Gateway, LiteLLM or cron.
 openclaw-migration-evidence-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_policy_relocation.py' -v
@@ -1434,30 +1072,6 @@ openclaw-migration-evidence-test:
 # Operator instructions; printing the runbook path does not change runtime.
 openclaw-migration-runbook:
     @echo "apps/openclaw/docs/migration.md"
-
-# Explicit remote sudo -n docker logs, never the default diagnostic path.
-openclaw-litellm-dual-logs-check-sudo:
-    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2 --truenas-sudo-logs
-
-# Host fingerprint is read-only. TrueNAS is never classified as Workstation.
-openclaw-host-context-test:
-    python3 -m py_compile scripts/workstation/openclaw-host-context.py tests/test_openclaw_host_context.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_host_context.py' -v
-
-openclaw-host-context:
-    python3 scripts/workstation/openclaw-host-context.py
-
-# GitOps: reconcile ONLY the existing digest cron job after private backup.
-
-openclaw-digest-gitops-plan:
-    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --plan
-
-openclaw-digest-gitops-check:
-    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --check
-
-# Mutates existing job message; requires runtime hash printed by plan.
-openclaw-digest-gitops-apply expected_sha:
-    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --apply --expected-message-sha {{expected_sha}}
 
 # TrueNAS, root, READ-ONLY: snapshot/replication tasks, coverage and age per dataset.
 zfs-retention-audit:

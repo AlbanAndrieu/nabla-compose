@@ -12,6 +12,15 @@ sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
 | Condition | adresses clientes de `TF_VAR_opentofu_token_client_ips` |
 | Expiration | `opentofu_token_expires_on` (rotation : avancer la date) |
 
+Le second jeton, `nabla-crowdsec-cloudflare-bouncer` (sortie
+`crowdsec_bouncer_token`, 21/11/2026), sert au bouncer Worker de
+[`apps/crowdsec`](../../apps/crowdsec/README.md). Il porte Turnstile Sites Write,
+Workers KV Storage Write, Workers Scripts Write, Account Settings Read et Account
+Analytics Read sur le compte, plus DNS Read, Workers Routes Write et Zone Read sur
+albandrieu.com seulement, avec la même condition d'adresse et la même expiration.
+Le plan attendu passe donc à `2 to add` tant que rien n'est appliqué, et à
+`1 to add` une fois `nabla-opentofu` en place.
+
 État séparé (`cloudflaretokens/tfstate.json` dans Garage) : seule cette unité
 exige le droit de gérer des jetons. **La valeur du jeton est dans l'état**, et
 la CI détient une clé Garage : état et plans sont donc chiffrés côté client

@@ -5,6 +5,11 @@ est unique : [ADR-0003 — limites des dépôts et diagnostics](../adr/0003-repo
 Cet inventaire conserve les observations et candidates du 14 novembre 2026
 de la PR #386, sans transfert ou suppression effectifs.
 
+> **21/11/2026** : la famille Workstation Gateway (dont les cinq scripts
+> homonymes ci-dessous et `ops/openclaw-workstation/`) a été supprimée de
+> Compose ; `nabla-openclaw` en est la seule source. Les relevés D0/D1
+> ci-dessous sont historiques.
+
 La décision de créer `nabla-pfsense` et un éventuel submodule demeure
 conditionnelle à un usage Build/Apply consommant un SHA épinglé, conformément
 à l'ADR canonique. Ni le volume du code ni des noms communs ne prouvent
