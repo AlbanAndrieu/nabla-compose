@@ -95,6 +95,69 @@ Le JSON de comparaison, toujours privé 0600, se consulte avec :
 `sudo jq '{status,rows,semantics}' /mnt/cpool/ctem/amass/reports/vantage-comparison-123456789.json`.
 Un dashboard exposé sur Traefik ou Cloudflare n'est pas créé.
 
+### Publication contrôlée vers `/media/www` (workstation)
+
+La racine `/mnt/cpool/ctem/amass/reports` contient des FQDN et des
+correspondances Backstage V2 privés : **elle ne doit pas être exportée
+par NFS ni liée directement à Apache**. Le partage `/mnt/cpool/www`
+est, lui, un export NFS déjà déclaré pour la workstation. Le code
+`scripts/security/publish-ctem-web-summary.py` **ne copie jamais un
+fichier privé**. Il reconstruit un JSON et un HTML *dépersonnalisés*
+à partir de nombres, catégories de conformité et date seulement.
+
+| Emplacement | Sensibilité | Exposition |
+| --- | --- | --- |
+| TrueNAS `/mnt/cpool/ctem/amass/reports` | Secret interne (0600) | TrueNAS uniquement |
+| TrueNAS `/mnt/cpool/www/reports/ctem` | Agrégats expurgés | Partage NFS `www` existant |
+| Workstation `/media/www/reports/ctem` | Même export NFS, pas une deuxième copie | Lecture directe NFS |
+| Workstation `/var/www/reports/ctem` | Copie locale validée | Apache `Alias /reports`, sous contrôle d'accès |
+
+Le script refuse un scan incomplet, un mauvais mode/vantage, un
+`catalogRevision` incohérent, une portée différente des domaines
+canoniques, les sommes incohérentes et une source mondiale ou
+symlinkée. Il écrit uniquement `amass-summary.json` et
+`index.html` **sans FQDN, sans IP, sans `entityRef`**, jamais
+`candidates-*.json`, `ctem-amass-*.html` ni les logs.
+Le dossier `www` doit être un dataset ZFS *déjà monté* : aucun
+fallback dans le système TrueNAS.
+
+```bash
+# Sur TrueNAS après premier scan actif réussi :
+python3 scripts/security/publish-ctem-web-summary.py --check
+
+# Publication des agrégats sur le partage NFS existant (opt-in)
+sudo env CTEM_WEB_PUBLISH_APPROVED=YES \
+  python3 scripts/security/publish-ctem-web-summary.py --apply
+```
+
+Pour la publication après la campagne hebdomadaire, ajouter
+`NABLA_CRON_CTEM_WEB_ENABLED=true` à la tâche `scripts/cron.sh`
+**déjà existante** ; ce flag reste désactivé par défaut et n'active
+ni Amass ni le transfert de lui-même. Ne jamais ajouter le dossier
+privé à `sharing.nfs` ou au DocumentRoot.
+
+**Apache n'utilise pas le dossier NFS**. Le playbook
+`ansible-workstation/playbooks/security-scans.yml` installe le
+miroir *optionnel* `/opt/script/publish-ctem-web-mirror.py` ; cette
+commande valide les clés JSON du fichier reçu puis régénère le HTML
+local sur `/var/www/reports/ctem` :
+
+```bash
+# Sur la workstation, utilisateur ordinaire (pas sudo)
+python3 /opt/script/publish-ctem-web-mirror.py --check
+CTEM_WORKSTATION_MIRROR_APPROVED=YES \
+  python3 /opt/script/publish-ctem-web-mirror.py --apply
+```
+
+Le module `nabla-lan-only.conf` existant sert alors
+`http://<workstation>:8087/reports/ctem/` uniquement au LAN, et
+le tunnel exige les contrôles existants. Attention : l'en-tête
+`Cf-Access-Jwt-Assertion` vérifié par Apache n'est **pas**
+cryptographiquement validé par ce module ; aucune donnée sensible
+ne doit reposer sur cette seule protection. Ne pas publier
+automatiquement depuis la workstation ni créer de cron supplémentaire
+avant vérification de l'authentification Cloudflare et des règles Apache.
+
 ### Visualisation privée des actifs Amass
 
 Le runner TrueNAS produit après scan **achevé** :
