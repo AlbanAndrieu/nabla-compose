@@ -2,6 +2,8 @@
 
 > **Consolidée le 22 novembre 2026 dans la [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437).** Cette page sert d'**index court des travaux encore ouverts**. Les 21 chantiers, leur propriétaire, l'effort indicatif, les arbitrages proposés et les preuves attendues sont dans le **[portefeuille H01–H21](roadmap-portfolio.md)** (source unique du backlog arbitrable). Procédures dans les runbooks, décisions dans les ADR et historique dans Git / [journal d'exécution du 21/11](runbooks/2026-11-21-roadmap-loop-state.md). Ne pas recopier les incidents ni considérer un merge comme une réception TrueNAS/Cloudflare.
 
+**Dagger reste un POC expérimental**, jamais un substitut à la quality gate locale : les décisions et le contrôle de parité sont conservés dans l'[archive technique du 24/10](archive/roadmap-through-2026-10-24.md) ; voir également le skill `local-first-quality` et ses diagnostics avancés. Aucun changement de politique d'exécution n'est impliqué par la consolidation.
+
 ## Statuts et ordre de décision
 
 - **CODED** : code source versionné, sans affirmation d'exécution ; **TESTED** : tests sur SHA identifié ; **DEPLOYED** : processus déployé observé ; **ACCEPTED** : test fonctionnel réel, horodaté et réussi ; **PARTIAL** : réception incomplète ; **NOT_VERIFIED** : absence de preuve fraîche. `DENIED`, `NOT_RUN` et `UNVERIFIED` ne signifient jamais `DOWN`.
