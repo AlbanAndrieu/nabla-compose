@@ -1,20 +1,6 @@
 ---
 name: traefik
 
-x-nabla:
-  nodes:
-    - id: pfsense-haproxy
-      name: pfSense HAProxy
-      kind: reverse-proxy
-      category: network
-      presentationRole: core
-      description: pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.
-      monitoring:
-        type: port
-        host: 82.66.4.247
-        port: 443
-        target: tcp://82.66.4.247:443
-
 # Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
 x-logging: &nabla-logging
   driver: json-file
@@ -42,14 +28,6 @@ services:
       lifecycle:
         phase: foundation
         priority: 10
-      relations:
-        - target: pfsense-haproxy
-          type: exposedBy
-          strength: required
-          description: pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.
-          evidence:
-            - "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl"
-            - "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
       exposure:
         - name: lan
           protocol: HTTPS
@@ -223,7 +201,8 @@ services:
       - DOMAINS=${PUBLIC_INT_CLOUDFLARE_DNS_DOMAINS:-s3.int.albandrieu.com,hello.int.albandrieu.com}
         # Your domains (separated by commas)
       - PROXIED=false
-        # Keep direct pfSense/HAProxy ingress for these exception records.
+        # These reviewed public DNS exceptions are separate from the Tunnel.
+        # Public WAN reachability is NOT_VERIFIED since pfSense was retired.
         # Existing DNS records in Cloudflare keep their current proxy statuses
 
   # ddns:
