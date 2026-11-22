@@ -36,7 +36,7 @@ resource "vercel_firewall_config" "bababou" {
 
   # Exactly ONE rate-limiting rule (Vercel Hobby project limit).
   # Conditions within a group are AND; separate groups are OR.
-  # Scope to verified public custom domains, not vercel.app previews:
+  # Scope to verified public custom domains, not the Vercel preview aliases:
   # ZAP CI is configured to run at <= 1 req/s and uses the preview aliases.
   rules {
     rule {
