@@ -30,7 +30,8 @@ esac
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/mcp/lib.sh
 source "${ROOT}/scripts/mcp/lib.sh"
-export GRAFANA_URL="${GRAFANA_URL:-http://172.17.0.24:30037}"
+# Fixed TrueNAS Grafana: an inherited GRAFANA_URL must not redirect the admin credential.
+export GRAFANA_URL=http://172.17.0.24:30037
 SSH_HOST="${TRUENAS_SSH_HOST:-truenas}"
 CONTAINER=grafana-stack
 SA_NAME=mcp-readonly

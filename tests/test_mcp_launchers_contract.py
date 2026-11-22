@@ -105,6 +105,9 @@ def test_keys_never_reach_a_command_line():
     gateway = GATEWAY.read_text(encoding="utf-8")
     assert "curl -sS --noproxy '*' -K <(printf 'header = \"Authorization: Bearer %s\"" in gateway
     assert "--data-binary @-" in gateway and "data=(-d" not in gateway
+    # The owner shell exports LITELLM_URL for the workstation LiteLLM (same master key).
+    assert "\nLITELLM_URL=http://172.17.0.24:4000\n" in gateway and "${LITELLM_URL:-" not in gateway
+    assert "\nexport GRAFANA_URL=http://172.17.0.24:30037\n" in GRAFANA_IDENTITY.read_text(encoding="utf-8")
     assert 'models:["no-default-models"]' in gateway and "object_permission:{mcp_access_groups:[$g]}" in gateway
     remote = (MCP / "http-remote.sh").read_text(encoding="utf-8")
     assert '--header-file "${headers}"' in remote and "--header " not in remote

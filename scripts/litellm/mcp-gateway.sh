@@ -32,9 +32,11 @@ esac
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/mcp/lib.sh
 source "${ROOT}/scripts/mcp/lib.sh"
-LITELLM_URL="${LITELLM_URL:-http://172.17.0.24:4000}"
-HOMARR_MCP_URL="${HOMARR_MCP_URL:-http://172.17.0.24:30100/api/mcp/mcp}"
-GRAFANA_MCP_URL="${GRAFANA_MCP_URL:-http://172.17.0.24:8014/mcp}"
+# Fixed TrueNAS endpoints. Never read the generic LITELLM_URL: the owner shell
+# points it at the workstation LiteLLM, which shares the master key (22/11/2026).
+LITELLM_URL=http://172.17.0.24:4000
+HOMARR_MCP_URL=http://172.17.0.24:30100/api/mcp/mcp
+GRAFANA_MCP_URL=http://172.17.0.24:8014/mcp
 HOMARR_TOOLS="${ROOT}/scripts/litellm/homarr-readonly-tools.json"
 SSH_HOST="${TRUENAS_SSH_HOST:-truenas}"
 KEY_ALIAS=mcp-claude-code
