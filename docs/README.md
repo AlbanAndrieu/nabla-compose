@@ -10,7 +10,7 @@ the rest in git history.
 
 | Need | Canonical document |
 | --- | --- |
-| **Arbitrage actuel et backlog H01–H21** (gates H01/H02 reçues, H04/H05 à lancer) | [`roadmap-portfolio.md`](./roadmap-portfolio.md#arbitrage-proposé--à-valider-22-novembre-2026) |
+| **Arbitrage actuel et backlog H01–H21** (gates H01/H02 reçues, H04/H05 à lancer) | [`roadmap-portfolio.md`](./roadmap-portfolio.md#ordre-opérateur--22-novembre-2026) |
 | **Plan d'exécution actif** (CODED vs réception runtime) | [`roadmap.md`](./roadmap.md) ; [journal de la passe du 21/11](./runbooks/2026-11-21-roadmap-loop-state.md) |
 | Audit des fichiers source les plus volumineux (H11/F03/F11) | [`code-hotspots.md`](./code-hotspots.md) ; `just code-hotspots` |
 | Documentation ownership / navigation | this file |
