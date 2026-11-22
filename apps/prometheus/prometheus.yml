@@ -260,13 +260,14 @@ scrape_configs:
           operational_state: planned
           role: identity-provider
 
-  # Dependency-Track API server (ALPINE_METRICS_ENABLED) on its LAN port.
+  # Dependency-Track v5 management metrics: private Docker DNS, no LAN port.
+  # The public-facing API on :31083 is not the metrics listener.
   - job_name: dependency_track
     metrics_path: /metrics
     scrape_interval: 60s
     static_configs:
       - targets:
-          - 172.17.0.24:31083
+          - dependency-track-api:9000
         labels:
           platform: truenas
           operational_state: planned

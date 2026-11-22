@@ -55,6 +55,27 @@ SPECIAL_PATH_RE = re.compile(
 )
 
 
+# This file is a public trust anchor, not a credential. It is installed in
+# the protected runtime tree for integrity and mounted read-only in containers.
+# Accept only the explicit CA source and destinations, never private keys,
+# mutable mounts or an arbitrary certificate path.
+POSTGRES_PUBLIC_CA_SOURCE = "/mnt/cpool/secrets/runtime/postgres/tls/ca.crt"
+POSTGRES_PUBLIC_CA_DESTINATIONS = {
+    "/etc/nabla/pki/postgres-ca.crt",
+    "/opt/nabla/pg-ca/ca.crt",
+}
+
+
+def is_readonly_public_postgres_ca_mount(candidate: str) -> bool:
+    parts = candidate.split(":")
+    return (
+        len(parts) == 3
+        and parts[0] == POSTGRES_PUBLIC_CA_SOURCE
+        and parts[1] in POSTGRES_PUBLIC_CA_DESTINATIONS
+        and parts[2] == "ro"
+    )
+
+
 def fail(message: str) -> NoReturn:
     raise SystemExit(f"error: {message}")
 
@@ -243,7 +264,7 @@ def scan(root: Path, manifest: dict[str, Any]) -> dict[str, list[str]]:
                 for candidate in MNT_PATH_RE.findall(line):
                     if candidate in env_paths:
                         continue
-                    if SPECIAL_PATH_RE.search(candidate):
+                    if SPECIAL_PATH_RE.search(candidate) and not is_readonly_public_postgres_ca_mount(candidate):
                         special_host_secret_files.add(
                             fingerprint(app, candidate, source)
                         )

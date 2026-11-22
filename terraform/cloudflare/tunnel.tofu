@@ -70,7 +70,7 @@ locals {
       origin_request = {}
       service        = "http_status:404"
     },
-    # No Keycloak App listens on :30238 (16/11) while keycloakoidc bypasses
+    # No Keycloak App listens on :30238 (16/11) while keycloak-oidc bypasses
     # Access on /realms/nabla: refuse until Keycloak runs (H01), then restore
     # http://172.17.0.24:30238 here.
     {

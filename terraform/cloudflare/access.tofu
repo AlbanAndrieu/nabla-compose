@@ -100,7 +100,7 @@ resource "cloudflare_zero_trust_access_application" "keycloak_oidc" {
     },
   ]
   domain = "keycloak.albandrieu.com/realms/nabla"
-  name   = "keycloakoidc"
+  name   = "keycloak-oidc"
   policies = [
     {
       id         = local.access_policy_everyone_bypass_id
@@ -127,7 +127,7 @@ resource "cloudflare_zero_trust_access_application" "vaultwarden_admin" {
     },
   ]
   domain = "vaultwarden.albandrieu.com/admin"
-  name   = "vaultwardenadmin"
+  name   = "vaultwarden-admin"
   policies = [
     {
       id         = local.access_policy_nabla_id

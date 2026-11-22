@@ -29,6 +29,27 @@ def test_portfolio_is_valid_without_network() -> None:
     assert "## Séquence approuvée — 14 novembre 2026" in (ROOT / "docs/roadmap-portfolio.md").read_text(encoding="utf-8")
 
 
+def test_active_roadmap_has_a_single_canonical_worklist() -> None:
+    """Do not reintroduce the 66 KB duplicated historical backlog."""
+    active = (ROOT / "docs/roadmap.md").read_text(encoding="utf-8")
+    portfolio = (ROOT / "docs/roadmap-portfolio.md").read_text(encoding="utf-8")
+    index = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+
+    assert len(active) < 20_000
+    assert "## Backlog arbitrable" not in active
+    assert "[portefeuille H01–H21](roadmap-portfolio.md)" in active
+    assert "## Ordre opérateur — 22 novembre 2026" in portfolio
+    assert "| H17 | P0 |" in portfolio
+    assert "| H13 | P0 |" in portfolio
+    assert "| H18 | P1 |" in portfolio
+    assert "| H08 | P2 |" in portfolio
+    assert "## Séquence approuvée — 14 novembre 2026" in portfolio
+    assert "| H01 | P0 |" in portfolio and "| H02 | P0 |" in portfolio
+    assert "GATE CSI ATTEINTE" in portfolio
+    assert "GATE sauvegarde ATTEINTE" in portfolio
+    assert "Arbitrage actuel et backlog H01–H21" in index
+
+
 def test_duplicate_or_invalid_status_fails_closed(tmp_path: Path) -> None:
     module = load_module()
     docs = tmp_path / "docs"

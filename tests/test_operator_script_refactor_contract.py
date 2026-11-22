@@ -189,7 +189,8 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
     def test_documentation_has_canonical_ownership_map(self) -> None:
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
         scripts = (ROOT / "scripts/README.md").read_text(encoding="utf-8")
-        self.assertIn("roadmap.md` is an index, not a runbook", docs)
+        self.assertIn("roadmap.md` is a compact index and execution plan", docs)
+        self.assertIn("roadmap-portfolio.md` is the sole canonical H01–H21 decision table", docs)
         self.assertIn("incident documents", docs)
         self.assertIn("scripts/lib/", scripts)
         self.assertIn("Preserve existing operator entry-point paths", scripts)

@@ -6,6 +6,8 @@ import sys
 import tempfile
 import unittest
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -218,6 +220,39 @@ services:
             self.assertEqual(projected, expected, ref)
             checked += 1
         self.assertGreater(checked, 100)
+
+    def test_sentry_edge_runtime_is_bound_to_exact_truenas_app(self) -> None:
+        # H17: the service name "nginx" is reused by multiple Apps, so a
+        # containerService-only match creates a false binding_conflict in Sample.
+        source = yaml.safe_load(
+            (ROOT / "apps/sentry/compose.yml").read_text(encoding="utf-8")
+        )
+        service = source["services"]["nginx"]
+        self.assertEqual(
+            service["labels"]["com.albandrieu.nabla.entity-ref"],
+            "component:default/sentry-edge",
+        )
+        self.assertEqual(
+            service["x-nabla"]["runtime"],
+            {
+                "provider": "truenas-app",
+                "appId": "sentry",
+                "containerService": "nginx",
+            },
+        )
+        exported = json.loads(
+            (ROOT / "catalog/generated/entities.json").read_text(encoding="utf-8")
+        )
+        edge = next(
+            item for item in exported["entities"]
+            if item["entityRef"] == "component:default/sentry-edge"
+        )
+        binding = edge["x-nabla"]["runtime"]
+        self.assertEqual(binding["appId"], "sentry")
+        self.assertEqual(binding["containerService"], "nginx")
+        self.assertEqual(
+            binding["source"], "apps/sentry/compose.yml#services/nginx"
+        )
 
     def test_revision_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

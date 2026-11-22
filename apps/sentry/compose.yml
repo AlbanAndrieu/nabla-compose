@@ -656,6 +656,9 @@ services:
       criticality: high
       runtime:
         provider: truenas-app
+        # nginx is common across multiple TrueNAS Apps. Bind the Sentry App
+        # before matching the Compose service to avoid false H17 conflicts.
+        appId: sentry
         containerService: nginx
       monitoring:
         type: http

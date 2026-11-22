@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 class TrueNASTunnelCutoverContract(unittest.TestCase):
     def test_tunnel_uses_https_origin_with_verified_hostname(self) -> None:
         tunnel = (ROOT / "terraform/cloudflare/tunnel.tofu").read_text()
-        # tofu fmt drops the alignment once origin_request is a block.
         self.assertIn('hostname = "truenas.albandrieu.com"', tunnel)
         self.assertIn('service = "https://172.17.0.24:7000"', tunnel)
         self.assertIn('origin_server_name = "truenas.albandrieu.com"', tunnel)

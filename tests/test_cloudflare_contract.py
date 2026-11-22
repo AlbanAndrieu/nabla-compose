@@ -21,6 +21,27 @@ class CloudflareContract(unittest.TestCase):
         self.assertIn('provider "cloudflare" {}', source)
         self.assertNotRegex(source, r"(?i)\b(api_token|api_key)\s*=")
 
+    def test_access_application_names_are_the_kebab_case_resource_names(self):
+        # One naming rule for every Access application shown in the dashboard.
+        source = module_source()
+        blocks = re.findall(
+            r'^resource "cloudflare_zero_trust_access_application" "(\w+)" \{\n(.*?)^\}',
+            source,
+            flags=re.S | re.M,
+        )
+        self.assertGreaterEqual(len(blocks), 14)
+        for resource, body in blocks:
+            with self.subTest(resource=resource):
+                if "for_each" in body:
+                    # A for_each app takes its name from the map key, checked below.
+                    self.assertRegex(body, r"\n  name\s+= each\.key\n")
+                    continue
+                self.assertEqual(re.search(r'\n  name\s+= "([^"]+)"', body)[1], resource.replace("_", "-"))
+        route_keys = re.findall(r'^    "([^"]+)" = \{$', source, flags=re.M)
+        self.assertTrue(route_keys)
+        for key in route_keys:
+            self.assertRegex(key, r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
     def test_every_resource_is_imported_first(self):
         imports = (TF / "imports.tofu").read_text(encoding="utf-8")
         expected = {

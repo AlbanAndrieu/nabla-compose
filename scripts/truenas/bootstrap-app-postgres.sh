@@ -62,7 +62,7 @@ netbox)
   DB_NAME="netbox"
   ;;
 dependency-track)
-  SECRET_KEY="ALPINE_DATABASE_PASSWORD"
+  SECRET_KEY="DT_DATASOURCE_PASSWORD"
   DB_USER="dependencytrack"
   DB_NAME="dependencytrack"
   ;;
