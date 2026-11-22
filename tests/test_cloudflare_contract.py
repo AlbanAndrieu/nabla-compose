@@ -44,7 +44,7 @@ class CloudflareContract(unittest.TestCase):
             for name in (
                 "keycloak_oidc", "joplin", "vaultwarden_admin",
                 "affine", "freshrss", "plumber_api", "immich", "ha", "famp_albandrieu",
-                "fastapi_github_webhook", "honeypot_login",
+                "fastapi_github_webhook", "honeypot_login", "truenas_admin",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
              "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
