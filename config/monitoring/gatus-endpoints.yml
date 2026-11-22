@@ -824,3 +824,10 @@ endpoints:
     url: tcp://172.17.0.24:1514
     conditions:
       - "[CONNECTED] == true"
+# Push-based results: gatus-mcp submit_external_result (App mcp-gatus) posts here with
+# GATUS_TOKEN. The token is an environment reference, never a literal: Vaultwarden
+# nabla/prod/gatus renders it into the gatus and mcp-gatus runtime files.
+external-endpoints:
+  - name: Agent acceptance
+    group: agents
+    token: ${GATUS_EXTERNAL_TOKEN}

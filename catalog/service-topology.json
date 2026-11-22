@@ -1608,7 +1608,7 @@
       "kind": "mcp-server",
       "category": "observability",
       "sourcePath": "apps/mcp-gatus/compose.yml",
-      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "description": "Model Context Protocol server over Gatus endpoint statuses that can also push external endpoint results, served to the LiteLLM MCP gateway.",
       "presentationRole": "support",
       "criticality": "low",
       "runtime": {

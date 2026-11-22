@@ -521,13 +521,27 @@ def homarr_payload(
     }
 
 
+def gatus_external_endpoints() -> list[dict[str, Any]]:
+    """Push-based endpoints; a token must be a ${VAR} reference, never a literal."""
+    payload = yaml.safe_load(GATUS_DECLARED.read_text(encoding="utf-8"))
+    external = payload.get("external-endpoints") or []
+    for endpoint in external:
+        if not re.fullmatch(r"\$\{[A-Z][A-Z0-9_]*\}", str(endpoint.get("token", ""))):
+            fail("Gatus external-endpoints need token: ${ENV_VAR}, never a literal token")
+    return external
+
+
 def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
     # Preserve Gatus-native conditions, intervals and custom endpoint settings.
-    return {
+    payload: dict[str, Any] = {
         "metrics": True,
         "storage": {"type": "sqlite", "path": "/data/gatus.db"},
         "endpoints": [monitor["gatus_endpoint"] for monitor in monitors],
     }
+    external = gatus_external_endpoints()
+    if external:
+        payload["external-endpoints"] = external
+    return payload
 
 
 def seconds(interval: str) -> int:

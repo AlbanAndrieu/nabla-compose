@@ -38,11 +38,13 @@ def test_mcp_json_reaches_homarr_grafana_and_gatus_through_the_gateway():
 
 
 def _payload(server: str, key: str) -> dict:
-    """Run the gateway's payload builder alone, the upstream key in its environment only."""
+    """Build one DB_SERVERS row with the gateway's own code, the upstream key in its environment only."""
     script = (
+        f'eval "$(sed -n "/^DB_SERVERS=(/,/^)/p" {GATEWAY})"; '
         f'source <(sed -n "/^server_payload()/,/^}}/p" {GATEWAY}); '
-        f"HOMARR_TOOLS={ROOT}/scripts/litellm/homarr-readonly-tools.json HOMARR_MCP_URL=h GRAFANA_MCP_URL=g "
-        f'ACCESS_GROUP=nabla-mcp; UPSTREAM_KEY="$K" server_payload {server}'
+        f"ROOT={ROOT} ACCESS_GROUP=nabla-mcp; "
+        f'for row in "${{DB_SERVERS[@]}}"; do IFS="|" read -r n u a _ _ t d <<<"$row"; '
+        f'if [[ "$n" == {server} ]]; then UPSTREAM_KEY="$K" server_payload "$n" "$u" "$a" "$t" "$d"; fi; done'
     )
     out = subprocess.run(["bash", "-c", script], env=dict(os.environ, K=key), capture_output=True, text=True, check=True)
     return json.loads(out.stdout)
@@ -133,7 +135,11 @@ def test_gatus_mcp_is_a_pinned_read_only_app_without_a_write_token():
     sidecar = _compose("mcp-gatus")["mcp-gatus"]
     assert sidecar["build"]["args"]["GATUS_MCP_COMMIT"] == commit
     assert sidecar["read_only"] is True and sidecar["cap_drop"] == ["ALL"]
-    assert "GATUS_TOKEN" not in sidecar["environment"] and "env_file" not in sidecar
+    # GATUS_TOKEN only reaches it through its runtime file (Vaultwarden nabla/prod/gatus).
+    assert "GATUS_TOKEN" not in sidecar["environment"]
+    assert sidecar["env_file"] == [{"path": "/mnt/cpool/secrets/runtime/mcp-gatus/.env.secrets", "required": True}]
+    config = yaml.safe_load((ROOT / "apps/gatus/config/config.yml").read_text(encoding="utf-8"))
+    assert [e["token"] for e in config["external-endpoints"]] == ["${GATUS_EXTERNAL_TOKEN}"]
     dockerfile = (ROOT / "apps/mcp-gatus/Dockerfile").read_text(encoding="utf-8")
     assert f"ARG GATUS_MCP_COMMIT={commit}" in dockerfile
     assert all("@sha256:" in line or line == "FROM scratch" for line in dockerfile.splitlines() if line.startswith("FROM "))

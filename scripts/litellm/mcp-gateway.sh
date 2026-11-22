@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # LiteLLM MCP gateway as code (check, then apply).
 #
-# Vaultwarden is the source of truth for:
-#   nabla/prod/homarr                 HOMARR_API_KEY (upstream key of the homarr server)
-#   nabla/prod/grafana-observability  GRAFANA_SERVICE_ACCOUNT_TOKEN, MCP_GRAFANA_SERVER_TOKEN
-#   nabla/prod/litellm-mcp-client     LITELLM_MCP_CLIENT_KEY (the one client key)
-# apply:
-#   - fills MCP_GRAFANA_SERVER_TOKEN and installs the mcp-grafana runtime file on
-#     TrueNAS (materialize_runtime.py --ssh) for apps/mcp-grafana;
-#   - upserts the homarr and grafana servers in the LiteLLM database through the
-#     admin API: their credentials are encrypted there with LITELLM_SALT_KEY, so
-#     LiteLLM needs no extra env file;
-#   - mints the client virtual key: no LLM model, MCP access group nabla-mcp only,
-#     also written to ~/.config/nabla/mcp/litellm-gateway.headers (600).
+# Vaultwarden is the source of truth; config/secrets/manifest.json maps each item to
+# the runtime file of its TrueNAS App. This script owns:
+#   - the generated tokens of GENERATED (bearer tokens the gateway presents to the
+#     MCP sidecars, GATUS_EXTERNAL_TOKEN) and the runtime files of RUNTIME_APPS,
+#     installed on TrueNAS with materialize_runtime.py --ssh;
+#   - the credentialed servers of DB_SERVERS, upserted in the LiteLLM database
+#     through the admin API: credentials are encrypted there with LITELLM_SALT_KEY.
+#     Servers without a credential live in apps/litellm/config.yaml;
+#   - the client virtual key (nabla/prod/litellm-mcp-client): no LLM model, MCP
+#     access group nabla-mcp only, also in ~/.config/nabla/mcp/litellm-gateway.headers (600).
+# Upstream identities come first: scripts/grafana/mcp-identity.sh apply.
 # No value is ever printed, and none reaches a command line.
 #
 # Usage (owner terminal: Vaultwarden unlocked, TrueNAS ControlMaster open):
@@ -32,18 +31,28 @@ esac
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/mcp/lib.sh
 source "${ROOT}/scripts/mcp/lib.sh"
-# Fixed TrueNAS endpoints. Never read the generic LITELLM_URL: the owner shell
+# Fixed TrueNAS endpoint. Never read the generic LITELLM_URL: the owner shell
 # points it at the workstation LiteLLM, which shares the master key (22/11/2026).
 LITELLM_URL=http://172.17.0.24:4000
-HOMARR_MCP_URL=http://172.17.0.24:30100/api/mcp/mcp
-GRAFANA_MCP_URL=http://172.17.0.24:8014/mcp
-HOMARR_TOOLS="${ROOT}/scripts/litellm/homarr-readonly-tools.json"
 SSH_HOST="${TRUENAS_SSH_HOST:-truenas}"
 KEY_ALIAS=mcp-claude-code
 ACCESS_GROUP=nabla-mcp
 HEADERS_FILE="${MCP_KEY_DIR}/litellm-gateway.headers"
-IMPORT=("python3" "${ROOT}/scripts/secrets/import_env_to_bitwarden.py" --manifest "${ROOT}/config/secrets/manifest.json")
-MATERIALIZE=("python3" "${ROOT}/scripts/secrets/materialize_runtime.py" --app mcp-grafana --ssh "${SSH_HOST}")
+MANIFEST="${ROOT}/config/secrets/manifest.json"
+IMPORT=("python3" "${ROOT}/scripts/secrets/import_env_to_bitwarden.py" --manifest "${MANIFEST}")
+MATERIALIZE=("python3" "${ROOT}/scripts/secrets/materialize_runtime.py" --ssh "${SSH_HOST}")
+
+# app|field: generated when Vaultwarden lacks it.
+GENERATED=(
+  "mcp-grafana|MCP_GRAFANA_SERVER_TOKEN"
+  "gatus|GATUS_EXTERNAL_TOKEN"
+)
+RUNTIME_APPS=(mcp-grafana gatus mcp-gatus)
+# name|url|auth[:header]|item|field|allowed tools file|description
+DB_SERVERS=(
+  "homarr|http://172.17.0.24:30100/api/mcp/mcp|api_key:ApiKey|nabla/prod/homarr|HOMARR_API_KEY|homarr-readonly-tools.json|Homarr dashboard, read-only tools"
+  "grafana|http://172.17.0.24:8014/mcp|bearer_token|nabla/prod/grafana-observability|MCP_GRAFANA_SERVER_TOKEN||Grafana dashboards, Prometheus, Loki and alerts (read-only Viewer)"
+)
 
 die() {
   echo "❌ $*" >&2
@@ -67,47 +76,76 @@ api() { # KEY METHOD PATH [JSON]; sets API_CODE and API_BODY
   API_BODY="${out%$'\n'*}"
 }
 
-# Desired server rows; the upstream secret comes from UPSTREAM_KEY in the
+# Desired server row; the upstream secret comes from UPSTREAM_KEY in the
 # environment of jq, never from its argv.
-server_payload() { # homarr|grafana
-  case "$1" in
-    homarr)
-      jq -nc --slurpfile tools "${HOMARR_TOOLS}" --arg url "${HOMARR_MCP_URL}" --arg group "${ACCESS_GROUP}" '{
-        server_id: "homarr", server_name: "homarr", alias: "homarr", transport: "http", url: $url,
-        description: "Homarr dashboard, read-only tools",
-        auth_type: "api_key", credentials: {auth_value: $ENV.UPSTREAM_KEY, upstream_token_header: "ApiKey"},
-        mcp_access_groups: [$group], allowed_tools: $tools[0]}'
-      ;;
-    grafana)
-      jq -nc --arg url "${GRAFANA_MCP_URL}" --arg group "${ACCESS_GROUP}" '{
-        server_id: "grafana", server_name: "grafana", alias: "grafana", transport: "http", url: $url,
-        description: "Grafana dashboards, Prometheus, Loki and alerts (read-only Viewer)",
-        auth_type: "bearer_token", credentials: {auth_value: $ENV.UPSTREAM_KEY},
-        mcp_access_groups: [$group]}'
-      ;;
-  esac
+server_payload() { # NAME URL AUTH[:HEADER] TOOLS_FILE DESCRIPTION
+  local tools=null
+  [[ -z "$4" ]] || tools="$(<"${ROOT}/scripts/litellm/$4")"
+  jq -nc --arg n "$1" --arg url "$2" --arg auth "${3%%:*}" --arg header "${3#*:}" --arg d "$5" \
+    --arg group "${ACCESS_GROUP}" --argjson tools "${tools}" '{
+      server_id: $n, server_name: $n, alias: $n, transport: "http", url: $url, description: $d,
+      auth_type: $auth, credentials: ({auth_value: $ENV.UPSTREAM_KEY}
+        + if $auth == "api_key" then {upstream_token_header: $header} else {} end),
+      mcp_access_groups: [$group]} + if $tools == null then {} else {allowed_tools: $tools} end'
+}
+
+desired_shapes() {
+  local row name url auth tools desc
+  for row in "${DB_SERVERS[@]}"; do
+    IFS='|' read -r name url auth _ _ tools desc <<<"${row}"
+    UPSTREAM_KEY='' server_payload "${name}" "${url}" "${auth}" "${tools}" "${desc}"
+  done | jq -sc .
+}
+
+# Generate FIELD of APP's item when Vaultwarden lacks it. The import gets the
+# app's other fields back unchanged, through exported variables only.
+ensure_generated() { # APP FIELD
+  local item
+  item="$(jq -r --arg a "$1" '.items[] | select(.app == $a) | .item' "${MANIFEST}")"
+  [[ -n "${item}" ]] || die "$1 is not in ${MANIFEST}"
+  [[ -z "$(field "${item}" "$2")" ]] || return 0
+  (
+    while IFS=$'\t' read -r name source; do
+      if [[ "${source}" == "$2" ]]; then
+        value="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+      else
+        value="$(field "${item}" "${source}")"
+        [[ -n "${value}" ]] || die "${item} has no ${source}"
+      fi
+      export "${name}=${value}"
+    done < <(jq -r --arg a "$1" '.items[] | select(.app == $a) | .secrets[] | [.importEnv // .env, .field] | @tsv' "${MANIFEST}")
+    exec "${IMPORT[@]}" --app "$1" --apply --update-existing
+  )
+  echo "✅ generated $2 in ${item}"
 }
 
 read_state() {
-  SA_TOKEN="$(field nabla/prod/grafana-observability GRAFANA_SERVICE_ACCOUNT_TOKEN)"
-  SERVER_TOKEN="$(field nabla/prod/grafana-observability MCP_GRAFANA_SERVER_TOKEN)"
-  HOMARR_KEY="$(field nabla/prod/homarr HOMARR_API_KEY)"
-  CLIENT_KEY="$(field nabla/prod/litellm-mcp-client LITELLM_MCP_CLIENT_KEY)"
+  local row app item name source
   MASTER_KEY="$(field nabla/prod/litellm LITELLM_MASTER_KEY)"
   [[ -n "${MASTER_KEY}" ]] || die "nabla/prod/litellm has no LITELLM_MASTER_KEY"
+  CLIENT_KEY="$(field nabla/prod/litellm-mcp-client LITELLM_MCP_CLIENT_KEY)"
   VAULT=ok
-  if [[ -z "${SA_TOKEN}" || -z "${SERVER_TOKEN}" || -z "${HOMARR_KEY}" ]]; then VAULT=drift; fi
+  for row in "${GENERATED[@]}"; do
+    app="${row%%|*}"
+    item="$(jq -r --arg a "${app}" '.items[] | select(.app == $a) | .item' "${MANIFEST}")"
+    [[ -n "$(field "${item}" "${row#*|}")" ]] || VAULT=drift
+  done
+  for row in "${DB_SERVERS[@]}"; do
+    IFS='|' read -r _ _ _ item source _ _ <<<"${row}"
+    [[ -n "$(field "${item}" "${source}")" ]] || VAULT=drift
+  done
   RUNTIME=ok
-  if ! "${MATERIALIZE[@]}" --verify >/dev/null 2>&1; then RUNTIME=drift; fi
+  for app in "${RUNTIME_APPS[@]}"; do
+    "${MATERIALIZE[@]}" --app "${app}" --verify >/dev/null 2>&1 || RUNTIME=drift
+  done
   # Credentials come back redacted: compare the non-secret shape only.
   SERVERS=drift
   api "${MASTER_KEY}" GET /v1/mcp/server
-  if [[ "${API_CODE}" == 200 ]] && jq -e --arg g "${ACCESS_GROUP}" --arg h "${HOMARR_MCP_URL}" --arg u "${GRAFANA_MCP_URL}" \
-    --slurpfile tools "${HOMARR_TOOLS}" '
-      (map(select(.server_id == "homarr" and .url == $h and .auth_type == "api_key"
-        and .mcp_access_groups == [$g] and ((.allowed_tools // []) | sort) == ($tools[0] | sort))) | length == 1)
-      and (map(select(.server_id == "grafana" and .url == $u and .auth_type == "bearer_token"
-        and .mcp_access_groups == [$g])) | length == 1)' <<<"${API_BODY}" >/dev/null 2>&1; then
+  if [[ "${API_CODE}" == 200 ]] && jq -e --argjson want "$(desired_shapes)" '. as $have | all($want[];
+      . as $w | ($have | map(select(.server_id == $w.server_id and .url == $w.url
+        and .auth_type == $w.auth_type and .mcp_access_groups == $w.mcp_access_groups
+        and ((.allowed_tools // []) | sort) == (($w.allowed_tools // []) | sort))) | length) == 1)' \
+    <<<"${API_BODY}" >/dev/null 2>&1; then
     SERVERS=ok
   fi
   CLIENT=absent
@@ -137,25 +175,27 @@ if [[ "${MODE}" == check ]]; then
   exit 0
 fi
 
-[[ -n "${SA_TOKEN}" ]] || die "no Grafana MCP token yet: run scripts/grafana/mcp-identity.sh apply first"
-[[ -n "${HOMARR_KEY}" ]] || die "nabla/prod/homarr has no HOMARR_API_KEY"
-if [[ -z "${SERVER_TOKEN}" ]]; then
-  SERVER_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-  GRAFANA_SERVICE_ACCOUNT_TOKEN="${SA_TOKEN}" MCP_GRAFANA_SERVER_TOKEN="${SERVER_TOKEN}" \
-    "${IMPORT[@]}" --app mcp-grafana --apply --update-existing
-fi
-"${MATERIALIZE[@]}" --install
+[[ -n "$(field nabla/prod/grafana-observability GRAFANA_SERVICE_ACCOUNT_TOKEN)" ]] ||
+  die "no Grafana MCP token yet: run scripts/grafana/mcp-identity.sh apply first"
+for row in "${GENERATED[@]}"; do
+  ensure_generated "${row%%|*}" "${row#*|}"
+done
+for app in "${RUNTIME_APPS[@]}"; do
+  "${MATERIALIZE[@]}" --app "${app}" --install
+done
 
 # Upsert on every apply: credentials cannot be read back, so always resend them.
-for server in homarr grafana; do
-  if [[ "${server}" == homarr ]]; then upstream="${HOMARR_KEY}"; else upstream="${SERVER_TOKEN}"; fi
-  payload="$(UPSTREAM_KEY="${upstream}" server_payload "${server}")"
-  api "${MASTER_KEY}" GET "/v1/mcp/server/${server}"
+for row in "${DB_SERVERS[@]}"; do
+  IFS='|' read -r name url auth item source tools desc <<<"${row}"
+  upstream="$(field "${item}" "${source}")"
+  [[ -n "${upstream}" ]] || die "${item} has no ${source}"
+  payload="$(UPSTREAM_KEY="${upstream}" server_payload "${name}" "${url}" "${auth}" "${tools}" "${desc}")"
+  api "${MASTER_KEY}" GET "/v1/mcp/server/${name}"
   if [[ "${API_CODE}" == 200 ]]; then method=PUT; else method=POST; fi
   api "${MASTER_KEY}" "${method}" /v1/mcp/server "${payload}"
   # LiteLLM answers 200/201 to POST and 202 to PUT.
-  [[ "${API_CODE}" == 20[012] ]] || die "${method} MCP server ${server} failed (HTTP ${API_CODE})"
-  echo "✅ MCP server ${server} (${method})"
+  [[ "${API_CODE}" == 20[012] ]] || die "${method} MCP server ${name} failed (HTTP ${API_CODE})"
+  echo "✅ MCP server ${name} (${method})"
 done
 unset upstream payload
 

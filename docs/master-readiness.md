@@ -46,7 +46,7 @@ Apps : 92 ; actives : 63 ; planifiées : 24.
 | `drawio` | active | custom-apps.yml | — | n/a | ✅ | — | — | générique | — | ✅ |
 | `dsomm` | active | custom-apps.yml | `cpool/dsomm` (app-state) | manifest | ✅ | — | — | diagnose-dsomm-assessment.sh | apps/dsomm/config/ | ✅ |
 | `garage` | active | custom-apps.yml | `cpool/garage` (backup-targets) | legacy | ❌ | garage | — | générique | terraform/garage | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | manifest | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | manifest | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/<br>terraform/grafana | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `graylog` | disabled | custom-apps.yml | `cpool/graylog` (databases) | manifest | — | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `haproxy-exporter` | disabled | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -64,7 +64,7 @@ Apps : 92 ; actives : 63 ; planifiées : 24.
 | `languagetool` | active | custom-apps.yml | `cpool/languagetool` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | ✅ |
 | `lidarr` | planned | deploy-media-stack.sh | `cpool/lidarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | lidarr-exporter | — | générique | config/media/settings.yml | ✅ |
 | `litellm` | active | custom-apps.yml | — | manifest | ❌ | litellm | — | diagnose-litellm-dashboard-auth.py<br>diagnose-workstation-litellm-upstream-auth.py | provision-openclaw-litellm-keys.py | `NO_AVAILABILITY_PROBE` |
-| `mcp-gatus` | active | custom-apps.yml | — | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `mcp-gatus` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `mcp-grafana` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `media-acquisition` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/qbittorrent` (app-state) | manifest | ✅ | qbittorrent | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `minio` | active | custom-apps.yml | `cpool/minio` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |

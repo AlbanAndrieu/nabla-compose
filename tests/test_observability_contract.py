@@ -508,7 +508,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("job_name: gatus", prometheus)
         self.assertIn("172.17.0.24:8085", prometheus)
         self.assertIn("metrics_path: /metrics", prometheus)
-        self.assertEqual(gatus.count("- name:"), gatus.count("nabla_monitor_id:"))
+        # Probes only: external-endpoints receive pushed results and Gatus gives them no labels.
+        probes = yaml.safe_load(gatus)["endpoints"]
+        self.assertEqual(len(probes), gatus.count("nabla_monitor_id:"))
+        self.assertTrue(all("nabla_monitor_id" in (p.get("extra-labels") or {}) for p in probes))
         self.assertEqual(
             gatus.count("nabla_monitor_id:"),
             gatus.count("nabla_service_id:"),

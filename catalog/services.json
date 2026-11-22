@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:046fd884bb7d214a5aee0e5e36988f2533a3209fec8d5aa3aac1908e0515b006",
+  "catalogRevision": "sha256:ef678abfb5307f2bd837e6961217640228d7bc3f9271be56ae93e465fd0a0f84",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1517,7 +1517,7 @@
       "category": "observability",
       "sourcePath": "apps/mcp-gatus/compose.yml",
       "composeService": "mcp-gatus",
-      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "description": "Model Context Protocol server over Gatus endpoint statuses that can also push external endpoint results, served to the LiteLLM MCP gateway.",
       "presentationRole": "support",
       "criticality": "low",
       "monitoring": {
