@@ -100,3 +100,25 @@ Cette recette **ne modifie pas** la priorité opérateur H17 → H13 → H05.
 **Contrat d'une PR** : chercher la PR existante, vérifier son rebase sur `master`, corriger les conflits, exécuter les quality gates sur le HEAD exact, puis noter séparément preuves `CODED` / `TESTED` / `DEPLOYED` / `ACCEPTED`. Les suppressions volumineuses ne bloquent plus la quality gate ; les tests, secrets et références restent contrôlés. Ne pas pousser des micro-changements sans valeur de stabilité ni réutiliser un ancien runbook d'incident pour muter la production.
 
 **Critère de clôture** : résultat négatif/protection attendu réellement observé, état après action, horodatage, version et retour arrière. Ne pas transformer un timeout fournisseur en `DOWN`, ni considérer une règle WAF/Access écrite mais non appliquée comme une défense effective. Arbitrage décidé et portes de réception : [portefeuille](roadmap-portfolio.md#ordre-opérateur--22-novembre-2026).
+
+## Dernière priorité — IPv6 Freebox / R7000 / homelab (reporté le 22/11/2026)
+
+**Décision opérateur : IPv6 est reporté en toute fin de roadmap, après les autres chantiers.**
+Ne pas réactiver l'IPv6 du Netgear R7000 ni modifier la délégation Freebox,
+le routage de la workstation, le pare-feu TrueNAS ou les règles Cloudflare
+à l'occasion d'un autre chantier. L'IPv4 reste le chemin de production.
+
+À la reprise (H04 réseau / H10 TrueNAS), établir d'abord l'état réel de la
+Freebox et des préfixes délégués ; vérifier le next hop WAN du R7000, ses
+annonces RA/SLAAC et la résolution NDP depuis la workstation. Le 22/11, après
+la désactivation d'IPv6 sur le R7000, les voisins de l'ancienne passerelle
+LAN (`fe80::120c:6bff:fe62:128e` et `…:3c01::1`) étaient `FAILED`, et
+`tracepath -6` échouait au premier saut (`!H`) : **aucune route IPv6
+fonctionnelle n'est actuellement démontrée**. Ne pas réutiliser un préfixe
+historique ni autoriser un /64 complet à une application par défaut.
+
+Avant toute activation sur TrueNAS : vérifier le filtrage IPv6 entrant,
+le garde `scripts/truenas/ipv6-guard.nft`, les tests de non-exposition depuis
+l'extérieur et le retour arrière. Conserver les détails techniques dans le
+[runbook Freebox/R7000](pfsense/runbooks/freebox-router-mode.md) ; ce report
+n'est ni une preuve de réception, ni une tâche à exécuter maintenant.
