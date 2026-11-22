@@ -178,6 +178,50 @@ class SecretConsumerAuditTests(unittest.TestCase):
         )
         self.assertEqual(report["specialHostSecretFiles"], [])
 
+    def test_only_explicit_readonly_public_postgres_ca_mount_is_exempt(self) -> None:
+        public_ca = "/mnt/cpool/secrets/runtime/postgres/tls/ca.crt"
+        read_only = f"{public_ca}:/etc/nabla/pki/postgres-ca.crt:ro"
+        self.assertTrue(audit.is_readonly_public_postgres_ca_mount(read_only))
+        self.assertTrue(
+            audit.is_readonly_public_postgres_ca_mount(
+                f"{public_ca}:/opt/nabla/pg-ca/ca.crt:ro"
+            )
+        )
+        for unsafe in (
+            f"{public_ca}:/etc/nabla/pki/postgres-ca.crt:rw",
+            f"{public_ca}:/etc/nabla/pki/postgres-ca.crt",
+            "/mnt/cpool/secrets/runtime/postgres/tls/server.key:/etc/nabla/pki/postgres-ca.crt:ro",
+            f"{public_ca}:/run/secrets/password:ro",
+            f"{public_ca}:/etc/nabla/pki/postgres-ca.crt:ro,extra",
+        ):
+            with self.subTest(unsafe=unsafe):
+                self.assertFalse(
+                    audit.is_readonly_public_postgres_ca_mount(unsafe)
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "apps" / "demo").mkdir(parents=True)
+            compose = root / "apps" / "demo" / "compose.yml"
+            compose.write_text(
+                "services:\n  demo:\n    volumes:\n"
+                f"      - {read_only}\n"
+                f"      - {public_ca}:/etc/nabla/pki/postgres-ca.crt:rw\n"
+                "      - /mnt/cpool/secrets/runtime/demo/db.key:/run/secrets/db.key:ro\n",
+                encoding="utf-8",
+            )
+            original = audit.git_tracked_compose_files
+            audit.git_tracked_compose_files = lambda _: [compose]
+            try:
+                report = audit.scan(root, {"items": []})
+            finally:
+                audit.git_tracked_compose_files = original
+        findings = report["specialHostSecretFiles"]
+        self.assertEqual(len(findings), 2)
+        self.assertTrue(any(":rw" in item for item in findings))
+        self.assertTrue(any("db.key" in item for item in findings))
+        self.assertFalse(any(read_only in item for item in findings))
+
     def test_baseline_ratchet_ignores_harmless_line_moves(self) -> None:
         current = {
             "legacyEnvFiles": [

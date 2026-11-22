@@ -60,7 +60,8 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
     ]
 
     # Explicit v2 policy includes a small set of public routes without Access.
-    assert len(protected) == 26
+    # 2026-11-21: TrueNAS moved behind Cloudflare Access (#432).
+    assert len(protected) == 27
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"

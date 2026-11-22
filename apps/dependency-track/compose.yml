@@ -10,20 +10,21 @@ x-logging: &nabla-logging
 services:
   dependency-track-api:
     logging: *nabla-logging
-    image: ${DEPENDENCY_TRACK_API_IMAGE:-dependencytrack/apiserver:latest}
+    image: ghcr.io/dependencytrack/apiserver:5.2.0
     container_name: dependency-track-api
     restart: unless-stopped
     env_file:
       - /mnt/cpool/secrets/runtime/dependency-track/.env.secrets
     environment:
-      ALPINE_DATABASE_MODE: external
-      # The shared PostgreSQL App is not on the intranet network: use the host address.
-      ALPINE_DATABASE_URL: ${DEPENDENCY_TRACK_DATABASE_URL:-jdbc:postgresql://172.17.0.24:5432/dependencytrack}
-      ALPINE_DATABASE_DRIVER: org.postgresql.Driver
-      ALPINE_DATABASE_USERNAME: ${DEPENDENCY_TRACK_DATABASE_USERNAME:-dependencytrack}
-      ALPINE_DATABASE_POOL_ENABLED: "true"
-      # Prometheus metrics on the LAN API port (/metrics); scraped by apps/prometheus.
-      ALPINE_METRICS_ENABLED: "true"
+      # v5 uses DT_DATASOURCE_*, not the legacy v4 ALPINE_DATABASE_* names.
+      # The shared PostgreSQL App is reached by LAN, with CA + SAN verification.
+      DT_DATASOURCE_URL: jdbc:postgresql://${DEPENDENCY_TRACK_DATABASE_HOST:-172.17.0.24}:5432/dependencytrack?sslmode=verify-full&sslrootcert=/etc/nabla/pki/postgres-ca.crt
+      DT_DATASOURCE_USERNAME: dependencytrack
+      DT_DATASOURCE_POOL_ENABLED: "true"
+      # v5 management server listens on port 9000 independently of API :8080.
+      # Expose /metrics to Prometheus only through the private intranet network.
+      DT_METRICS_ENABLED: "true"
+      DT_MANAGEMENT_PORT: "9000"
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_LOCK_BUCKETS: "1000"
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_MAX_ATTEMPTS: "10"
     ports:
@@ -35,6 +36,7 @@ services:
         app_protocol: http
     volumes:
       - /mnt/cpool/dependency-track/data:/data
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro
     networks:
       - intranet
     labels:
@@ -68,7 +70,7 @@ services:
 
   dependency-track:
     logging: *nabla-logging
-    image: ${DEPENDENCY_TRACK_FRONTEND_IMAGE:-dependencytrack/frontend:latest}
+    image: ghcr.io/dependencytrack/frontend:5.2.0
     container_name: dependency-track
     restart: unless-stopped
     depends_on:

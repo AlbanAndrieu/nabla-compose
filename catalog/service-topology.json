@@ -2885,6 +2885,7 @@
       "criticality": "high",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "sentry",
         "containerService": "nginx",
         "networks": [
           "intranet",

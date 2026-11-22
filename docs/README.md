@@ -10,8 +10,8 @@ the rest in git history.
 
 | Need | Canonical document |
 | --- | --- |
-| **Ordre G1 de #369 : H02 → H01 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
-| Index général allégé | [`roadmap.md`](./roadmap.md) ; [archive du 13/11](./archive/2026-11-13-roadmap-before-compaction.md) |
+| **Arbitrage actuel et backlog H01–H21** (gates H01/H02 reçues, H04/H05 à lancer) | [`roadmap-portfolio.md`](./roadmap-portfolio.md#ordre-opérateur--22-novembre-2026) |
+| **Plan d'exécution actif** (CODED vs réception runtime) | [`roadmap.md`](./roadmap.md) ; [journal de la passe du 21/11](./runbooks/2026-11-21-roadmap-loop-state.md) |
 | Audit des fichiers source les plus volumineux (H11/F03/F11) | [`code-hotspots.md`](./code-hotspots.md) ; `just code-hotspots` |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
@@ -175,7 +175,7 @@ place for current priorities.
 
 ## Debt-control rules
 
-1. `roadmap.md` is an index, not a runbook: keep status, ordering and next actions.
+1. `roadmap.md` is a compact index and execution plan; `roadmap-portfolio.md` is the sole canonical H01–H21 decision table. Keep dated acceptance evidence in runbooks, not copied across roadmaps.
 2. Completed roadmap work is compacted into accepted milestones; detailed proof
    remains in tests, commits, runbooks or incident documents.
 3. Runbooks own supported procedures; incident documents own historical evidence.
