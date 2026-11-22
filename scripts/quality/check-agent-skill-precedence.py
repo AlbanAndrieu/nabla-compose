@@ -94,11 +94,15 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
     "docs/roadmap.md": (
         None,
         (
-            "## P0 — Accepter les services critiques",
-            "## P1 — Fiabilité des scripts et documentation",
-            "archive/roadmap-through-2026-10-24.md",
-            "Ask the user",
-            "democratic-csi",
+            # The active plan is intentionally compact; the detailed
+            # canonical backlog lives in roadmap-portfolio.md.
+            "## Statuts et ordre de décision",
+            "## Travaux restant à réceptionner — lot d'exécution",
+            "roadmap-portfolio.md",
+            "runbooks/2026-11-21-roadmap-loop-state.md",
+            "CODED",
+            "ACCEPTED",
+            "NOT_VERIFIED",
             "entityRef",
             "catalogRevision",
         ),
