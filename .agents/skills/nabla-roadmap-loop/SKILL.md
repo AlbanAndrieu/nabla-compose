@@ -97,6 +97,13 @@ Every third pass, run a reconciliation cycle, in this order:
   the process drops privileges (ntopng).
 - A consumer that forbids extra fields (Sample's `DeclaredService`) must
   accept a new catalog field and ship before the generator emits it.
+- Cloudflare: a hostname moved from `tunnel` to `retired` in one apply is
+  imported, then deleted by the `tunnel` destroy. Drop its id from
+  `dns-record-ids.auto.tfvars`, or the next plan recreates it (error 9007).
+- OpenTofu credentials from the workstation env: Vercel wants
+  `VERCEL_API_TOKEN="$VERCEL_TOKEN"`; the `github` unit runs with
+  `env -u TF_VAR_github_app_pem` and `GITHUB_TOKEN="$(gh auth token)"`.
+  A provider `payment_required` is a parked owner question, never a plan upgrade.
 - Once only credential-blocked items remain, a pass re-tests the blocker and
   moves on: do not investigate the same item again.
 
