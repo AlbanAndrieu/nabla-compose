@@ -1,381 +1,67 @@
-# Services Homelab — roadmap active
-
-> **pfSense** : travaux, historique et sécurité dans la [roadmap pfSense](pfsense/roadmap.md), extraite le 17/11 pour préparer le dépôt `nabla-pfsense` ([périmètre](pfsense/README.md)).
-
-> Mise à jour : **21 novembre 2026** (ordre opérateur du 14/11 inchangé ; doublons et éléments terminés retirés, chronologie dans Git). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
-
-## Ordre d’exécution validé — 14 novembre 2026
-
-**Décision opérateur : H01 → H02 → H04 → H05 → H12 → H13 → H16.** Cet ordre remplace l'arbitrage du 13/11 (H02/G1 → H01 → H05). Garder un seul [portefeuille H01–H19](roadmap-portfolio.md) ; les tâches non retenues restent suivies sans être supprimées.
-
-1. **H01 — Talos / Kubernetes CSI** : **ACCEPTED le 21/11**. `truenas-csi` v1.0.3 (l'intégration `democratic-csi`/NFS existante reste préservée tant qu'aucune revue n'en décide autrement) ; PVC NFS RWX écrite sur taloswk01 et relue sur taloswk02, reclaim ZFS (dataset, partage NFS et ressource) et NetworkPolicy appliquée par Cilium (`smoke-truenas-csi-nfs.sh --apply` sur TrueNAS 27 RC, `smoke-networkpolicy-enforcement.sh`, gate B1) ; Falco DEPLOYED (DaemonSet 3/3, 0.44.1). Restent : Keycloak sur Talos (secrets `nabla/prod/keycloak`, Vaultwarden verrouillé, et digest vérifié de l'image), la sortie de `auth.login_with_api_key` avant TrueNAS 28 (P1 ci-dessous) et SPIRE (P2, **PLANNED** : SVID, mTLS et tests négatifs, [plan IAM](security/entra-id-homelab-lab.md)). Au redémarrage des VMs, garder l'adressage statique ([incident du 14/11](incidents/2026-11-14-talos-control-plane-public-wan-lease.md)). [Préflight CSI](kubernetes-csi-preflight.md), [platform tools](kubernetes-platform-tools.md).
-2. **H02 — Sauvegardes PostgreSQL** : **DEPLOYED le 21/11 sauf la rotation** : 9 bases sauvegardées en TLS `verify-full`, restauration isolée vérifiée 3 fois (`ISOLATED_RESTORE_VERIFIED`, reçu écrit), cron quotidien actif. Reste la rotation privée de `postgres_exporter`, bloquée par Vaultwarden verrouillé. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
-3. **H04 — Cloudflare / sécurité WAN** : contrôler DNS publics, routes Tunnel, Access et Service Auth, refus de `/realms/master`, absence d'exposition des services privés ; `s3.int` reste public, publié par `cloudflare-ddns` (décision du 20/11). [IaC Cloudflare](../terraform/cloudflare/README.md).
-   - **H04 / Vercel WAF Bababou — CODED, NOT_APPLIED** : [Compose #433](https://github.com/AlbanAndrieu/nabla-compose/pull/433) garde l'inventaire WAF réel (anti-bot challenge, générique log), configure SQLi/XSS/RCE en deny et une unique règle de rate limiting de 300 requêtes/60 s/IP sur les trois domaines publics vérifiés, hors Preview. État Garage via Terragrunt et adoption obligatoire par import ; contrat Python ajouté, plan/recette/validation du forfait et des faux positifs encore NOT_RUN. La pipeline ZAP Bababou reste limitée à 1 rps. [Runbook Terraform](../terraform/vercel-waf/README.md).
-4. **H05 — Gatus / Prometheus** : comparer `app.query`, Gatus, scrapes `up`, `entityRef` et `catalogRevision`, avec preuve horodatée ; `NOT_RUN`/`DENIED` ne signifient pas `DOWN`. [Runbook sondes](runbooks/2026-11-04-probe-remediation.md).
-5. **H12 — OpenRAG / Docling / LiteLLM** : vérifier ingestion, embeddings via GPU workstation (LiteLLM TrueNAS proxy), clés applicatives et isolation du corpus privé ; tests de refus sans clé maître. [Runbook OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md).
-   - **Capacité IA (17/11)**. Mesures : TrueNAS a 62 Gio, mais 5,5 Gio disponibles (ARC à 6,4 Gio), 16 threads et aucun GPU passé à Ollama ; la workstation a 62 Gio (38 disponibles), une RTX 2060 de 6 Go et 447 Go libres sur `/data`. **CODED** : l'Ollama de TrueNAS devient un repli CPU (`mem_limit: 6g`, `OLLAMA_KEEP_ALIVE=30m`, 2 modèles chargés, contexte 8k) ; LiteLLM ajoute `qwen-cpu` (`qwen3.5:4b` sur TrueNAS), vers lequel se replient `qwen`, `qwen-think` et `rr-json` quand la workstation est éteinte, et `auto` (`complexity_router` de LiteLLM, local, sans appel externe) : questions courtes vers `qwen`, code et raisonnement vers `qwen-think`. Vérifié dans un LiteLLM jetable (1.104.2, réponses simulées) : routage par complexité et repli, workstation coupée. TrueNAS tourne en 1.109.1. **NOT_RUN** : `ollama pull qwen3.5:4b` dans l'App `ollama`, redéploiement d'`ollama` puis de `litellm`, ajout de `qwen-cpu` et `auto` aux clés virtuelles (`/key/update`, `enforce_fallback_model_access`). Reste à décider : un palier payant dans `auto`, et le gros modèle MoE (`qwen3.5:35b-a3b`, 22 Go) sur la workstation avec les experts en RAM (proposition n° 8 d'ansible-workstation `docs/gpu-llm-workstation.md`).
-6. **H13 — DefectDojo** : durcir l'import privé (RBAC de l'importeur, import asynchrone, déduplication) et prouver l'absence d'exposition WAN. [Runbook](defectdojo-private-scan-ingestion.md).
-7. **H16 — Vault PKI / OAuth / OIDC** : pilote de PKI et de fédération PostgreSQL/Keycloak/FastAPI avec break-glass, révocation et tests RBAC négatifs ; aucune migration d'identité globale sans recette. [Plan sécurité](security/postgresql-fips-tls13-vault-oauth-20261110.md).
-
-**P1 / Backend PostgreSQL local (étude, sans migration)** : [POC OpenTofu `pg` à advisory locks](security/opentofu-postgresql-private-locking-poc.md), sur socket ou loopback de workstation, et tunnel SSH privé vers TrueNAS seulement après vérification. **Aucun PostgreSQL public**, aucune ouverture pfSense/Cloudflare, aucun backend changé. Attention : `pg` stockerait également le `tfstate`, ce n'est pas un verrou externe pour Garage ; [décision Garage/HCP](security/garage-hcp-state-migration-decision.md).
-
-**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état **HCP Terraform Free** dans une organisation isolée](../terraform/entra/README.md), [CI OIDC + Harden-Runner audit + approbation matérielle YubiKey du plan](../.github/workflows/entra.yml) et [runbook tenant/Graph/identités](security/entra-id-homelab-lab.md). Pas de migration des états Garage : groupes CI désactivés pour éviter les permissions Graph étendues ; le risque des tokens propriétaires HCP Free reste documenté. Code uniquement, `tofu plan/apply` et CI runtime **NOT_RUN**, aucune ressource cloud créée.
-
-**Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
-
-### Suite du 21/11 — H04/H05 : honeypot / identité du trafic
-
-- **DNS `login.albandrieu.com` :** le propriétaire a supprimé
-  le A périmé `82.66.4.247`. `dig @1.1.1.1` ne retourne plus
-  de A et la sonde HTTPS échoue en résolution ; le LAN
-  `172.17.0.24:31090/healthz` répond `ok`.
-  **Prochaine réception H04 :** état Cloudflare Garage, plan import-first
-  du CNAME proxifié vers le Tunnel et Access `Everyone bypass`,
-  puis HTTP 200 externe sur `/healthz` (sans hit `/`).
-- **Honeypot Traefik/CrowdSec (#436), CODED / NOT_DEPLOYED :**
-  routeurs `login` avec peer Cloudflare Tunnel 10.200.2.0/24,
-  AppSec fail-closed et rate-limit HTTP, réseau Docker Traefik ;
-  switch `honeypot_tunnel_via_traefik=false` par défaut avec
-  rollback direct 31090. Une page `/login` de simulation
-  ne transmet aucun champ d'identifiants et POST est refusé 403
-  avant PHP. Scénario de burst CrowdSec versionné **non monté**,
-  simulation avant toute remédiation IP et revue des faux positifs.
-  Le certificat/SNI, 403 AppSec, dashboard et IP réelle restent
-  **NOT_VERIFIED** ; aucune activation du Tunnel depuis GitHub.
-- **CTEM détection / minimisation :** un agrégateur read-only
-  `summarize-honeypot-traefik.py` retient seulement les requêtes
-  des routeurs honeypot ayant un peer `cloudflared` prouvé,
-  regroupe méthodes/chemins reconnus/codes et compte IP distinctes
-  **sans publier les adresses ni les logs bruts**. Pas de
-  collecte d'identité civile. Prévoir la conservation privée et
-  l'UX OWNER, avant toute diffusion de compteurs. Le site
-  `nabla-site-alban` dispose déjà de `/[locale]/login`
-  (démo Turnstile) : étude d'un GET vers le leurre TrueNAS
-  sans POST d'identifiants ni cross-origin credential forwarding.
-  [Runbook](../apps/honeypot/README.md).
-
-### H04/H05 — Réception Traefik/CrowdSec, Hello et validation de la CI
-
-- **Traefik Hello** : `apps/nginx/compose.yml` porte **déjà** le
-  routeur TLS `Host(hello.int.albandrieu.com)` sur `websecure`,
-  backend Nginx `:80` et réseau `traefik_network`.
-  Healthcheck Docker ajouté ; smoke HTTPS/SNI documenté dans
-  [Hello](../apps/nginx/README.md).
-  **Réconciliation 22/11 :** `gatewayRef` pointe sur Traefik,
-  l'ancien nœud et la relation pfSense HAProxy ont été retirés du
-  graphe Compose ; la ressource Backstage historique est `disabled`.
-  L'opérateur a constaté `nginx` sur `traefik_network` (172.16.56.12)
-  et une requête TLS vérifiée aboutissant sur le routeur `:443`, sans
-  code HTTP explicitement affiché. **Aucune preuve WAN** : pas de
-  nouvelle route Tunnel/NAT, DNS public et réception Gatus à confirmer.
-- **Gatus** : sondes existantes CrowdSec LAPI :8084/health,
-  Traefik TCP (désormais :443) et backend Hello 8099.
-  Nouvelle sonde `Hello Nginx via Traefik` HTTPS 200 et sonde
-  honeypot `:31090/healthz` sans visite Project Honey Pot.
-  La config générée est recalculée par le job CTEM, aucune
-  preuve de chargement Gatus runtime à ce stade.
-- **Prometheus** : scrapes déjà déclarés pour Traefik :8082
-  et CrowdSec :6060. Règles de cibles DOWN/ABSENT ajoutées ;
-  `TraefikServiceDown` corrigée (`sum by(service)` au lieu de
-  `count(...) == 0`). Les alertes CrowdSec dédiées remplacent
-  ce job dans la règle générique pour éviter une double alerte.
-  Syntaxe `promtool`, reload Prometheus, réception Alertmanager
-  et véritable blocage AppSec **NOT_VERIFIED**.
-- **Agents** : suppression explicite de
-  `config/quality/reviewed-large-deletions.tsv` et des contrôles
-  `QG_LARGE_DELETION` / `QUALITY_ALLOW_LARGE_DELETION`.
-  Le gate garde le contrôle des branches, bases fraîches, secrets,
-  permissions exécutables et tests. Les suppressions importantes
-  restent visibles dans la PR Git, sans refus selon le nombre de lignes.
-
-## CTEM — réconciliation du 21 novembre 2026 (H04/H05/H13/H17)
-
-Le CTEM suit [ADR 0004](adr/0004-ctem.md) et le [runbook dédié](runbooks/ctem-external-exposure.md), sans roadmap parallèle : **H04** = exposition et contrôles de frontière ; **H05** = inventaire Amass (GitHub passif ou actif externe sur approbation, TrueNAS actif via le PostgreSQL partagé) et rapprochement Backstage V2 ; **H13** = findings qualifiés dans DefectDojo ; **H17** = fiabilité des entités et révisions. Priorité au contrôle déclaratif sans accès LAN ; les campagnes actives sont séparées, bornées et autorisées. L'ordre général H01 → H02 → H04 → H05 → H12 → H13 → H16 n'est pas modifié.
-
-- **Fusionné / CODED :** PR [#421](https://github.com/AlbanAndrieu/nabla-compose/pull/421) (découverte Amass) et [#422](https://github.com/AlbanAndrieu/nabla-compose/pull/422) (jointure exacte des noms et `entityRef` V2 ; pas de publication de noms candidats). [#423](https://github.com/AlbanAndrieu/nabla-compose/pull/423) a ajouté le profil privé d'import Trivy FastAPI, sans réception runtime ni ouverture automatique à Nuclei.
-- **CTEM TrueNAS actif (PR #431) — CODED, NOT_DEPLOYED :** Amass v5.1.3 sur domaines autorisés avec `-active -rigid -p 80,443`, PostgreSQL **partagé** (`assetdb`, rôle `amass`, `pg_trgm`, TLS `verify-full`), job Compose ponctuel isolé, aucun port Docker publié ; `flock` et archive root 0700/0600. Déclenchement hebdomadaire **opt-in** dans le `scripts/cron.sh` horaire **existant** (dimanche 05:00), sans second cron. Le récapitulatif expurgé est envoyé au mail Cron et stocké dans la table `assetdb.ctem.scan_reports`, sans candidats. Le scan checkdmarc GitHub conserve son JSON réduit 7 jours ; le collecteur GitHub App existant permet désormais une récupération **CODED / NOT_DEPLOYED** et une insertion idempotente privée sur PostgreSQL, via opt-in du même cron horaire (lundi 08:00), tandis que Generic Findings Import DefectDojo reste conditionné à une revue humaine (non automatique). Tests CI ciblés et contrôles SQL ajoutés ; réception TrueNAS/Dojo/WAN NOT_VERIFIED. [Procédure](runbooks/ctem-external-exposure.md).
-- **Nouvelle implémentation H04/H05 (branche CTEM) :** `scripts/security/audit-ctem-catalog-policy.py` vérifie **hors ligne** les contradictions entre `x-nabla.exposure` du Backstage V2 généré et la politique `LAN_ONLY_NAMES`, y compris sans sortie Amass ; artefact public avec compteurs uniquement, détails nominaux optionnels en fichier privé 0600. Son exit code non nul signale un conflit ou un catalogue invalide ; absence de conflit ne prouve ni absence de route WAN ni exhaustivité des domaines possédés. Test : `python3 -m unittest tests.test_ctem_catalog_policy -v`.
-- **Validation du 21/11 (#431) :** 44 tests CTEM offline réussis sur les contrôles Amass interne/externe, report HTML privé, GitHub App, JSON `checkdmarc`, DefectDojo et vraie source Backstage V2. Les 4 JSON V2 sont recalculés à partir des sources ; les deux JSON déclaratifs hors générateur sont formatés avec le Biome épinglé. Le quality gate global reste à vérifier sur le HEAD final ; aucun scan ni déploiement TrueNAS n'a été observé.
-- **Écart déclaratif résolu dans la PR #431 :** `ollama-gpu` est déclaré `visibility: lan` / `gatewayRef: truenas` dans la source Backstage et le catalogue de présentation n’a plus de `tunnelUrl` ; les quatre projections V2 ont été régénérées ensemble en CI. La gate déclarative `LAN_ONLY_NAMES` est maintenant bloquante. L'absence effective de routes DNS/Tunnel/Access/NAT publiques reste **NOT_VERIFIED**.
-- **CTEM → workstation Apache, synthèses uniquement (21/11, CODED / NOT_DEPLOYED)** : `publish-ctem-web-summary.py` réduit strictement le rapport Amass TrueNAS (aucun FQDN, IP, `entityRef`, graphe ou détail) puis publie deux fichiers sous `/mnt/cpool/www/reports/ctem`, exposés en NFS existant comme `/media/www/reports/ctem`. Publication désactivée par défaut (`NABLA_CRON_CTEM_WEB_ENABLED=false`). `ansible-workstation` construit un miroir local validé sous `/var/www/reports/ctem` servi par l'Alias Apache existant sans montage NFS par requête, sans nouveau timer. Les exports NFS directs `cpool/code`, CTEM privé et `ops-logs` sont explicitement candidats `state: absent` dans le plan Ansible ; vérification live et approbation requises. [Runbook](runbooks/ctem-external-exposure.md#publication-contrôlée-vers-mediawww-workstation).
-- **Suivi CTEM outside-in / LAN (21/11)** : le profil externe `discovery-active` et le rapport HTML privé de #431 sont sur `master`. La PR de suivi isole le collecteur GitHub App `pull-ctem-amass-artifact.py` (une run manuelle réussie, source exacte, 7 jours, noms exclus) et `compare-ctem-amass-vantages.py` (comparaison des compteurs LAN/externe uniquement à périmètre, statut, révision V2 et fenêtres temporelles compatibles). Les divergences restent des observations, pas `DOWN` ni vulnérabilité. Runtime **NOT_VERIFIED** ; [runbook](runbooks/ctem-external-exposure.md).
-- **Critères de réception ouverts :** quality gate globale sur SHA Git (CI CTEM dédiée déjà verte), relevé Cloudflare DNS/Tunnel/Access négatif pour Ollama/LiteLLM, premiers scans réels depuis TrueNAS et l'extérieur, validation TLS PostgreSQL, comparaison des deux vantage et cartographie des propriétaires. L'interface HTML locale **CODED/TESTED, NOT_DEPLOYED** ; aucun scan d'IP CDN mutualisées ni import automatique des candidats Amass en vulnérabilités.
-
-## Règles de suivi
-
-- `CODED` : code présent dans Git ; `TESTED` : contrat local exécuté sur un SHA identifié ; `ACCEPTED (runtime)` : mesure fonctionnelle datée du service cible ; `NOT_VERIFIED` : preuve absente. Ne jamais déduire le dernier état du premier.
-- Le catalogue `x-nabla` est l'autorité des identités ; `entityRef` et `catalogRevision` assurent le rapprochement entre Compose, FastAPI et sites. Les chemins `/mnt/cpool` et les secrets privés restent hors du dépôt.
-- L'observation Cloudflare `DENIED`/`challenge`, un diagnostic non exécuté, ou une absence de télémétrie ne deviennent pas des services DOWN.
-- Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
-
-## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
-
-**[Portefeuille unique H01–H21](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités.
-
-### Responsabilités canoniques (ne pas dupliquer les checklists)
-
-- **Compose** : réseau, sécurité edge, TrueNAS/Talos/pfSense, catalogue infra, secrets, Gatus et Prometheus ; scripts opérateur sous [scripts/README.md](../scripts/README.md).
-- **[FastAPI engineering](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md)** : API, collecte et preuve exposée, cache, front FastAPI Cloud, qualité et budget Nano ; aucune réimplémentation dans Compose.
-- **[Site Alban](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/quality-roadmap.md)** : SSR/SSG, sécurité Vercel, a11y et [interfaces homelab Next.js](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-roadmap.md).
-- **[Site Bababou](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md)** : pages, preuves documentaires, NRE, contrôle de diffusion ; [#270](https://github.com/AlbanAndrieu/nabla-site-bababou/pull/270) encore Draft.
-- **[OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md)** : Gateway, heartbeat et FinOps Vercel ; intégration Compose limitée au runtime et à l’observabilité, le code de collecte appartient à OpenClaw.
-
-**Politique de nettoyage :** les migrations OpenClaw/YubiKey déjà réceptionnées ne sont pas rouvertes ; conserver les wrappers de rollback qui ont encore des consommateurs. Déplacer une procédure datée en archive uniquement après mise à jour de ses références et des tests de contrat. Les documents historiques ne réintroduisent pas de tâches clôturées.
-
-## P0 — Réception du catalogue et des sondes (PR #326)
-
-- **H05** : fraîcheur des résultats Gatus, jobs Prometheus, contrôle direct, `app.query`, `entityRef` et `catalogRevision` ; respecter `NOT_RUN`/`DENIED`/`planned`. [Runbook](runbooks/2026-11-04-probe-remediation.md). Relevé du 21/11 à 11:41 UTC : Gatus 68/68, aucune alerte active, Prometheus `up == 0` sur 11 cibles : 10 exporters `planned` (exclus de `NablaExporterTargetDown` depuis e5a4c165) et `keycloak` (App `STOPPED`, activation bloquée par Vaultwarden verrouillé). Reste la comparaison `entityRef`/`catalogRevision`.
-- **H17** : [#365 Compose](https://github.com/AlbanAndrieu/nabla-compose/pull/365) fusionnée, [#424 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) et [#432 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/432) fusionnées ; consommateur Site Alban V2 fusionné (#301) ; réception runtime des trois dépôts et suppression des derniers lecteurs legacy en attente. [Contrat](service-catalog-v2-normalization.md). Relevé du 18/11 (Sample) : `redis` n'est plus en `binding_conflict` ; seul `sentry-edge` l'est (son identité déclarée correspond à plusieurs ressources). 20/11 : `master` échouait au contrôle du catalogue V2 depuis #418 (Ollama passé en LAN sans régénérer `catalog/generated`) : artefacts régénérés (221099c0) et entrée legacy alignée (e4f23328).
-- **H03/H08** : matérialisation Homarr/secret `0600`, puis Dependency-Track et Joplin (NetBox `RUNNING`, constaté le 21/11). [Secrets](runbooks/2026-11-10-secrets-migration-backlog.md) et [Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
-- Anciennes instructions Kibana/Graylog/AIStor et Apps déjà déployées : [archive du 13/11](archive/2026-11-13-roadmap-before-compaction.md), **ne pas relancer**.
-- **Suites du diagnostic des états du 16/11** (le reste est traité : sécurité et Cloudflare suivis au P0 Cloudflare ci-dessous, Uptime Kuma passé `planned`, catalogue et `custom-apps.yml` déployés) :
-  - [ ] `homeassistant` garde l'identité `homeassistant` de sa future Custom App (contrat H19) ; tant que la migration n'est pas faite, Sample ne peut pas le relier à l'App native `home-assistant`. lidarr reste sans `appId` : le contrat de la pile média `planned` l'interdit.
-  - [ ] **Profils Compose** : relevé Sample du 21/11 (`read-sample-observer.sh`, catalogue `sha256:942d4dd20`) : 150 services, 109 `in_sync`, un seul `binding_conflict` (`sentry-edge`), aucune App arrêtée en `declared_only` ; 3 des 39 `declared_only` sont des services sous profil (`dsomm-baseline`, `opensearch-security`, `wazuh-forwarder`). `entities.json` porte `x-nabla.runtime.composeProfiles` (dérivé de `profiles:`, 9 entités) et Sample les classe `on_demand` (fastapi-sample#452, be256bd3) : **CODED**. Réception après le déploiement de #452 ; `services.json` ne portera la clé qu'ensuite (le Sample déployé y est en `extra="forbid"`).
-  - La logique d'état côté Sample est suivie dans fastapi-sample (F14).
-
-## P0 — Keycloak, Home Assistant et Apps en attente (#330)
-
-- **H19** : migration de Home Assistant vers une App Compose, recorder sur PostgreSQL et rollback prouvés. [Runbook Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
-- **H08** : Dependency-Track puis Joplin, `rollout-pending-apps.sh --check` et un seul `--apply` à la fois. NetBox : App `RUNNING`, statut `active` (constaté le 21/11).
-  - 16/11 : `--check` donne READY pour dependency-track et joplin (Apps absentes), 0 bloqué, 0 mutation.
-- Keycloak et Hermes sur Talos : le stockage est réceptionné (H01, 21/11) ; restent leurs secrets (Vaultwarden verrouillé).
-
-## CTEM — H04/H05 P0 et H13 P1 : réduction des expositions
-
-- **Décision** : [ADR 0004 — CTEM](adr/0004-ctem.md). Backstage définit l'intention, DefectDojo conserve les findings, FastAPI Sample agrège les preuves; OASM, Prowler et Cartography ne deviennent pas des référentiels concurrents.
-- **CODED / NOT_RUN** : profils Nuclei/mail/network/TLS de la campagne extérieure, garde d'autorisation WAN, testssl.sh épinglé, contrôle des routes publiques LiteLLM/Ollama. Refaire le plan DNS/Tunnel et le catalogue après coordination #416; pas de convergence supposée.
-- **CTEM / catalogue V2** : rapprochement exact Amass → `entityRef` → exposition et projet GitHub déclaré, statistiques sans hostnames publics et liste privée des divergences. **Source Ollama GPU et quatre projections V2 régénérées et testées dans #431** ; réception WAN/Cloudflare **NOT_RUN**. Reste l'enrichissement des annotations GitHub manquantes sans assimiler dépôt de déploiement et dépôt applicatif.
-- **AMASS** : découverte passive v5.1.3, profil manuel `discovery`, export GitHub agrégé et inventaire privé sur VM isolée (port moteur 4000); qualification des candidats avant Backstage/Nuclei/DefectDojo. CODED; exécution, comparaison DNS et cadence NOT_RUN. WordPress retiré le 05/11; seuls des contrôles de résidus sont conservés.
-- **CARTOGRAPHY** : job existant + Neo4j Security, démarrage/synchronisation fournisseur à accepter. **PROWLER** : CLI 5.50.0 sans port, POC Azure/Entra/Kubernetes. **OASM** : POC isolé du Docker TrueNAS; worker avec moteur dédié, sans publication WAN. Déploiements NOT_RUN.
-- **Mail** : trois apices actuellement déclarés; compléter toutes les zones réellement détenues, usage d'envoi, sélecteurs DKIM côté fournisseurs, validation checkdmarc / Nuclei DNS et revue des rapports avant DMARC reject. Ne jamais modifier le MX/SPF/DKIM/DMARC sur simple présomption.
-- [Runbook CTEM](runbooks/ctem-external-exposure.md) : validation, mise en service et critères d'acceptation. Suivre H04/H05/H16, sans ouvrir un second portefeuille.
-
-## P0 — Cloudflare, secrets et frontières d'accès
-
-1. **Cloudflare Tunnel / Access** : appliqué le 10/11 (application Access `postgres`, contournements `keycloakoidc` sur `/realms/nabla` et `/resources` seulement et `joplin`, phase `retire` : 26 CNAME détruits dont les sept noms média, re-plan vide) ; `/realms/master`, `/admin` et la racine Keycloak restent refusés au bord (403), `fastapi-sample` et `postgres` répondent 302 Access. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. `hello` sous `.int` est le canari approuvé (`config/public-int-dns-exceptions.txt`) ; `s3.int` reste public, publié par `cloudflare-ddns` (décision du 20/11). N'appliquer qu'avec approbation et comparaison exacte des effets. [Module IaC](../terraform/cloudflare/README.md).
-   - **7ᵉ tour DNS (20/11)** : dix A morts vers l'IP Free (pfSense/HAProxy retirés le 18/11) dans le circuit de retrait, dont `login` (encore `82.66.4.247` le 21/11), avant le second plan du honeypot (ci-dessous). **CODED**, plan `adopt` **NOT_RUN** (clés S3 de l'état Garage absentes, voir le point 5), apply non autorisé. À décider : `home` (PTR Free), enregistrement local Pi-hole `truenas.albandrieu.com` → `172.17.0.24` pour le lien Homarr.
-   - **Messagerie Google seulement (20/11, décision du propriétaire)** : `albandrieu.com` et `albanandrieu.com`. Ce lot passe le SPF en `-all`, ajoute TLS-RPT, publie MTA-STS en mode `testing` (politique servie par un Worker Cloudflare, MX égaux aux MX publiés) et retire `index` au 8ᵉ tour, par OpenTofu ([`mail.tofu`](../terraform/cloudflare/README.md)). Il élargit aussi le jeton `nabla-opentofu` à la zone `albanandrieu.com` et aux Workers (`Workers Scripts Write`, `Workers Routes Write`). Le scan externe sort en code 4 sur toute dérive. **CODED**, plans et applies (`cloudflaretokens` puis `cloudflare`) **NOT_RUN**. Durcissement des 20 zones par OpenTofu (« durci mes 20 domaines an utilisant terraform », 20/11) **CODED** : DMARC partout avec rapports vers `openclaw@albandrieu.com` (4 importés, 16 créés), 19 autorisations `_report._dmarc`, MX nul, SPF `-all` et DMARC `reject` sur les 14 zones sans mail, TLS-RPT et MTA-STS `testing` sur les 6 zones qui reçoivent par Google, jeton élargi aux 20 zones ; scan étendu aux 20 domaines avec la même politique. Plans et applies **NOT_RUN**. Vérifier que `openclaw@albandrieu.com` existe dans Google Workspace. `mail2` (A + MX `mx3.mtahosting.com`) : conservé, don de MX Project Honey Pot créé par le propriétaire le 27/12/2025 (journal d'audit Cloudflare), seule exception MX non Google déclarée du scan (nom et cible exacts). Ensuite : MTA-STS en `enforce` après quelques semaines de rapports TLS-RPT propres. Proposé seulement : CAA (inventaire des CA d'abord).
-   - **Honeypot public sur `login.albandrieu.com` (décision du propriétaire, 20/11)** : public par le Tunnel, sans Access, pour que les collecteurs d'adresses l'atteignent ; Apache ne prend l'IP client dans `CF-Connecting-IP` que depuis le pool Docker `10.200.0.0/16` (cloudflared). App **DEPLOYED** le 21/11 (`reconcile-custom-apps.py --apply`, `RUNNING`, :31090, `/` 200 et `/wp-login.php` 404 depuis le LAN). Route Tunnel `login` → `http://172.17.0.24:31090`, CNAME et application Access `Everyone bypass` **CODED** (plan attendu : 2 ajouts, 1 modification, 0 destruction), apply après le 7ᵉ tour. Recette publique : `curl -sI https://login.albandrieu.com/` 200, `/wp-login.php` 404.
-2. **Service Auth observateur** : aligner les politiques des applications concernées sans `Bypass` général ; protéger le coffre web et `/admin` Vaultwarden en limitant les exceptions aux chemins clients. Recetter depuis un client externe avant retrait d'une ancienne politique.
-3. **Secrets** : prouver la concordance Vaultwarden → fichier canonique 0600 → environnement conteneur, sans afficher de valeur. Une ancienne session `BW_SESSION` exposée ne doit jamais être réutilisée. [Roadmap secrets](secrets-migration-roadmap.md). Bascule vers `/mnt/cpool/secrets/runtime/<app>/` **CODED le 12/11** pour bichon, clickhouse, graylog, langflow, mongo, nexus, ollama, pihole et sentry-clickhouse (`env_file` obligatoire) : redéploiement un par un à faire. Redis (Q18) : mot de passe lu dans l'`env_file` canonique par l'entrypoint (`$$REDIS_AUTH`), healthcheck par `REDISCLI_AUTH` ; Redis redéployé sain le 21/11 (il échoue fermé sans le fichier canonique), reste à retirer `apps/redis/.env`. Redis, MinIO et Open WebUI refusent de démarrer sans mot de passe.
-   - **Vaultwarden tourne en 1.37.3** (constaté le 21/11) alors que `master` déclare 1.37.5 depuis #425 (deux correctifs de sécurité, dont un High). C'est une App TrueNAS (`ix-vaultwarden`) et aucun conteneur `doco-cd` n'existe : sans `app.redeploy` explicite, la montée de version n'arrive jamais.
-   - **`bitwarden-api`** (`bw serve`) redémarre en boucle : 692 redémarrages le 21/11, réponse 404 au déverrouillage puis « Vault is locked ». Corriger son déverrouillage ou l'arrêter tant que le coffre est verrouillé.
-4. **OVH / FastAPI Cloud** : vérifier la nouvelle identité de lecture seule et ses scopes ; la sonde Tavily `GET /usage` ne nécessite plus de migration. `livez`, `readyz` et `healthz` sains depuis le 10/11.
-5. **Suites edge du diagnostic du 16/11** (passe du 16/11, workstation, sondes LAN en lecture seule). Tout est **CODED, plan et apply NOT_RUN** : le plan en lecture seule n'a pas pu tourner, faute des clés S3 de l'état Garage (absentes de `nabla/prod/infrastructure-bootstrap`, qui ne porte que `GARAGE_ADMIN_TOKEN` et `TRUENAS_INFRA_API_KEY`). Réception : plan `adopt` relu, apply approuvé, puis plan `retire` ; tests externes négatifs.
-   - **joplin et keycloak** : leurs applications Access sont en « Everyone bypass » et rien n'écoute derrière (:22300, :30238). Leurs routes Tunnel répondent `http_status:404` jusqu'au déploiement (H08 Joplin, H01 Keycloak), dont la PR rétablit l'origine. Contrats : `test_bypassed_joplin_route_is_refused_until_its_app_runs`, `test_master_realm_is_refused_before_production_paths`.
-   - **Error 1050** : applications Access `immich` et `ha` ajoutées (politique `nabla` et jeton moniteur, comme `affine`). `freshrss` et `affine` ont déjà la leur dans le module, jamais appliquée. `adguardhome` a un CNAME connu (`dns_tunnel_record_ids`) mais plus de route depuis le 13/11 : son CNAME est déjà dans l'état sous `module.dns_records.tunnel[...]` (un seul import au plan du 10/11). Ne pas l'ajouter à `retired_hostnames`, ce qui réintroduirait le double import corrigé par 13b3fb75 ; vérifier au prochain plan qu'il détruit `tunnel["adguardhome.albandrieu.com"]`. `affine` est passée `planned` (aucune App, PR #399) : route orpheline derrière `nabla`, à décider.
-   - **Tunnel workstation** : seule `famp-albandrieu` reste routée (la branche honeypot lui ajoute son application Access) ; les 11 CNAME publiés des routes `*-albandrieu` retirées passent au 4ᵉ tour de retrait (`dns-policy.yaml`).
-   - `motion-albandrieu` (domaine mal orthographié) et le doublon `nexus` sans policy restent des applications Access du tableau de bord, hors module, désormais sans route : les importer puis les supprimer par plan, pas de clic GUI.
-   - **Sentry et LiteLLM LAN seulement** (décision de l'opérateur, soir du 16/11). Sentry : route Tunnel `sentry.albandrieu.com` retirée, CNAME au 5ᵉ tour de retrait, UI servie par Traefik en `https://sentry.int.albandrieu.com` (`SENTRY_SYSTEM_URL_PREFIX`, `CSRF_TRUSTED_ORIGINS`), audit `audit-app-lifecycle.sh` qui exige que le nom public ne réponde plus : **CODED**, plan, apply et redéploiement de l'App **NOT_RUN**. LiteLLM n'a plus ni route ni DNS depuis le 05/11 (NXDOMAIN le 16/11) ; FastAPI le classe encore « At risk » à cause de son application Access orpheline.
-   - **6ᵉ tour (17/11, décision de l'opérateur)** : routes Tunnel `traefik`, `drawio`, `pihole` et `autoxpose` retirées, CNAME au 6ᵉ tour de retrait ; ces services restent sur le LAN. `immich` et `nexus` gardent leur route publique derrière Access : leur catalogue passe en `visibility: public` avec `access.required` (`nexus` aussi `external: true` dans `homelab-services.json`). **CODED**, plan, apply et tour DNS **NOT_RUN**. Réception : ces six lignes absentes de `health=at-risk` (immich y reste tant que son application Access n'est pas appliquée).
-   - **Applications Access orphelines** (aucune route Tunnel, relevé FastAPI du 16/11 19:35 UTC) : `litellm`, `sentry`, `traefik`, `drawio`, `pihole` et `autoxpose` (ces cinq après l'apply), `bichon`, `clamav`, `garage-admin`, `kibana`, `test`, plus `motion-albandrieu` et `nexus` ci-dessus. À importer puis supprimer par plan, comme le tour DNS : relever d'abord leurs identifiants avec le jeton de lecture Access (aucun identifiant n'est exposé par FastAPI). Garder `manager` (route HAProxy WAN), `int` (`*.int`, garde-fou) et les applications système. Réception : `/api?operator=1&ui_full=1&health=at-risk` sans ces lignes.
-   - Jeton Cloudflare de FastAPI Cloud (`AuthenticationError`, 23 `warn`) : rotation par l'opérateur, sans afficher la valeur.
-
-**Clôture** : règles Access du moindre privilège et sondes de bord expurgées, sans régression du DNS ni création d'une exposition WAN.
-
-## P0 — Accepter les services critiques
-
-- **TrueNAS 27** (27.0.0-RC.1 depuis les 5–6/11) : `system.version` vérifié, readiness `--check --strict` 8/8 HEALTHY et provision/bind/reclaim d'un PVC CSI prouvés le 21/11. Restent : MCP `truenas-readonly` (connexion fermée côté poste), données TrueNAS de portracker et 2FA. Conserver l'environnement de boot précédent jusque-là. [Upgrade coupling](truenas-operator-tools.md#upgrade-coupling).
-- TrueNAS : prouver la disponibilité réelle (et non le seul état du conteneur), les ACL NFS, les secrets et les dépendances Postgres/ClickHouse.
-- **FastAPI Sample** : base `fastapisample` en `verify-full` (TLS 1.3), `healthy` le 13/11 ; ses erreurs arrivent dans Sentry (événement de test `083754a9`, issue 3), lisibles par le MCP Sentry de nabla-compose. Démarrage lent (3 min 40 au 13/11) : jauge `nabla_startup_phase_duration_seconds` CODED dans fastapi-sample#452 (F08). [Diagnostic TrueNAS](runbooks/fastapi-sample-truenas-diagnostics.md). FastAPI Cloud `degraded` : voir le point 4 OVH ci-dessus.
-- FastAPI Sample : vérifier la parité API/UI et le mode OWNER, les cibles Prometheus, le routeur LiteLLM et la sélection du corpus OpenRAG privé ; test navigateur Chromium uniquement si disponible. [Diagnostic consolidé](runbooks/fastapi-consolidated-diagnostics-20261030.md).
-- **FastAPI Sample — mise à jour horaire** : garde-fou limité aux routes anonymes de FastAPI Cloud (`/livez`, `/v2/version`, `/health`) **fusionné le 21/11 (#430)**, checkout TrueNAS revenu sur `master` le même jour ; FastAPI Sample 1.39.0 tourne déjà sur TrueNAS (mise à jour manuelle du 21/11). Recette au prochain commit `master` de fastapi-sample : le mail du cron (ou `journalctl -t doco-cd-update`) montre `FastAPI Sample: update succeeded at <sha>`. [Contrat](truenas-deployment-automation.md).
-- Authentification et monitoring : réparer les exporters sans confondre un `401` Prometheus avec un `401` OpenClaw ; Gatus/Prometheus sont des preuves indépendantes.
-
-**Clôture** : `ACCEPTED (runtime)` sur le SHA déployé, avec date, source et un test négatif pour chaque frontière sensible ; sinon `NOT_VERIFIED`.
-
-### H07 / H07b — pfSense
-
-Déplacés le 17/11 dans la [roadmap pfSense](pfsense/roadmap.md) (écarts H07, stabilisation et remplacement du Netgate 1100, sécurité). Le même jour : [étude de décommissionnement de pfSense](pfsense/decommission-study.md), à trancher avant de commander le 4200. Sa phase 0 touche aussi des services TrueNAS (Traefik, Pi-hole, ddns-updater, Tailscale). 18/11 : le Netgate 1100 est retiré et aucun remplaçant n'est commandé ; la Freebox fait routeur et le R7000 sert le LAN `172.17.0.1/24` derrière elle, H07 est suspendu.
-
-## P1 — Performance, stockage et restauration TrueNAS
-
-- Mémoire et IO : les règles mémoire comptent l'ARC au-dessus de `c_min` (DEPLOYED le 16/11) ; aucun OOM sur 7 jours au 15/11. Le vrai goulot est l'IO du raidz2 de 4 HDD (PSI IO `full` 33 % sur 5 min le 15/11, latence de lecture 33 ms), traité par le plan de performance ci-dessous. Alertes `TrueNASHostIOPressureHigh` (PSI IO `full` > 30 % pendant 30 min) et `TrueNASZpoolNotOnline` actives depuis le 15/11 ; aucune alerte ne peut sortir quand le WAN tombe.
-- Wazuh : confirmer le redéploiement `deploy-wazuh.sh` du 4/11 (non vérifié) et la disparition du thread noyau de l'ancienne JVM `wazuh-indexer` (`diagnose-performance.sh --full`, avec `sudo`).
-- **Pic d'IO TrueNAS chaque nuit vers 04h** (charge jusqu'à 10,6, sda à sdd occupés à 31-34 %) : cinq tâches de snapshot tombent à 04:00 (`cpool/backup/gdrive/officiel`, `cpool/bababou`, deux sur `cpool/nexus3`, `cpool/bitcoind`) ; candidat principal, la purge asynchrone des snapshots expirés (`freeing`). Attribution par processus à refaire (la capture du 18/11 n'a rien laissé).
-- Zombies : `init: true` effectif sur les Apps redéployées (306 → 3 le 10/11 ; scanopy, litellm et ntopng redéployés le 21/11). Restent drawio (App `STOPPED`, `init` au prochain démarrage), `kafka-exporter` (au prochain redéploiement de `kafka`) et `reactive-resume` (App catalogue) non versionné.
-- Réconcilier le proxy Docker Socket versionné avec les consommateurs avant de retirer l'ancien réseau `intranet` ; `POST=0` doit rester la valeur par défaut. Choisir explicitement le sort de Doco-CD. Inventaire du 18/11 : [consommateurs du socket et d'`intranet`](runbooks/2026-11-18-docker-socket-intranet-consumers.md) (12 montages directs du socket, 10 clients du proxy, 99 services sur `intranet`, Dozzle basculé sur le proxy dans ce lot) ; `doco-cd` et `dozzle-agent` n'atteignent le proxy que par `intranet`.
-- Appliquer les tâches ZFS de rétention **après `--plan`**, vérifier par dataset les snapshots, puis tester une restauration hors du TrueNAS. Ne jamais effectuer `docker volume prune` ou un nettoyage global de snapshots. 16/11 `--plan` : il manque une seule tâche, la mensuelle de `cpool/bitcoind` (Q7). 5 datasets de la politique sont absents, car leurs Apps ne sont pas déployées (ddns-updater, neo4j, opencre, recyclarr, uptimekuma). 0 dérive.
-- `wazuh-indexer` : prendre en compte sa mémoire et la rétention des bases selon le dernier audit read-only. Volumes Docker orphelins (purgés le 10/11, [preuve](incidents/2026-11-10-truenas-docker-orphan-volumes-purge.md)) : la dérive reprend ; décider volume par volume d'après le `--plan` du 16/11 (59 `candidate:anonymous` de 48,6 Mo, Q8 ; 33 `review:recent`, 8 `review:unsized`, 2 `review:large` de 195 et 122 Mo, 2 `review:foreign-project`), avec [`reconcile-docker-orphan-volumes.sh`](../scripts/truenas/reconcile-docker-orphan-volumes.sh) (`just docker-orphan-volumes-plan`).
-- [`bitcoind`](../apps/bitcoind/README.md) : Custom App sur `cpool/bitcoind` depuis le 12/11 (l'ancien `cpool/bitcoin` n'existe plus, constaté le 21/11). Synchronisation initiale limitée par les lectures aléatoires du chainstate sur HDD (`dbcache=300`, ~2 000 blocs par nuit au 15/11). **Fenêtre nocturne DEPLOYED** : tâches cron TrueNAS `reconcile-night-window-cron.py --start` (01:00, lundi au samedi) et `--stop` (07:00), constatées le 21/11 ; liste issue du catalogue (label `albandrieu.com/operational-schedule: night` : bitcoind, clamav, cleanuparr, domain-watchdog, freshrss, lidarr, netdata, open-speed-test, paperless-ai, paperless-ngx, speedtest-tracker, three-proxy, tracearr, wizarr, zabbix), statut violet `scheduled` hors fenêtre dans Sample et Site Alban. Tests SMART longs déplacés à 08:00 le 21/11. Restent : la tâche `clamav-scan` d'ansible-workstation (06:00 le 1er du mois) coupée par l'arrêt de 07:00, en échec le dimanche et jamais allée au bout depuis septembre (Q6) ; le MCP FreshRSS et ses audits ne répondent plus en journée ; la purge du cache de build Docker (~10 Go), hors charge ; `dbcache` à ~4 Gio ou pool NVMe pour finir la synchronisation (point 4 du plan).
-- Restic : `workstation_restic` surveillé, récepteur Slack d'Alertmanager actif depuis le 12/11 ; reste une restauration Restic hors site.
-- **Plan de performance validé par l'opérateur le 16/11**. Mesures du 16/11, 3 jours après le reboot du 12/11 : raidz2 de 4 HDD, IOPS aléatoires d'un seul disque ; PSI IO `full` à 7–10 % même avec bitcoind arrêté ; écritures depuis le reboot : bitcoind 1,66 To, ntopng 564 Go pour 160 Mo de données, Docker 235 Go, ClickHouse 100 Go, PostgreSQL HA 31 Go, Gatus 12 Go ; 90 conteneurs sur 133 sans limite mémoire ; 5,7 Gio disponibles. Les lectures sont servies à 99,9 % par l'ARC, un L2ARC n'apporterait rien.
-  1. [ ] **Limites mémoire** à partir de `memory.peak` × 1,5 sur les conteneurs qui n'en ont pas. Relevé cgroup du 16/11 : openclaw-gateway, nexus, les OpenSearch, clamav et kafka avaient déjà une limite, mais 90 conteneurs n'en ont pas (32 Gio de pics cumulés). `CODED` : `mem_limit` sur sentry-web, sentry-taskworker, clickhouse, langfuse-web, langflow, suricata, mongo, litellm, languagetool, openwebui et fastapi-sample. Le test cliquet `tests/test_compose_resource_ratchet.py` empêche le nombre de services sans limite d'augmenter. Prise d'effet au redéploiement de chaque App. **18/11** : `memory.peak` relevé sur les 88 conteneurs encore sans limite (32,6 Gio de pics). `CODED` : `mem_limit` sur 71 services de 33 fichiers (pic × 1,5, plancher 128m, 35,6 Gio au total), ratchet de 132 à 59. Écartés exprès : `pihole` (le rebuild hebdomadaire de gravity n'est pas dans le pic) et `squid` (`cache_mem` par défaut de 256 Mo). Redéploiement par l'opérateur, puis surveiller les OOM des services dont la mémoire suit la charge (docling, loki, prometheus, mimir, minio, tempo) et des apps Node, dont le heap se cale sur la limite cgroup. 20/11 : Traefik et ses deux compagnons, Redis, `redis_exporter` et CrowdSec plafonnés d'après leur pic de 25 h × 2 (51f39601), cliquet 59 → 53 ; restent surtout des services `planned`, plus Pi-hole et squid par choix.
-  2. [ ] **Moteurs de recherche** : un seul OpenSearch pour OpenRAG plus l'indexeur de Wazuh. `opensearch-security` n'avait aucun consommateur : hors du démarrage par défaut (profil `security`, ef00ccc9, DEPLOYED le 21/11, ~1,6 Gio libérés). Reste la consolidation des deux autres moteurs.
-  3. [ ] **Pool NVMe « fastpool »** : achat validé, 2 × WD Red SN700 1 To en miroir (ou Kingston DC2000B 960 Go, avec protection contre les coupures, meilleure pour les écritures synchrones des bases) sur les 2 slots M.2 PCIe 4.0 x4 libres de la B650I EDGE. Y placer Docker, bases, ntopng, Gatus, zvols Talos et chainstate bitcoind (moins de 300 Gio de données chaudes) : ni L2ARC ni RAM ne corrigent les écritures et les lectures aléatoires de bitcoind (lectures servies à 99,8 % par l'ARC). Changement d'architecture : PR dédiée et relecture.
-  4. [ ] **bitcoind** : fenêtre nocturne ou pause jusqu'au NVMe ; `dbcache` à 4 Gio seulement une fois la RAM libérée ; `assumeutxo` selon la version.
-  5. [ ] **À investiguer** : `bitwarden-api` (`bw serve`) a lu 312 Go sur `cpool/vaultwarden` en 3 jours (servis par l'ARC, donc coût CPU) ; écritures de `ix-apps/docker` non attribuées par conteneur. 18/11 : ne se reproduit plus depuis le redémarrage du 13/11 (moins de 1,1 Gio lus, hors des 12 plus gros lecteurs cgroup). En revanche, le `netdata` de l'hôte a lu 613 Go depuis le boot : à confronter à la capture de 04:00.
-  6. [ ] **Copy-up overlay sur ZFS** (21/11, PSI IO `full` à 52 % pendant 1 h 30) : à chaque recréation, l'App catalogue `paperless-ngx` remappe l'UID 1000 → 568 et `usermod` fait un `chown` sur les 27 885 fichiers de son home dans l'image. Chaque copy-up overlay lie un `O_TMPFILE`, et OpenZFS force alors une synchro txg complète par fichier (`zfs_link` → `txg_wait_synced`) : un txg toutes les 0,6 s, 1 070 écritures/s sur le raidz2 au lieu de 269. App arrêtée (optionnelle) ; ne pas la relancer telle quelle. Voies : `sync=disabled` sur `cpool/ix-apps/docker` (dataset géré par TrueNAS, persistance à vérifier, hors du périmètre de `dataset-profiles.json`) ou migration en Custom App avec un UID d'image égal à 568 ([runbook](runbooks/2026-11-06-catalog-apps-to-compose.md)).
-
-Références : [performance](../scripts/truenas/diagnose-performance.sh), [snapshots ZFS](truenas-zfs-snapshot-policy.md), [cycle de vie des Apps](truenas-app-lifecycle.md).
-
-## P1 — Janvier 2027 : mise à niveau TrueNAS 27.0 finale
-
-La 27.0 finale est annoncée début décembre 2026 (hôte en 27.0.0-RC.1, profil Early Adopter, aucune RC.2). Planifier la mise à niveau en **janvier 2027**, une fois les premiers retours publiés, avec la transaction du [runbook de reboot](homelab-reboot-runbook.md) : bundle régénéré depuis `master`, `--check`, `--prepare`, mise à niveau, puis `--post-reboot-check`, `--resume` et `--verify`. Avant : relire les [notes de version 27](https://www.truenas.com/docs/scale/27/gettingstarted/versionnotes/) et les reboots bloqués après un échec du script de mise à niveau signalés sur le forum. Ne pas lancer `zpool upgrade` (le flag `dynamic_gang_header` empêche le retour arrière en lecture seule) et garder l'environnement de boot précédent. **Clôture** : 27.0 installée, transaction `VERIFIED`, contrôles post-upgrade du P0 TrueNAS 27 passés.
-
-## P1 — Avant TrueNAS 28 : sortir de `auth.login_with_api_key`
-
-`auth.login_with_api_key` est déprécié en 27 et supprimé en 28. TrueNAS CSI `v1.0.3` (encore en `v1.3.0`), `@profanter-dev/truenas-mcp` `1.0.6` et portracker (ancien `/websocket`) l'utilisent : les migrer vers `auth.login_ex` (`API_KEY_PLAIN` ou SCRAM), puis rejouer provision/persistance/reclaim CSI. **Clôture** : aucun client sur l'ancienne méthode avant toute mise à niveau en 28. [Upgrade coupling](truenas-operator-tools.md#upgrade-coupling).
-
-## P1 — Bibliothèque média \*arr (acquisition anonymisée)
-
-- [Roadmap canonique](arr-media-library-roadmap.md) : Gluetun + qBittorrent seuls dans un namespace VPN (kill switch, DoT Quad9 dans le tunnel), Prowlarr via le proxy HTTP Gluetun, reste du homelab inchangé ; schéma réseau et tableau des flux au §4.1.
-- Décisions du 7/11 : ProtonVPN (à souscrire), Jellyfin cible, Emby seulement si la Samsung Frame l'exige, aucun accès distant, Usenet différé. Les Apps \*arr natives sont des PoC : suppression sans migration (Transmission et Readarr d'abord) ; le diagnostic `lidarr` est remplacé par cette suppression.
-- Ordre (les sept noms publics sont supprimés depuis le 10/11) : test de la TV, suppression des PoC, souscription → stockage `cpool/media` avec quota → frontière VPN → Prowlarr → Radarr/Sonarr/Lidarr/Recyclarr → Jellyfin/Bazarr/Seerr.
-- IaC et télémétrie `CODED` le 8/11 : DNS public en OpenTofu (CNAME des routes du tunnel, retrait en deux plans des 7 noms média), profil déclaratif `cpool/media` dans le bootstrap de stockage, câblage \*arr en OpenTofu (`terraform/media`) et réconciliateur `config/media/settings.yml`, exporters + règles + tableau Grafana + journaux Loki ([§10.1](arr-media-library-roadmap.md)).
-- `CODED` le 8/11 (non déployé, `status: planned`) : `apps/media-acquisition`, `prowlarr`, `radarr`, `sonarr`, `lidarr`, `bazarr`, `recyclarr`, `jellyfin`, `seerr`, `scripts/truenas/deploy-media-stack.sh` et `tests/test_media_stack_contract.py` ; route Tunnel `emby` retirée du code. Suppression de Plex et Whisparr confirmée.
-
-**Clôture** : batterie de tests d'anonymat (§9) verte et datée sur le SHA déployé ; aucun service média joignable depuis l'extérieur.
-
-## P1 — GitHub : gouvernance, App et webhook (20 novembre 2026)
-
-- **Rulesets — DEPLOYED (API), plan OpenTofu PASS** : « Protect master » identique sur les 52 dépôts publics et `dotfiles` (suppression et force-push interdits, historique linéaire, squash, GitGuardian exigé, App `fastapi-sample-release` seule exception) + ruleset « Code quality » hors OpenTofu (provider 6.13). Repris par import ([#420](https://github.com/AlbanAndrieu/nabla-compose/pull/420), [#424](https://github.com/AlbanAndrieu/nabla-compose/pull/424)) ; `apply` NOT_RUN. [Runbook](../infrastructure/github/README.md).
-- **À ne pas oublier — séparer les rôles de l'App** : décision du 20/11, `fastapi-sample-release` (App `4676280`, installation `155552350`, tous les dépôts) porte provisoirement release **et** gouvernance OpenTofu (*Administration* et *Variables* en écriture). Sa clé est aussi un secret Actions de 4 dépôts : un workflow compromis peut créer des jetons administrateur. Créer ensuite une App de gouvernance dont la clé reste dans Vaultwarden et sur la Workstation, puis retirer ces droits à l'App de release.
-- **Droits et clé de l'App** (*Administration* et *Variables* en écriture, PEM en pièce jointe de `nabla/prod/fastapi-sample-release`, faits le 20/11) : restent `plan` sous l'identité de l'App (NOT_RUN), suppression de la copie `~/.ssh` après relecture de la pièce jointe, même import pour `fastapi-sample-renovate` et `nabla-grafana`.
-- **Webhook de l'App — PLANNED** : point d'entrée public via Cloudflare Tunnel, Access en *bypass* sur le seul chemin du webhook restreint aux plages `hooks` de `api.github.com/meta`, signature `X-Hub-Signature-256` vérifiée par FastAPI Sample sur TrueNAS ; secret du webhook dans Vaultwarden et `/mnt/cpool/secrets/runtime/`. Usages : réveil du Gateway OpenClaw sur `workflow_run`, `check_suite` et `pull_request`. Aucune fusion automatique (décision du 20/11).
-- **fastapi-sample, constats API du 20/11** :
-  - alerte secret scanning #1 ouverte depuis le 02/08 (*GitLab Feature Flag Client Token*, `charts/generic-service/values.yaml`, commit `0bf6314d`) : rotation puis fermeture, décision propriétaire ;
-  - 100+ alertes code scanning ouvertes (11 critiques, 21 hautes) et 37 Dependabot (14 hautes) à trier ;
-  - `tmp-agent-autofix.yml` (déclenché sur tout push, `contents: write`, identifiants persistés) à retirer ; 57 workflows fantômes désactivés le 20/11 ;
-  - releases immuables : exigent une release en brouillon puis publiée, car `release.yml` téléverse les artefacts après publication ; attestations de build (`attest-build-provenance`) à ajouter au même moment ;
-
-## P1 — Assistants IA, IaC et observabilité (11 novembre 2026)
-
-- **Mimir et Tempo** : déployés dans l'App `grafana` avec Loki et Alloy (Prometheus `remote_write` vers Mimir, rétention de 90 jours depuis le 21/11 ; Alloy reçoit l'OTLP sur 4319/4320 et l'envoie à Tempo, rétention de 14 jours). Reste :
-  - [ ] instrumenter les Apps en OTLP (FastAPI Sample, LiteLLM, n8n) vers Alloy, et vérifier les traces dans Grafana ;
-
-## H11 — scission des scripts opérateur et diagnostics (étude D0–D4)
-
-Référence normative : [ADR-0003 existante](adr/0003-repository-ownership-and-diagnostics.md).
-[Inventaire détaillé](runbooks/operator-script-ownership-inventory.md) issu de
-la PR #386 ; ne pas créer une deuxième ADR-0003.
-
-- **D0** cartographier les consommateurs avec `python3 scripts/ops/plan-repository-split.py --openclaw-consumers` (références textuelles seulement), puis comparer arguments/exit codes
-  avant d'attribuer une propriété aux scripts. Les cinq homonymes OpenClaw
-  restent des contrats potentiellement différents ; contrôler leurs usages.
-  **16/11** : outil corrigé (il ignorait les dépendances croisées entre
-  scripts partagés : `reconcile-openclaw-digest-cron.py` charge
-  `diagnose-openclaw-digest-top.py` et `openclaw-host-context.py`, à migrer
-  ensemble). Options `argparse` identiques 5/5 avec OpenClaw `1bf9857` ;
-  codes retour et sorties encore à recetter sur fixtures.
-  [Relevé](runbooks/operator-script-ownership-inventory.md).
-  **21/11** : famille Workstation Gateway retirée de Compose (scripts
-  `scripts/workstation/*openclaw*`, tests, recettes, `ops/openclaw-workstation/`),
-  dont les cinq homonymes ; `nabla-openclaw` en est la seule source. Restent
-  le tunnel et le préflight LiteLLM TrueNAS.
-- **D1–D2** converger les outils Gateway dans `nabla-openclaw` et les audits
-  OS dans `ansible-workstation`, avec wrappers temporaires et rollback.
-  Conserver la logique inter-hôtes de LiteLLM/TrueNAS dans Compose.
-- **D3 / H07** préparer `nabla-pfsense` : docs, incidents, preuves et roadmap
-  pfSense regroupés sous `docs/pfsense/` le 17/11 ([périmètre](pfsense/README.md)).
-  Déplacer le code seulement après validation de l'ownership, sauvegarde et
-  CLI `plan/check/apply/rollback` ; sous-module seulement si un consommateur
-  exige le SHA d'un arbre Git.
-- **D4 / H05** unifier les transports redondants après tests négatifs ;
-  FastAPI/Gatus/Prometheus fournissent les preuves continues, Compose garde
-  les smokes CSI, restauration, OTLP et les actions de reprise autonomes.
-
-**NO-GO :** pas de suppression de scripts privilégiés, de service redémarré
-ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
-**H01 → H02 → H04 → H05 → H12 → H13 → H16** reste prioritaire sur ce refactoring H11.
-
-## P1 — Fiabilité des scripts et documentation
-
-- **Inventaire H11 du 14/11 — [hotspots de code](code-hotspots.md)** : quantifier les fichiers par domaine (tests, TrueNAS, pfSense, catalogue V2, FastAPI/sondes/UI). Priorité au découpage ciblé des gros scripts seulement après preuve d'un risque de maintenance, avec mêmes exit codes, sorties expurgées et tests négatifs. Le scanner Git local est offline, sans secrets ni LAN : `just code-hotspots`.
-
-- Redéploiement ciblé des Apps TrueNAS : **CODE ADDED 7/11** — [`redeploy-impacted-apps.py`](../scripts/truenas/redeploy-impacted-apps.py) planifie, à partir des fichiers modifiés et des `dependsOn` du catalogue, les `app.redeploy` (fournisseurs d'abord) et ne redémarre un dépendant que s'il devient malsain ; le cron horaire n'affiche que le plan. À faire : lire le premier plan réel (Apps non liées au checkout par `include`), puis un premier `--apply` validé ; décider ensuite d'un apply automatique dans le cron. [Contrat](truenas-deployment-automation.md#redeploying-only-the-apps-a-change-touches).
-- **CODED dans #330** : extractions `scripts/lib/postgres.sh` et `scripts/lib/app-deploy.sh`, wrappers historiques conservés, `rollout-pending-apps.sh` plan/check/apply avec sortie expurgée et code de retour réel. La réception runtime reste ouverte. Contrôler ensuite `deploy-autokuma.sh`, `deploy-docling.sh` et `deploy-bitcoind.sh` pour les réconciliations inline ; `ntopng` nécessite licence Enterprise et interface réseau explicitement approuvées. 18/11 : `deploy-docling.sh` et `deploy-bitcoind.sh` passent sur `lib/app-deploy.sh`, sans `app_deploy_reconcile` (qui ajouterait l'accord runtime et l'attente de `RUNNING`) ; `deploy-autokuma` reste tel quel (`planned`).
-- `Ask the user` avant d'installer des skills externes : aucun skill Talos ou Docker n'est installé implicitement.
-- Factoriser les primitives de diagnostic Docker/HTTP seulement si les scénarios d'erreur, le journal expurgé et le refus des opérations mixtes sont couverts par tests.
-
-## P2 — Étude : EnOcean (NodOn) et Somfy dans Home Assistant
-
-**H18 · PLANNED** — [Étude EnOcean/Somfy et radio Flexom](roadmap-homeassistant-integrations.md), sans configuration ni achat implicite ; protocole des moteurs et modèle d'alarme Somfy à identifier.
-
-## Recommandations de la passe du 2026-11-20
-
-1. **Rendre le contrôle du catalogue bloquant avant fusion.** #416 et #418
-   passaient chacune leurs tests, mais leur combinaison a cassé `master`.
-   `CODED` (075b9a99) : `pre-commit` requis et branche à jour obligatoire sur
-   nabla-compose ; plan et apply OpenTofu `NOT_RUN`. Les 50 autres dépôts gérés
-   n'ont pas de job pre-commit sur leurs PR : l'y ajouter avant de l'exiger.
-2. **Remettre une source de mises à jour des images.** Décision du 21/11 :
-   Watchtower est retiré (`apps/watchtower` supprimé ; les labels fail-closed et
-   `check-watchtower-unit-policy.py` restent comme garde-fou) : Renovate reste
-   **seule autorité pour les changements d'images versionnés**. Un observateur
-   indépendant (DIUN / Watchtower maintenu en mode notification seule) peut
-   compléter les alertes de dérive, jamais redéployer les conteneurs ; étude
-   et préflight sans déploiement dans `docs/watchtower-service-units.md`.
-   Reste à réactiver l'App Renovate sur le dépôt
-   (github.com/settings/installations → Renovate → ajouter nabla-compose) : étape
-   du propriétaire, `NOT_RUN` (navigateur de l'agent non connecté à GitHub).
-   Vaultwarden 1.37.5 est `CODED` (78415e6e) mais pas déployé (voir le point
-   Secrets du P0 Cloudflare).
-
-## Réception 21/11 — rapports NFS, ingress et honeypot
-
-- **CTEM TrueNAS → workstation** : `/mnt/cpool/www` est confirmé
-  monté en NFSv4.2 sur `/media/www`; les symlinks historiques Apache
-  servent directement ce partage, **pas** un miroir local. Le futur
-  rapport CTEM expurgé sera copié depuis ce partage par
-  `ansible-workstation #39` vers `/var/www/reports/ctem`, mais le
-  port LAN 8087 et le contrôle Apache effectif sont **NOT_VERIFIED**
-  (Apache `-S` n'affiche que 80/8082). Le répertoire
-  `nabla-site-apache/public` est modifiable par `www-data` : audit
-  des ACL avant exposition. [Runbook partagé](runbooks/workstation-truenas-report-sharing-and-honeypot.md).
-- **FastAPI** : routeur Traefik historique `sample.int.albandrieu.com`
-  retiré du Compose après redéploiement annoncé ; route publique
-  canary avec CrowdSec conservée, Tunnel direct 8091 par défaut,
-  SNI d'origine vérifié `traefik.int.albandrieu.com`.
-  Réception runtime/TLS et nettoyage éventuel DNS Pi-hole à faire.
-- **Honeypot `login.albandrieu.com`** : LAN `:31090` servi ;
-  le Tunnel **déclaré** pointe directement sur le port (pas Traefik).
-  Publication DNS / Access `Everyone bypass` non vérifiée live.
-  Le service est Project Honey Pot, **sans formulaire de connexion**
-  ni CAPTCHA ; si un leurre `/login` est approuvé, envisager
-  Traefik + CrowdSec sur ce chemin seulement, sans interférer avec
-  `/` (collecte) et `/healthz` (sonde). Pas de bannissement LAPI
-  ni d'activation Turnstile à partir des seules métriques :
-  `appsec_collections=PASS_INSTALLED` et metrics disponibles,
-  **403 non testé**, admin Traefik non attesté. Aucun apply Cloudflare.
-
-## Historique minimal : problèmes à ne pas reproduire
-
-Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrations-retour-experience.md) ; le tableau original est dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md). Aucune ancienne procédure n'autorise une mutation actuelle.
-
-## Gouvernance et clôture
-
-`nabla-compose` : infrastructure déclarative ; `fastapi-sample` : sondes et statuts ; `nabla-site-alban` : rendu utilisateur. Le contrat `entityRef`/`catalogRevision` est partagé, mais aucune logique de déploiement ne doit se déplacer vers les sites.
-
-**DONE global** : catalogue et topology générés sans dérive, politiques d'accès conformes, services obligatoires prouvés `ACCEPTED (runtime)`, migrations de dépôts sans doublons et récupération testée. Toute ligne sans preuve demeure ouverte.
-
-## P0/P1/P2 — Cible cryptographique FIPS, PostgreSQL 16 → 18, TLS 1.3, Vault et OAuth (10 novembre 2026)
-
-**H09** : durcir les clients PostgreSQL restants en `verify-full` avec CA/SAN contrôlés. PostgreSQL 18.6, SCRAM et `hostssl` ont été préparés, mais cela n'atteste pas la conformité de tous les clients. Inventaire statique du 18/11 : seul `sample` est en `verify-full` ; `joplin`, `plumber` et `postgresbackup` passent le mode par variable ; 10 clients Compose n'en fixent aucun (sonarqube, scanopy, litellm, netbox, sentry, keycloak, honeypot, defectdojo, dependency-track, homeassistant). 21/11 : côté serveur, seuls `hostssl` + `scram-sha-256` sont acceptés depuis le réseau, `ssl_min_protocol_version` vaut TLSv1.3 et les 8 clients connectés sont en TLSv1.3 ; reste la validation CA/SAN côté client. Avant chaque bascule, vérifier que le SAN du certificat serveur couvre le nom ou l'IP utilisé par le client.
-
-**H16** : pilote Vault PKI/OAuth SQL/OIDC Keycloak, révocation et break-glass. L'objectif FIPS 140-3 est un **alignement technique**, non une certification.
-
-[Runbook détaillé FIPS, TLS 1.3, Vault et OAuth](security/postgresql-fips-tls13-vault-oauth-20261110.md). La matrice datée initiale est [archivée](archive/2026-11-13-roadmap-before-compaction.md).
-
-- **H13/F10 (19/11)**: native FastAPI image import profile, staged-report resume with acknowledgement marker, and TLS pinned LAN import CODED; runtime/quality NOT_RUN. Preserve stage-only Cron; owner Compose + FastAPI must prove exact artifact, parser/engagement, Celery status, dedupe, RBAC and WAN isolation before scheduling imports. Prowler GitHub and full repository/ZAP imports remain separate private evidence paths; [runbook](defectdojo-private-scan-ingestion.md).
-
-- **H13** : diagnostic GitHub App `--probe-auth` et codes d'erreur par phase CODED ; vérifier App réelle, installation sélectionnée et accès API `Actions:read`, puis artefact/master et import LAN. Tests et runtime NOT_RUN.
-
-- **H13** : déclaration OpenTofu isolée de la sélection `nabla-github-app` après consentement initial, vérification des quatre dépôts et ID partagé CODED. App initiale/plan/apply NOT_RUN. Conserver worker/PEM et import-token hors FastAPI web ; futur DTO en lecture seule de supervision F10.
-
-- **H20/F15** — GitHub control plane `fastapi-sample` separate from `nabla-github-app`: private read-only manifest, loopback bootstrap/profile, opt-in Access webhook route CODED; no WAF or webhook enabled, no privileged worker/apply. Acceptance: deploy signed receiver first, review GitHub hook IP/WAF rule preserving existing zone rules, verify installation + negative requests, then enable. Existing Entra hardware signature/owner checks remain unchanged. [Runbook](github-app-control-plane.md).
-
-## Convergence control plane, edge, veille et notifications — 20/11/2026
-
-Le portefeuille `roadmap-portfolio.md` définit les ID H et les dépendances ; FastAPI `engineering-roadmap.md` définit les ID F. Pas de changement de l'ordre approuvé H05/F03+F09 puis H17/F11. H04 reste prérequis à l'exposition webhook et aux opérations privilégiées.
-
-- **H04/F17 — IP client publique (21/11, décision Q1)** : Traefik rejoint le réseau de cloudflared, ne fait confiance aux `X-Forwarded-*` et à `Cf-Connecting-Ip` que depuis 10.200.2.0/24 (point d'entrée, plugin, parser CrowdSec `s02-enrich`), rate limits par client. **CODED**, déploiement et bascule du Tunnel **NOT_RUN** ([README CrowdSec](../apps/crowdsec/README.md)). Blocage en périphérie par le bouncer Cloudflare de CrowdSec, en complément.
-- **H04/F17 — ingress TrueNAS P0** : le routeur Traefik sample.int existe, mais Tunnel public vise directement :8091. Réutiliser Traefik, ajouter route host public en canary, pas de nouveau proxy. CODED : routeurs canary FastAPI, `crowdsec-appsec@file`, listener CrowdSec 7422 privé, collections Virtual Patching + Generic (moteur/plug-in v1.8.1), test d'inventaire et diagnostic lecture seule. Les routes LAN et le tunnel direct :8091 restent inchangés. Réception hello et test réel AppSec + Traefik non exécutés, donc pas de bascule publique. Pas un deuxième WAF local. RateLimit middleware Traefik, pas dans FastAPI. Vérifier vraie IP cloudflared/HMAC/SSO, proxy CIDRs précis, TLS origine, 429 et WAF en canary, puis basculer Tunnel et réduire accès direct hors probes approuvées. Cloudflare WAF : inventaire IaC read-only CODED, import-first des règles custom/managed/rate existantes après revue et plan sans suppression étrangère ; pas de nouvelle rate limit edge de routine. Exception Access webhook désactivée jusqu'à réception complète. Owner Compose.
-- **H20/F15/F18 — control plane et notifications P1 (H04/H02/H16)** : réutiliser PostgreSQL fastapisample, Alembic et primitives Notes, Redis cache seulement, worker isolé et outbox PostgreSQL. Pending-only schema et helpers CODED FastAPI #449 ; signature YubiKey Entra existante, consommation atomique unique et audit avant dispatch ; aucune App write actuellement. Slack via identité existante nabla-openclaw et frontière de livraison approuvée, canal fixe, pas de nouveau bot ni partage xapp, pas d'approbation Slack, valider installation/secret privé et outbox. Owner FastAPI pour domaine/UI, Compose pour secrets/DB/worker, OpenClaw pour livraison.
-- **H21/F16 — veille FreshRSS P1 (H17/H12/H03)** : compte GReader privé dédié, réutiliser OPML et scripts FreshRSS existants, Langfuse self-hosted prompt production versionné `nabla-homelab-rss-relevance`, LiteLLM TrueNAS virtual key/modèle dédié sans fallback, catalogue Backstage V2 minimal, cache Redis. Contrat pytest et prompt source CODED FastAPI #449. Matérialisation secrets, publication prompt, adapters LAN, budget et tests runtime NOT_RUN. Aucun changement aux abonnements du site public. Owner FastAPI pour pipeline, Compose pour services/identités.
-- **H14/F06/F07 + H13/F10 + H20/F15** : inventorier séries Prometheus/recording rules et UID/panels Grafana, dashboards natifs DefectDojo/GitHub et UI existante avant tout panel/série. FastAPI privilégie synthèse et liens drill-down ; distinguer 0 et absent, pas de nouvelle cardinalité sans écart mesuré. Owner Compose metrics / FastAPI UI.
-
-Recette et limites : [convergence edge/IA](runbooks/fastapi-control-plane-convergence.md). Code et documentation ne prouvent pas de déploiement ni de protection active. Toutes preuves runtime NOT_RUN.
-
-- **H04/F17 — Risque Traefik administrateur P0 (21/11)** : `--api.insecure=true` sur :8080 et scraping Prometheus :8080 ; le plugin CrowdSec expose potentiellement la clé bouncer dans la configuration dynamique. Diagnostic `NO_GO_UNAUTHENTICATED_API` ajouté. Migration `--metrics.prometheus.entrypoint=metrics` vers :8082 et router admin `api@internal` avec authentification CODED dans la PR Traefik, non réceptionnés au runtime et revue de `--serversTransport.insecureSkipVerify=true`. Aucune modification admin/metrics en production. [Runbook](runbooks/fastapi-control-plane-convergence.md).
+# Services Homelab — roadmap d'exécution active
+
+> **Consolidée le 22 novembre 2026 dans la [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437).** Cette page sert d'**index court des travaux encore ouverts**. Les 21 chantiers, leur propriétaire, l'effort indicatif, les arbitrages proposés et les preuves attendues sont dans le **[portefeuille H01–H21](roadmap-portfolio.md)** (source unique du backlog arbitrable). Procédures dans les runbooks, décisions dans les ADR et historique dans Git / [journal d'exécution du 21/11](runbooks/2026-11-21-roadmap-loop-state.md). Ne pas recopier les incidents ni considérer un merge comme une réception TrueNAS/Cloudflare.
+
+## Statuts et ordre de décision
+
+- **CODED** : code source versionné, sans affirmation d'exécution ; **TESTED** : tests sur SHA identifié ; **DEPLOYED** : processus déployé observé ; **ACCEPTED** : test fonctionnel réel, horodaté et réussi ; **PARTIAL** : réception incomplète ; **NOT_VERIFIED** : absence de preuve fraîche. `DENIED`, `NOT_RUN` et `UNVERIFIED` ne signifient jamais `DOWN`.
+- **Séquence approuvée le 14/11** : **H01 → H02 → H04 → H05 → H12 → H13 → H16**. Les gates **H01 CSI/NetworkPolicy** et **H02 sauvegarde/restauration** sont atteints selon les preuves du **21/11** ; ne pas refaire ces migrations. Le **prochain point d'entrée effectif est H04/H05**, et H03 (secrets) est un prérequis transversal. La séquence historique reste conservée telle quelle pour les contrôles automatisés.
+- **Aucune nouvelle priorité autorisée implicitement** : le [tableau d'arbitrage proposé](roadmap-portfolio.md#arbitrage-proposé--à-valider-22-novembre-2026) est un choix à confirmer. Le reste H01/H02 (Keycloak, rotation `postgres_exporter`) est suivi **dans H03/H08/H09/H10/H16**, pas comme une seconde migration CSI/backup.
+
+## Ce qui est déjà reçu (ne pas relancer)
+
+| Acquis | Preuve disponible | Reliquat, s'il existe |
+| --- | --- | --- |
+| **H01 CSI/NFS + Cilium** | 21/11 : PVC RWX lue sur un autre worker, reclaim ZFS/NFS, NetworkPolicy appliquée ; Falco 3/3 | Keycloak/Hermes, SPIRE et API TrueNAS sont des chantiers distincts H03/H08/H10/H16 |
+| **H02 PostgreSQL backup** | 21/11 : 9 bases, cron quotidien, 3 restaurations isolées, TLS verify-full pour le backup | Rotation de l'identité `postgres_exporter` (H03/H09) |
+| **Vaultwarden + correctif DNS** | 21/11 : Vaultwarden **1.37.5** healthy, adaptateur `bitwarden-api` healthy après suppression de surcharges Pi-hole obsolètes ; `talosconfig` et kubeconfig placés dans le coffre | Secrets applicatifs Keycloak/Joplin/Homarr toujours à matérialiser ; ne pas redéployer Vaultwarden 1.37.5 par réflexe |
+| **pfSense retiré** | 18/11 : Freebox/R7000 remplace le pfSense ; #436 fusionnée le 22/11 retire l'ancien nœud HAProxy actif de la topologie | Revue DNS/Ingress H04, éventuel remplaçant H07 différé |
+| **Hello via Traefik** | 22/11 : `nginx` dans `traefik_network` (`172.16.56.12`), commande `curl --fail-with-body --resolve` vers `:443` valide sans `-k` | Code HTTP exact, Gatus runtime et exposition WAN restent à mesurer |
+| **CTEM et catalogues déclaratifs** | PRs #421/#422/#431/#436 fusionnées ; contrats et projections V2 validés en CI | Amass LAN/externe réel, confrontation des contrôles Cloudflare et import DefectDojo validé |
+
+## Travaux restant à réceptionner — lot d'exécution
+
+### 1. H03 + H04 — secrets et frontière réseau P0
+
+**H03 (prérequis)** : matérialiser les fichiers 0600 autorisés Keycloak, Joplin et Homarr, valider leur lecture par la bonne App, les refus sans clé et la rotation `postgres_exporter`. Le coffre et `bitwarden-api` sont déjà sains **au dernier relevé du 21/11** ; ne pas confondre coffre opérationnel et secrets complets. [Backlog de migration](runbooks/2026-11-10-secrets-migration-backlog.md).
+
+**H04 (environnement public)** : la [PR #436](https://github.com/AlbanAndrieu/nabla-compose/pull/436) est **fusionnée** : routeurs honeypot Traefik/CrowdSec, IP de confiance du Tunnel, AppSec, rate limiting, sondes Gatus et règles Prometheus **CODED**. Toutefois `login.albandrieu.com` n'avait pas de CNAME externe après retrait de l'A périmé lors du dernier constat ; `honeypot_tunnel_via_traefik=false` est le rollback par défaut. Ne déployer qu'après revue du plan import-first Cloudflare/Garage, puis mesurer **depuis Internet** les accès autorisés et refusés, SNI, IP réelle, `403` AppSec, `429`, absence de route `/realms/master` et maintien du DNS `s3.int` public **explicitement voulu**. [Cloudflare](../terraform/cloudflare/README.md), [Honeypot](../apps/honeypot/README.md), [CrowdSec](../apps/crowdsec/README.md). Le GET statique de [nabla-site-alban #338](https://github.com/AlbanAndrieu/nabla-site-alban/pull/338) ne transmet ni identifiant ni formulaire.
+
+**Sous-lots H04 séparés** : politique mail SPF/DMARC/MTA-STS sur 20 zones (**CODED, apply non prouvé**), inventaire Access orphelin, règles Vercel WAF Bababou [#433](https://github.com/AlbanAndrieu/nabla-compose/pull/433) (SQLi/XSS/RCE et quotas, **non appliqués selon le dernier constat**) ; chacun demande plan sans destructions inattendues et tests de faux positifs. Un DNS public seul ne prouve pas un routage réel. Aucun port WAN ne doit être ouvert par la réconciliation documentaire.
+
+### 2. H05 + H17 — observabilité, CTEM et catalogue P0
+
+- **Sondes** : réceptionner `promtool check config`, recharger Prometheus, confirmer Gatus HTTPS Hello et `/healthz` honeypot, `up{job="traefik"}` et `up{job="crowdsec"}`, LAPI, Alertmanager et la vraie réponse AppSec. L'ancien diagnostic du 21/11 : Gatus **68/68**, Prometheus **11 cibles `up=0`**, dont **10 `planned`** et **Keycloak à l'arrêt faute de secrets**. Recontrôler à la date du test ; ne pas déclarer 11 services en panne. [Sondes](runbooks/2026-11-04-probe-remediation.md).
+- **CTEM** : déclencher la campagne Amass externe uniquement avec autorisation et une collecte TrueNAS confinée ; comparer `catalogRevision`, fenêtre temporelle et comptes ; garder les noms en stockage privé. Aucun candidat n'est une vulnérabilité sans validation. [Runbook CTEM](runbooks/ctem-external-exposure.md).
+- **H17 / Backstage V2** : vérifier les projections et `composeProfiles` sur **trois versions déployées** (Compose, FastAPI Sample et site Alban), identité `sentry-edge`, provenance `entityRef`/`catalogRevision`. Supprimer les derniers consommateurs V1 seulement après test de parité, pas à la seule fusion des PRs. [Contrat V2](service-catalog-v2-normalization.md).
+
+### 3. H08 + H11 — Nexus et OpenClaw en cours de PR
+
+- **[Nexus #438](https://github.com/AlbanAndrieu/nabla-compose/pull/438) — H08/H04** : APT security, npm/pip/uv cache privé `nexus.int` et CI Maven publique protégée par Access, Traefik et CrowdSec ; **CODED / NOT_DEPLOYED**. Après fusion, vérifier d'abord les realms d'administration, le TLS LAN, la non-régression de la route Tunnel initiale, les imports du state Nexus et les clients Workstation. [Runbook Nexus](../apps/nexus/README.md).
+- **[OpenClaw #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) — H11/H20** : sous-module `fe43cc3`, devbox Node 24 et passes de roadmap de **01h à 05h** sur cinq dépôts ; CI GitHub verte au début de la consolidation, **pas de preuve d'application TrueNAS**. Après fusion : synchroniser sous-module, contrôler Squid egress, quotas/token budget, permission minimale de la GitHub App, **réutilisation d'une PR ouverte + rebase avant push**, quality gates et interdiction des merges automatiques. Le code OpenClaw reste maintenu dans `nabla-openclaw` ; Compose n'héberge que le runtime. [Journal de boucle](runbooks/2026-11-21-roadmap-loop-state.md).
+- **H08 autres Apps** : Dependency-Track puis Joplin, Keycloak/Hermes et H19 Home Assistant seulement après leurs secrets, base et rollback ; NetBox était déjà `RUNNING` au 21/11. [Déploiement Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
+
+### 4. P1 — Fiabilisation et services fonctionnels
+
+**H09** : généraliser `verify-full`, CA/SAN et rotation PostgreSQL client par client (H02 disponible comme reprise). **H12** : ingestion OpenRAG/Docling, embeddings GPU workstation via proxy LiteLLM TrueNAS, repli CPU `qwen-cpu`, clé virtuelle dédiée et isolation du corpus. **H13** : import DefectDojo des *findings qualifiés* seulement, compte RBAC limité, asynchronisme et déduplication. **H06/H14** : budget FastAPI Cloud, UX OWNER, compteurs Grafana/ZFS, OTLP, puis trancher `app.stats` par App vs cAdvisor allégé (TrueNAS netdata ne fournit pas directement les séries par App).
+
+**H10/H11** : analyser les pics IO ZFS vers 04h, sécuriser les accès Docker Socket, terminer les scripts déportés, vérifier MCP et 2FA TrueNAS, préparer TrueNAS 27 final puis la suppression de `auth.login_with_api_key` avant TrueNAS 28. **H16/H20** : séparer App GitHub de gouvernance de l'App de release, pilote Entra Free/HCP Free, Vault PKI/OIDC, YubiKey et webhook HMAC avec refus négatif. **H21** : FreshRSS/GReader + Langfuse + LiteLLM après H03/H12/H17. Chaque détail et sa preuve de clôture sont dans le [portefeuille](roadmap-portfolio.md).
+
+### 5. P2 / différé explicitement
+
+**H07** pfSense et migration vers un nouveau routeur (aucun équipement remplaçant choisi) ; **H15** pile média VPN et anonymisation ; **H18** EnOcean/Somfy. Pas d'installation, achat ni exposition WAN par défaut. **H19** Home Assistant est P1 mais sa bascule reste conditionnée à la sauvegarde des documents, aux secrets, aux `trusted_proxies` et au recorder PostgreSQL.
+
+## Frontières de responsabilité et validation
+
+| Dépôt | Responsabilité canonique |
+| --- | --- |
+| `nabla-compose` | Infrastructure TrueNAS/Talos, GitOps, edge, DNS, secrets, Prometheus/Gatus, générateurs Backstage V2 et smokes |
+| [`fastapi-sample`](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) | Fxx : sondes, états et preuves datées, Cloud/OWNER, ingestion CTEM/DefectDojo, budget et UI FastAPI |
+| [`nabla-site-alban`](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-roadmap.md) | Interface Next.js et affichage du catalogue ; ne pas réimplémenter les sondes ni gérer l'infra |
+| [`nabla-openclaw`](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) | Agent, scripts et cadence ; consommation de secrets uniquement par frontières approuvées |
+| [`ansible-workstation`](https://github.com/AlbanAndrieu/ansible-workstation) | Système workstation, clients des proxys Nexus/LLM, contrôle local et durcissement |
+| [`nabla-site-bababou`](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md) | Site, documentation et ZAP ; règles WAF Vercel déclarées côté Compose |
+
+**Contrat d'une PR** : chercher la PR existante, vérifier son rebase sur `master`, corriger les conflits, exécuter les quality gates sur le HEAD exact, puis noter séparément preuves `CODED` / `TESTED` / `DEPLOYED` / `ACCEPTED`. Les suppressions volumineuses ne bloquent plus la quality gate ; les tests, secrets et références restent contrôlés. Ne pas pousser des micro-changements sans valeur de stabilité ni réutiliser un ancien runbook d'incident pour muter la production.
+
+**Critère de clôture** : résultat négatif/protection attendu réellement observé, état après action, horodatage, version et retour arrière. Ne pas transformer un timeout fournisseur en `DOWN`, ni considérer une règle WAF/Access écrite mais non appliquée comme une défense effective. Arbitrage détaillé et portes de réception : [portefeuille](roadmap-portfolio.md#arbitrage-proposé--à-valider-22-novembre-2026).
