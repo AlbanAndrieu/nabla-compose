@@ -60,7 +60,7 @@ jobs:
           set -euo pipefail
           tofu fmt -check -diff terraform/entra
           bash -n scripts/entra/entra-nabla-preflight.sh
-          python3 -m unittest tests.test_entra_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract tests.test_entra_approval -v
+          python3 -m unittest tests.test_entra_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract tests.test_entra_approval tests.test_entra_nabla_naming -v
       - name: zizmor pinned offline audit
         shell: bash
         run: |
