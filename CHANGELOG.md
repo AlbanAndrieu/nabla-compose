@@ -1,3 +1,10 @@
+# [0.114.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.113.0...0.114.0) (2026-11-22)
+
+
+### Features
+
+* **secrets:** declare the FastAPI Sample CrowdSec observer bouncer key ([#441](https://github.com/AlbanAndrieu/nabla-compose/issues/441)) ([a70f4b9](https://github.com/AlbanAndrieu/nabla-compose/commit/a70f4b9d546cc03275babfa4bea6e9b42cad0d65))
+
 # [0.113.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.112.1...0.113.0) (2026-11-22)
 
 
