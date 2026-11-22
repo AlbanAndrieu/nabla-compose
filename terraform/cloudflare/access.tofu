@@ -9,15 +9,10 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample" {
   account_id                = var.account_id
   app_launcher_visible      = true
   auto_redirect_to_identity = false
-  # The old name stays protected until the rename is accepted (README step 5).
   destinations = [
     {
       type = "public"
       uri  = "fastapi-sample.albandrieu.com"
-    },
-    {
-      type = "public"
-      uri  = "sample.albandrieu.com"
     },
     {
       cidr       = "172.17.0.24/32"
@@ -56,10 +51,6 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample_api" {
     {
       type = "public"
       uri  = "fastapi-sample.albandrieu.com/api"
-    },
-    {
-      type = "public"
-      uri  = "sample.albandrieu.com/api"
     },
   ]
   domain                     = "fastapi-sample.albandrieu.com/api"
