@@ -39,7 +39,7 @@ subscription-level configuration check, **not a bill/invoice check**.
 not that those plans will be billed in 30 days. Tokens are not printed.
 
 **Evidence from operator, 22 Nov 2026:** the Azure pricing response
-contained 14 premium-capable plan entries reporting `Free/P30D`,
+contained 15 other premium-capable plan entries reporting `Free/P30D`,
 `CloudPosture=Free/P30D`, `Discovery=Standard/PT0S`, and
 `FoundationalCspm=Standard/PT0S`. This supports the view that the
 free CSPM baseline is enabled while the advanced Defender CSPM plan
