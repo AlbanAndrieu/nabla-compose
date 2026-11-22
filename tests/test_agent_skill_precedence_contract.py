@@ -57,7 +57,9 @@ class SkillPrecedenceContractTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             fixture(root)
-            path = root / "docs/roadmap.md"
+            # The policy moved verbatim to the roadmap archive with #437.
+            path = root / "docs/archive/roadmap-through-2026-10-24.md"
+            self.assertIn("Ask the user", path.read_text())
             path.write_text(path.read_text().replace("Ask the user", "Install automatically"))
             self.assertTrue(any("Ask the user" in issue for issue in MODULE.audit(root)))
 
