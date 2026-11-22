@@ -31,18 +31,39 @@ class DefenderFreeContract(unittest.TestCase):
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        safe, plans = module.evaluate_pricing({"value": [
-            {"name": "CloudPosture", "properties": {"pricingTier": "Free"}},
-            {"name": "VirtualMachines", "properties": {"pricingTier": "Free"}},
-        ]})
+        # Real Nabla subscription observation from 2026-11-22:
+        # FoundationalCspm and Discovery report Standard but are FREE
+        # baseline services, while paid CloudPosture remains Free.
+        free_baseline = [
+            {"name": "CloudPosture", "properties": {"pricingTier": "Free", "freeTrialRemainingTime": "P30D"}},
+            {"name": "FoundationalCspm", "properties": {"pricingTier": "Standard", "freeTrialRemainingTime": "PT0S"}},
+            {"name": "Discovery", "properties": {"pricingTier": "Standard", "freeTrialRemainingTime": "PT0S"}},
+            {"name": "VirtualMachines", "properties": {"pricingTier": "Free", "freeTrialRemainingTime": "P30D"}},
+        ]
+        safe, plans = module.evaluate_pricing({"value": free_baseline})
         self.assertTrue(safe)
-        self.assertEqual(len(plans), 2)
-        safe, _ = module.evaluate_pricing({"value": [
-            {"name": "CloudPosture", "properties": {"pricingTier": "Standard"}}
-        ]})
+        self.assertEqual(len(plans), 4)
+        premium = free_baseline + [
+            {"name": "KeyVaults", "properties": {"pricingTier": "Standard"}}
+        ]
+        safe, _ = module.evaluate_pricing({"value": premium})
         self.assertFalse(safe)
-        with self.assertRaises(ValueError):
-            module.evaluate_pricing({"value": []})
+        extra_plan = free_baseline + [
+            {"name": "UnexpectedPlan", "properties": {"pricingTier": "Standard"}}
+        ]
+        safe, _ = module.evaluate_pricing({"value": extra_plan})
+        self.assertFalse(safe)
+        posture_paid = [
+            {**item, "properties": {"pricingTier": "Standard"}}
+            if item["name"] == "CloudPosture" else item
+            for item in free_baseline
+        ]
+        safe, _ = module.evaluate_pricing({"value": posture_paid})
+        self.assertFalse(safe)
+        for bad in ({"value": []}, {"value": free_baseline[:1]},
+                    {"value": free_baseline + [free_baseline[0]]}):
+            with self.assertRaises(ValueError):
+                module.evaluate_pricing(bad)
 
     def test_state_separation_and_foundational_not_equivalent(self):
         guide = (TF / "README.md").read_text()
@@ -50,6 +71,8 @@ class DefenderFreeContract(unittest.TestCase):
         self.assertIn("Do NOT reuse Entra", guide)
         self.assertIn("NOT APPLIED", guide)
         self.assertIn("specific workspaces", guide)
+        self.assertIn("FoundationalCspm=Standard", guide)
+        self.assertIn("Discovery=Standard", guide)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@
 
 **Important distinction:** Microsoft's **Foundational CSPM free opt-in**
 must be explicitly enabled on a new subscription after 27 Oct 2026.
+In this pilot, the returned `FoundationalCspm=Standard` is evidence
+of its activation; the plan remains **free**.
 The Microsoft.Security/pricings API `CloudPosture=Free` means the
 **paid Defender CSPM tier is OFF**; it is *not proof that Foundational CSPM
 is ON*. Likewise, the Coverage workbook toggles are filters and do not
@@ -24,9 +26,26 @@ python3 scripts/azure/defender-free-audit.py
 ```
 
 The audit uses only `az account show` and Microsoft.Security/pricings
-`GET`; it fails if any recognized Defender plan is `Standard`. No
-credentials or raw bearer tokens are logged. `no_paid_defender_plan=true`
-does **not** guarantee zero unrelated Azure resource costs.
+`GET`. For the observed Nabla subscription **FoundationalCspm=Standard**
+denotes the **enabled free foundational CSPM plan** and
+**Discovery=Standard** denotes base discovery, while
+**CloudPosture=Free** means the *paid advanced Defender CSPM* is OFF.
+The audit therefore allows only the two named baseline `Standard`
+entries and fails closed on `Standard` for **every other plan**,
+including unknown plans. The output field
+`no_premium_standard_plans_at_subscription_scope=true` is a
+subscription-level configuration check, **not a bill/invoice check**.
+`P30D` on plans reporting `Free` means their trial allocation remains,
+not that those plans will be billed in 30 days. Tokens are not printed.
+
+**Evidence from operator, 22 Nov 2026:** the Azure pricing response
+contained 14 premium-capable plan entries reporting `Free/P30D`,
+`CloudPosture=Free/P30D`, `Discovery=Standard/PT0S`, and
+`FoundationalCspm=Standard/PT0S`. This supports the view that the
+free CSPM baseline is enabled while the advanced Defender CSPM plan
+and premium Defender protections are not enabled at subscription scope.
+It does not inspect resource-level exceptions, billed charges, or
+other unrelated Azure resources.
 
 In [Defender for Cloud / Environment settings](https://portal.azure.com),
 select the personal subscription and explicitly **opt in to
