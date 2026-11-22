@@ -105,7 +105,10 @@ class HoneypotLogSummaryContract(unittest.TestCase):
             text=True,
             check=False,
         )
-        assert proc.returncode != 0
+        assert proc.returncode == 2
+        assert not proc.stdout
+        assert str(symlink) not in proc.stderr
+        assert "REJECTED: honeypot log unavailable or unsafe" in proc.stderr
         check = subprocess.run(
             [sys.executable, str(SCRIPT), "--check"],
             capture_output=True,
