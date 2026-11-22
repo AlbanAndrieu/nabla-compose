@@ -118,10 +118,23 @@ Every third pass, run a reconciliation cycle, in this order:
 - Never edit the clone while the pre-push gate runs: it fails on a dirty
   tree. Run it in the background and work on runtime checks or another
   repository meanwhile.
+- The owner's untracked files (even inside a submodule) also block the gate:
+  gate a `git clone --shared` of the exact SHA in the scratchpad instead, with
+  `pre-commit install --hook-type pre-push --config .pre-commit-pre-push.yaml`
+  (a hook guard blocks copying into `.git/hooks`).
+- Git hooks run `python3` from `PATH`: export `VIRTUAL_ENV` and prepend
+  `.venv/bin`, or the catalog hooks fail on `import yaml`.
+- CI does not run the whole test suite, so `master` can be red: after merging
+  `origin/master`, run `pytest -q tests` once and fix what it broke.
 - Services of one TrueNAS App share one x-nabla `status`; keep an optional
   service on a Compose profile instead (`dsomm-baseline`).
 - Root on TrueNAS (`systemd-run`): set `HOME` and pass `safe.directory`
   through `GIT_CONFIG_COUNT/KEY_0/VALUE_0`, or root git refuses the checkout.
+  Root only reads it: a root `checkout`/`pull` there leaves root-owned files,
+  and the next pull stops halfway (files written, `master` not moved, the
+  hourly cron skipped) as on 22/11. Write the checkout as `albandrieu`.
+- PostgreSQL entrypoint: wait for `init process complete` in `docker logs`
+  before `pg_isready`, which first answers from the temporary `initdb` server.
 - Ansible against TrueNAS: `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`
   (no `ControlPersist`) reuses the YubiKey ControlMaster of `~/.ssh/config`.
 - Sample's TrueNAS observer needs its diagnostics key:

@@ -22,7 +22,8 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | 3 | 21/11 | 21/11 | fait : skill (e863e844), refactorisation (lot 3a), docs |
 | 4 | 21/11 | 21/11 | après la passe 6 |
 | 5 | 21/11 | 21/11 | après la passe 6 ; questions posées à l'issue de cette passe |
-| 6 | 21/11 | 21/11 | à faire : réconciliation (skill, instructions, docs, refactorisation) |
+| 6 | 21/11 | 21/11 | fait le 22/11 (passe 7) : skill, contrats de test cassés par #437, rapport `master-readiness` |
+| 7 | 22/11 | 22/11 | après la passe 9 |
 
 ## Journal
 
@@ -95,6 +96,14 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | Redéploiements du 22/11 : homarr, nexus, prometheus, traefik ; CrowdSec | DEPLOYED | `redeploy-impacted-apps.py --apply` (`NABLA_IMPACTED_REDEPLOY_APPROVED=yes`), `deploy-crowdsec.sh --apply` ; le contrôle Loki pfSense de ce script est périmé (pfSense retiré le 18/11) |
 | Home Assistant arrêté (Gatus en échec, port 30103 refusé) | DEPLOYED | `app.stop` du 21/11 14:50 d'origine inconnue ; `midclt call -j app.start home-assistant` le 22/11 : `RUNNING`, `/manifest.json` 200 en 10 s. Leçon : en mode sprint, redémarrer sans demander (skill, section « Decide, do not ask ») |
 | MCP `truenas-readonly` (H10) | DEPLOYED | Cause : le serveur s'arrêtait au démarrage, l'app n'ayant ni `TRUENAS_MCP_HOST` ni `TRUENAS_MCP_API_KEY`. 00f0bc7c : lanceur `scripts/mcp/truenas-readonly.sh` (clé dans un fichier 600), nom TLS épinglé sur 172.17.0.24 pour ce seul processus (le certificat ne couvre que `truenas.albandrieu.com`, résolu vers le Tunnel), démarrage hors du `.env` du dépôt que le paquet chargerait. `mcp-readonly-identity.sh apply` (terminal du propriétaire, Vaultwarden déverrouillé) : utilisateur `mcp_readonly` dans `truenas_readonly_administrators`, clé, item `nabla/prod/truenas-mcp-readonly` ; `check` CONVERGED. Recette stdio : authentifié, 19 outils, `system_info` 27.0.0-RC.1, `app_list` 98 Apps |
+| Passe 7 : checkout TrueNAS resté à moitié mis à jour | fait (22/11) | Le `git pull` de 15:48 s'est arrêté sur `.agents/skills/nabla-roadmap-loop/SKILL.md` appartenant à root (un `sudo git checkout` du 21/11) : fichiers de #437 écrits, `master` et l'index non avancés, cron sauté. Fichiers (identiques à `origin/master`) restaurés, 35 chemins suivis rendus à `albandrieu:apps` ; cron de 17:00 : fast-forward vers 6ae78b89 |
+| Passe 7 : merge de `origin/master` (#437) dans #438 | TESTED | c5c039ce (roadmap reconstruite sur l'index de #437 avec la liste Nexus, H10 MCP et H04 WAF ; contrat de nommage Access compatible `for_each`) ; `master` rouge sur 3 contrats laissés par #437, corrigés : 376590bb, ef799147 (avec `docs/master-readiness.md` régénéré) ; suite complète 3268 verts avant ces correctifs |
+| H17 : Compose ↔ Sample TrueNAS | ACCEPTED (22/11 16:16Z) | `read-sample-observer.sh /api/homelab/status` : `catalogRevision` `sha256:08fed09f…` = celle de `master` 6ae78b89 ; `sentry-edge` `in_sync`, 0 `binding_conflict` (1 le 21/11), 108 `in_sync`, 6 `on_demand`, 34 `declared_only` ; restent le Site et le retrait des exports legacy |
+| H05 : preuve fraîche | ACCEPTED (runtime, 22/11 17:10) | Gatus 70/70 ; Prometheus 38 cibles dont 11 en panne, toutes `operational_state=planned` ; 19 groupes / 76 règles `ok` (groupes CrowdSec et Traefik de #436), 0 alerte ; job `dependency_track` chargé par le reload du cron |
+| H13 : Dependency-Track | bloqué (V1) | `rollout-pending-apps.sh --check dependency-track` : secrets, stockage et Compose OK, étape PostgreSQL BLOCKED : le fichier runtime (11/11) n'a que `ALPINE_DATABASE_PASSWORD`, pas `DT_DATASOURCE_PASSWORD` (nom v5) ; le rendu `prepare-security-tooling-secrets.sh --apply` lit Vaultwarden, verrouillé ; aucun script versionné ne renomme une clé en place |
+| H18 : diagnostics en lecture | constaté | `diagnose-homeassistant.sh` : aucune anomalie ; `diagnose-homeassistant-usb.sh` : seul dongle Sonoff Zigbee (pas d'EnOcean USB300), ZHA sur `/dev/ttyUSB0` ; sans jeton HA, états d'intégration non vérifiés |
+| H18/H19 : radio Zigbee dans le Compose de Home Assistant | CODED | 31115550 : la Custom App ne mappait aucun device, la bascule H19 aurait coupé ZHA ; mapping `/dev/serial/by-id/…Sonoff…` → `/dev/ttyUSB0` |
+| Réconciliation après la passe 6 | CODED | skill : gate dans un clone `--shared` quand le checkout porte des fichiers du propriétaire, venv des hooks, suite complète après merge de `master`, git en root sur TrueNAS, init PostgreSQL |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
 
@@ -129,6 +138,7 @@ Toutes les recommandations de la passe 5 sont acceptées.
 
 ## Questions ouvertes (à poser après la cinquième passe suivante)
 
+- **H13 Dependency-Track** (passe 7) : Vaultwarden déverrouillé, lancer sur TrueNAS `sudo bash scripts/truenas/prepare-security-tooling-secrets.sh --apply dependency-track` (ajoute `DT_DATASOURCE_PASSWORD`, même champ Vaultwarden) ; l'agent enchaîne `bootstrap-app-postgres.sh` puis `rollout-pending-apps.sh --apply dependency-track`.
 - **Gate des grosses suppressions** : #436 (fusionnée le 22/11) retire `check_destructive_diff` de `scripts/agent-quality-gate.sh` et `QUALITY_ALLOW_LARGE_DELETION` ; voulu, ou à rétablir ?
 - **H04 WAF Vercel** : l'OWASP Core Ruleset est payant (forfait actuel refusé). Passer Bababou en Pro, ou réduire le HCL à la seule règle de rate limiting (gen/sqli/xss/rce laissés en `log`) ?
 - **`nabla-github-app`** : déposer sa clé privée et `github-app.json` dans `/mnt/cpool/secrets/runtime/nabla-github-app/` (étape propriétaire), puis découverte de l'installation et apply de `github-artifact-app` ?
