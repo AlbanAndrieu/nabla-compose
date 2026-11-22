@@ -10,7 +10,7 @@ x-logging: &nabla-logging
 services:
   dependency-track-api:
     logging: *nabla-logging
-    image: ${DEPENDENCY_TRACK_API_IMAGE:-ghcr.io/dependencytrack/apiserver:5.2.0}
+    image: ghcr.io/dependencytrack/apiserver:5.2.0
     container_name: dependency-track-api
     restart: unless-stopped
     env_file:
@@ -68,7 +68,7 @@ services:
 
   dependency-track:
     logging: *nabla-logging
-    image: ${DEPENDENCY_TRACK_FRONTEND_IMAGE:-ghcr.io/dependencytrack/frontend:5.2.0}
+    image: ghcr.io/dependencytrack/frontend:5.2.0
     container_name: dependency-track
     restart: unless-stopped
     depends_on:
