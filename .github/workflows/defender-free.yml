@@ -1,0 +1,42 @@
+---
+name: Defender Foundational CSPM Free — offline policy
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - terraform/defender-free/**
+      - scripts/azure/defender-free-audit.py
+      - tests/test_azure_defender_free_contract.py
+      - .github/workflows/defender-free.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Free-tier IaC contract (NO Azure credentials)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden GitHub runner (audit)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout (read-only)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup OpenTofu (offline checks only)
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
+      - name: Check HCL formatting and Defender Free contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          tofu fmt -check -diff terraform/defender-free
+          python3 -m unittest tests.test_azure_defender_free_contract -v
+          python3 -m py_compile scripts/azure/defender-free-audit.py
