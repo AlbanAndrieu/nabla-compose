@@ -8,10 +8,19 @@ locals {
   # answered Error 1050). famp-albandrieu stays: the honeypot branch gives it
   # an Access app. Their CNAMEs go through the dns-policy.yaml retirement.
   workstation_tunnel_ingress = [
+    # "Protect with Access": cloudflared verifies the Access JWT signature and
+    # this app's AUD before Apache (loopback 8082) sees the request, so a
+    # forged or foreign-app Cf-Access-Jwt-Assertion never reaches the origin.
     {
-      hostname       = "famp-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://127.0.0.1:8082"
+      hostname = "famp-albandrieu.albandrieu.com"
+      origin_request = {
+        access = {
+          required  = true
+          team_name = "albandrieu"
+          aud_tag   = [cloudflare_zero_trust_access_application.famp_albandrieu.aud]
+        }
+      }
+      service = "http://127.0.0.1:8082"
     },
     # The dashboard stored explicit zeros on the catch-all; these attributes
     # are not computed, so omitting them would show as drift.
@@ -41,6 +50,9 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "workstation" {
   }
   source    = "cloudflare"
   tunnel_id = var.workstation_tunnel_id
+
+  # Access must protect a hostname before the tunnel routes it.
+  depends_on = [cloudflare_zero_trust_access_application.famp_albandrieu]
 
   lifecycle {
     prevent_destroy = true
