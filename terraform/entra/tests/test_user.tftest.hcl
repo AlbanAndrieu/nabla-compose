@@ -1,4 +1,6 @@
 # Offline contract (mocked provider, no Azure call):
+# Mock uses the operator-reported initial domain for readability. This fixture
+# neither proves directory ownership nor configures the live Azure provider.
 #   tofu -chdir=terraform/entra init -backend=false
 #   TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra test
 mock_provider "azuread" {
@@ -7,7 +9,7 @@ mock_provider "azuread" {
   }
   mock_data "azuread_domains" {
     defaults = { domains = [{
-      domain_name   = "nabla-test.onmicrosoft.com", initial = true, default = true, verified = true,
+      domain_name   = "albanandrieuhotmail.onmicrosoft.com", initial = true, default = true, verified = true,
       admin_managed = true, root = true, authentication_type = "Managed", supported_services = []
     }] }
   }
@@ -46,7 +48,7 @@ run "user_gets_a_one_time_password_in_the_initial_domain" {
   }
 
   assert {
-    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-user@nabla-test.onmicrosoft.com"
+    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-user@albanandrieuhotmail.onmicrosoft.com"
     error_message = "the test user must live in the tenant's initial onmicrosoft.com domain"
   }
   assert {

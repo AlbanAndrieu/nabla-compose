@@ -25,6 +25,13 @@ used by the plan job is NOT guaranteed read-only and can hold organization-owner
 privileges. This is a disposable pilot only. For strong production read/write
 separation choose Azure Blob + Entra OIDC or a paid HCP tier.
 
+**Domaine initial** : le propriétaire déclare
+`albanandrieuhotmail.onmicrosoft.com`. Le test
+`tests/test_user.tftest.hcl` reproduit ce domaine comme **mock**
+offline ; dans `users.tofu`, la source `data.azuread_domains.initial`
+récupère le domaine réel du tenant actif lors d'une exécution autorisée.
+Aucun domaine n'est écrit en dur dans les ressources de production.
+
 **Nomenclature décidée le 22/11** : CI environments
 `entra-nabla-plan` et `entra-nabla-apply`, applications
 Graph/OIDC de mêmes noms ; HCP Free workspace proposé

@@ -33,10 +33,36 @@ Saisir l'ID du tenant depuis la console locale uniquement (pas dans Git) :
 export AGENT_EXECUTION_MODE=workstation
 export ENTRA_NABLA_CONFIRMED=true
 export ENTRA_NABLA_TENANT_ID="<GUID-du-tenant-personnel>"
+export AZURE_CONFIG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nabla-entra/azure-cli"
+install -d -m 700 "$AZURE_CONFIG_DIR"
+# Interactive sign-in: select the intended directory and use a YubiKey.
 az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions
-az account tenant list --output table
+# Stable core command: avoid experimental 'az account tenant list' extension.
+az account show --query '{tenant:tenantId,subscription:name}' --output json
 bash scripts/entra/entra-nabla-preflight.sh
 ```
+
+Le domaine initial déclaré pour ce tenant est
+`albanandrieuhotmail.onmicrosoft.com`. La session Azure CLI doit être
+vérifiée par **Tenant ID** via `az account show`, pas uniquement par le nom
+« Répertoire par défaut ». Le nom `nabla-test.onmicrosoft.com` était une
+fixture de test, **jamais le domaine de production**.
+`az account tenant list` peut tenter d'installer l'extension expérimentale
+`account` ; ne pas l'utiliser pour ce préflight.
+
+**Diagnostic des erreurs Azure CLI sur Ubuntu/mise.** Des erreurs
+`pkg_resources` dans l'extension facultative `ai-examples` et
+`No module named rpds.rpds` révèlent un environnement Python/extension
+incohérent, pas nécessairement un échec de connexion. Les avertissements
+`SyntaxWarning` d'Azure Batch ne sont pas bloquants. Sur la workstation,
+tester dans l'ordre `az version`, `az extension list -o table` et
+`az account show --query tenantId -o tsv`; retirer `ai-examples`
+et l'extension `account` si elle a été installée uniquement par
+la commande expérimentale, après revue des extensions nécessaires.
+Le client mise actuel utilise un Python 3.14 : préférer un environnement
+Azure CLI **Python 3.12** isolé pour éviter les incompatibilités de
+modules compilés. Ne pas supprimer la session Azure existante ni
+modifier la version globale de Python pour cela.
 
 Vérifier le domaine et l'identité sous
 [Entra admin center](https://entra.microsoft.com/) ; puis vérifier les
