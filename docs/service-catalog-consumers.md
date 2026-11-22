@@ -52,7 +52,7 @@ native `conditions` and can enrich metrics with `nabla_entity_ref`.
 
 Homarr app fields map naturally to the Nabla catalog: name, URL, description and icon. Homarr also supports a distinct ping URL.
 
-Homarr exposes authenticated OpenAPI/tRPC APIs. API keys are passed using the `ApiKey` header. The stable Homarr MCP endpoint is currently `/api/mcp/mcp`; Homarr v2 prefers `/api/mcp` and keeps the previous URL as a compatibility alias. Cursor reads the complete URL from `HOMARR_MCP_URL`; `.mcp.json` starts a launcher instead (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
+Homarr exposes authenticated OpenAPI/tRPC APIs. API keys are passed using the `ApiKey` header. The stable Homarr MCP endpoint is currently `/api/mcp/mcp`; Homarr v2 prefers `/api/mcp` and keeps the previous URL as a compatibility alias. Cursor reads the complete URL from `HOMARR_MCP_URL`; `.mcp.json` reaches it through the [LiteLLM MCP gateway](#litellm-mcp-gateway).
 
 | Nabla | Homarr |
 | --- | --- |
@@ -138,7 +138,7 @@ The selected community MCP is `adambenhassen/gatus-mcp`. It serves Streamable HT
 export GATUS_MCP_URL='http://gatus-mcp:3000/mcp'
 ```
 
-No server-side `gatus-mcp` is deployed: `.mcp.json` runs it per session on the workstation (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
+No server-side `gatus-mcp` is deployed: `.mcp.json` runs it per session on the workstation (see [LiteLLM MCP gateway](#litellm-mcp-gateway)).
 
 Do not provide `GATUS_TOKEN` to that MCP deployment unless external-result submission is intentionally required.
 
@@ -219,7 +219,7 @@ Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 
 `AlbanAndrieu/fastapi-sample` exposes FastMCP Streamable HTTP on `/mcp` from the same FastAPI process. Its local project configuration uses `http://127.0.0.1:8080/mcp`.
 
-The TrueNAS runtime serves it at `http://172.17.0.24:8091/mcp` behind the internal `X-MCP-Key` credential: without `MCP_OPS_KEY` in Sample's runtime it answers 503 `Operational access unavailable`. `.mcp.json` starts a launcher that sends that header (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
+The TrueNAS runtime serves it at `http://172.17.0.24:8091/mcp` behind the internal `X-MCP-Key` credential: without `MCP_OPS_KEY` in Sample's runtime it answers 503 `Operational access unavailable`. `.mcp.json` starts a launcher that sends that header (see [LiteLLM MCP gateway](#litellm-mcp-gateway)).
 
 Cursor points directly to the production URL.
 
@@ -332,29 +332,52 @@ Rules:
 4. consumer deletion requires an explicit policy rather than blind destructive sync;
 5. generation must be deterministic and enforced by the quality gate.
 
-## Claude Code launchers (scripts/mcp)
+## LiteLLM MCP gateway
 
-The Claude desktop app passes no shell variable to MCP servers, so a `${VAR}`
-URL or header in `.mcp.json` stays empty. Homarr, Grafana, Gatus and FastAPI
-Sample therefore start a launcher, like `truenas-readonly`:
+Owner decision (22/11/2026): MCP servers sit behind the LiteLLM MCP gateway of
+TrueNAS. Clients reach all of them at `http://172.17.0.24:4000/mcp/` with one
+virtual key, so Claude Code, Cursor, OpenCode, OpenWebUI, n8n and OpenClaw share
+one endpoint, and upstream secrets stay on TrueNAS.
 
-| Server | Launcher | Private file (`~/.config/nabla/mcp/`) | Vaultwarden source |
-| --- | --- | --- | --- |
-| homarr | `http-remote.sh homarr http://172.17.0.24:30100/api/mcp/mcp` | `homarr.headers` (`ApiKey`) | `nabla/prod/homarr` `HOMARR_API_KEY` |
-| fastapi-sample | `http-remote.sh fastapi-sample http://172.17.0.24:8091/mcp` | `fastapi-sample.headers` (`X-MCP-Key`) | `nabla/prod/fastapisample` `MCP_OPS_KEY` |
-| grafana | `grafana.sh` (container, `--disable-write`) | `grafana.env` | `nabla/prod/grafana-observability` `GRAFANA_SERVICE_ACCOUNT_TOKEN` |
-| gatus | `gatus.sh` | none | none |
+| Server | Declared in | Upstream | Upstream credential | Tool filter |
+| --- | --- | --- | --- | --- |
+| cyberbro | `apps/litellm/config.yaml` | `mcp-cyberbro` sidecar, 8013 | none | all |
+| homarr | LiteLLM database (`mcp-gateway.sh`) | `http://172.17.0.24:30100/api/mcp/mcp` | `nabla/prod/homarr` `HOMARR_API_KEY`, `api_key` auth sent as `ApiKey` (`upstream_token_header`) | 77 tools Homarr annotates `readOnlyHint` (`scripts/litellm/homarr-readonly-tools.json`) |
+| grafana | LiteLLM database (`mcp-gateway.sh`) | App `grafana-observability` (`mcpgrafana`), 8014, `-disable-write` | bearer `MCP_GRAFANA_SERVER_TOKEN` (`nabla/prod/grafana-observability`) | Viewer role |
 
-- `scripts/mcp/materialize-keys.sh`, run with Vaultwarden unlocked in the owner's
-  terminal, writes the files in mode 600 and never prints a value. A missing
-  field is reported and skipped (exit 3).
-- `http-remote.sh` bridges Streamable HTTP to stdio with `mcp-remote@0.16.5`
-  and `--header-file`, and Grafana gets `--env-file`: no key reaches a command line.
-- `gatus.sh` builds `adambenhassen/gatus-mcp` at a pinned commit, serves it on a
-  random `127.0.0.1` port for the session only, without `GATUS_TOKEN`.
-- The Homarr key is the full API key: its MCP exposes write tools
-  (`app_delete`, `apiKeys_delete`...). Only a gateway filter or a dedicated
-  Homarr user would narrow it.
+- The servers share the access group `nabla-mcp`. The client key
+  `mcp-claude-code` (`nabla/prod/litellm-mcp-client`) grants that group and no
+  LLM model (`no-default-models`).
+- Upstream credentials of the database servers are encrypted by LiteLLM with
+  `LITELLM_SALT_KEY`; LiteLLM needs no extra env file. Two security contracts
+  shaped this: the root installer writes only `runtime/<app>/.env.secrets`, and an
+  `env_file` must sit under the runtime directory of its own Compose App.
+- The Grafana MCP is its own TrueNAS App, `apps/grafana-observability`, named
+  after its manifest entry: its runtime file holds only the Viewer token and the
+  bearer token, never the Grafana admin password.
+  `sudo bash scripts/truenas/deploy-grafana-observability.sh --check|--apply` on
+  TrueNAS creates it and checks that it refuses a call without the bearer (401).
+- `scripts/grafana/mcp-identity.sh check|apply` keeps the Grafana side as code:
+  - the admin password lives in Vaultwarden (`nabla/prod/grafana`);
+  - the `mcp-readonly` Viewer service account comes from OpenTofu (`infrastructure/grafana`);
+  - its token goes straight into Vaultwarden, never into the OpenTofu state.
+- `scripts/litellm/mcp-gateway.sh check|apply` (owner terminal, Vaultwarden unlocked):
+  - fills `MCP_GRAFANA_SERVER_TOKEN` and installs the `grafana-observability`
+    runtime file with `materialize_runtime.py --ssh truenas`;
+  - upserts the homarr and grafana servers through the admin API (`/v1/mcp/server`);
+  - mints the client key into `~/.config/nabla/mcp/litellm-gateway.headers` (600).
+- `.mcp.json` entry `nabla-mcp`: `scripts/mcp/http-remote.sh` bridges the gateway to
+  stdio with `mcp-remote@0.16.5 --header-file`. The Claude desktop app passes no
+  shell variable to MCP servers, and no key reaches a command line.
+- `scripts/mcp/materialize-keys.sh` rewrites the header files from Vaultwarden on a new workstation.
+
+Still local until they get a server-side home:
+
+- `gatus.sh` builds `adambenhassen/gatus-mcp` at a pinned commit and serves it
+  on a random `127.0.0.1` port for the session, without `GATUS_TOKEN`. There is no
+  published image to run beside Gatus yet.
+- `fastapi-sample` (`X-MCP-Key`) waits for `MCP_OPS_KEY` in Sample's TrueNAS runtime.
+- `truenas-readonly` keeps its TLS-pinned launcher.
 
 ## MCP environment inventory
 

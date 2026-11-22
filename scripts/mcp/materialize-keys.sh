@@ -13,8 +13,7 @@ source "${HERE}/lib.sh"
 
 # file|Vaultwarden item|field|line written (printf format)
 TARGETS=(
-  "homarr.headers|nabla/prod/homarr|HOMARR_API_KEY|ApiKey: %s"
-  "grafana.env|nabla/prod/grafana-observability|GRAFANA_SERVICE_ACCOUNT_TOKEN|GRAFANA_SERVICE_ACCOUNT_TOKEN=%s"
+  "litellm-gateway.headers|nabla/prod/litellm-mcp-client|LITELLM_MCP_CLIENT_KEY|x-litellm-api-key: Bearer %s"
   "fastapi-sample.headers|nabla/prod/fastapisample|MCP_OPS_KEY|X-MCP-Key: %s"
 )
 
@@ -28,9 +27,7 @@ umask 077
 missing=0
 for target in "${TARGETS[@]}"; do
   IFS='|' read -r file item field line <<<"${target}"
-  if ! value="$(bw list items --search "${item}" | jq -er --arg n "${item}" --arg f "${field}" \
-    '[.[] | select(.name == $n)] | if length == 1 then .[0] else error("expected one item") end
-     | [.fields[]? | select(.name == $f) | .value | select(. != null and . != "")] | first // error("field absent")')"; then
+  if ! value="$(bw_field "${item}" "${field}")"; then
     echo "⚠️  ${file}: ${item} has no ${field}; skipped" >&2
     missing=$((missing + 1))
     continue

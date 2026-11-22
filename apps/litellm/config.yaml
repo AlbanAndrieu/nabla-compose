@@ -244,11 +244,18 @@ model_list:
   #     model: deepseek/deepseek-chat
   #     api_key: os.environ/DEEPSEEK_API_KEY
 
+# MCP gateway (owner decision 22/11/2026): clients reach every server at
+# http://172.17.0.24:4000/mcp/ with one virtual key whose object_permission grants
+# the nabla-mcp access group. Homarr and Grafana are registered in the LiteLLM
+# database by scripts/litellm/mcp-gateway.sh apply (admin API): their upstream
+# credentials stay encrypted there with LITELLM_SALT_KEY, never in an env file.
 mcp_servers:
   cyberbro:
+    # No pinned server_id: keys may already reference its generated id.
     transport: http
     url: os.environ/CYBERBRO_MCP_URL
     description: Cyberbro threat-intelligence and IoC analysis tools
+    access_groups: [nabla-mcp]
 
 general_settings:
   # master_key: sk_XXX

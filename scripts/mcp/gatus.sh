@@ -29,7 +29,7 @@ server=$!
 trap 'kill "${server}" 2>/dev/null || true' EXIT
 
 for _ in $(seq 50); do
-  curl -fsS -o /dev/null "http://127.0.0.1:${port}/health" 2>/dev/null && break
+  curl -fsS --noproxy "*" -o /dev/null "http://127.0.0.1:${port}/health" 2>/dev/null && break
   kill -0 "${server}" 2>/dev/null || {
     echo "gatus: gatus-mcp exited" >&2
     exit 1

@@ -5,13 +5,13 @@
       "command": "bash",
       "args": ["scripts/mcp/truenas-readonly.sh"]
     },
-    "homarr": {
+    "nabla-mcp": {
       "type": "stdio",
       "command": "bash",
       "args": [
         "scripts/mcp/http-remote.sh",
-        "homarr",
-        "http://172.17.0.24:30100/api/mcp/mcp"
+        "litellm-gateway",
+        "http://172.17.0.24:4000/mcp/"
       ]
     },
     "gatus": {
@@ -47,11 +47,6 @@
         "fastapi-sample",
         "http://172.17.0.24:8091/mcp"
       ]
-    },
-    "grafana": {
-      "type": "stdio",
-      "command": "bash",
-      "args": ["scripts/mcp/grafana.sh"]
     },
     "sentry": {
       "type": "stdio",
