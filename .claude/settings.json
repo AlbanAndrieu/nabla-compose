@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__terminal__read_terminal",
+      "mcp__truenas-readonly",
+      "Bash(shellcheck *)",
+      "Bash(ssh -O check truenas)",
+      "Bash(dig *)",
+      "Bash(ping -c *)",
+      "mcp__ccd_pr__get_status",
+      "Bash(systemctl is-active *)",
+      "Bash(tofu fmt -check *)",
+      "mcp__ccd_session_mgmt__list_sessions",
+      "Bash(getent *)",
+      "Bash(systemctl show *)",
+      "Bash(systemctl is-enabled *)",
+      "Bash(systemctl list-timers)",
+      "Bash(systemctl list-timers *)",
+      "mcp__plugin_vercel_vercel__get_runtime_logs",
+      "Bash(systemctl cat *)",
+      "Bash(lsblk)",
+      "Bash(lsblk *)",
+      "Bash(systemctl status *)",
+      "mcp__context7__query-docs",
+      "mcp__ccd_session_mgmt__list_events",
+      "mcp__ccd_session_mgmt__get_session",
+      "mcp__plugin_vercel_vercel__list_deployments",
+      "mcp__plugin_vercel_vercel__get_runtime_errors"
+    ]
+  }
+}
