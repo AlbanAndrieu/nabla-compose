@@ -33,7 +33,10 @@ class GithubAppAuthContract(unittest.TestCase):
         return Response(json.dumps(payload).encode())
 
     def test_missing_or_unsafe_runtime_key_rejected(self):
-        with mock.patch.object(app.os, "geteuid", return_value=0):
+        # Hermetic: the real /mnt/cpool path may be an unreadable NFS mount on the workstation.
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(app, "CONFIG", Path(tmp) / "github-app.json"), \
+                mock.patch.object(app.os, "geteuid", return_value=0):
             with self.assertRaises(app.GitHubArtifactError):
                 app.configuration()
 
