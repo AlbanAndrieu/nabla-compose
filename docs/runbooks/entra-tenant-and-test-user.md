@@ -1,9 +1,8 @@
 # Entra Nabla — compte personnel, deux YubiKeys et pilote H16
 
-**Actualisé le 22 novembre 2026.** Le compte Azure personnel, le tenant
-Entra ID Free et l'enrôlement des **deux YubiKeys** sont **déclarés par
-l'opérateur**, mais aucune authentification Microsoft n'a été vérifiée depuis
-les outils du dépôt. Les applications Graph/OIDC, le workspace HCP et les
+**Actualisé le 22 novembre 2026.** La connexion Azure CLI a confirmé le tenant
+Entra ID Free déclaré par l'opérateur ; l'enrôlement des **deux YubiKeys** sont **déclarés par
+l'opérateur**, mais aucune authentification Microsoft n'a été exécutée par les outils du dépôt. Les applications Graph/OIDC, le workspace HCP et les
 ressources IaC restent `NOT_APPLIED`.
 
 Source : [architecture, modèle de menace et signature YubiKey](../security/entra-id-homelab-lab.md).
@@ -73,6 +72,111 @@ Le PIN et le toucher restent sous le contrôle du navigateur/clé physique.
 **Licence :** Security Defaults et les passkeys peuvent être utilisées
 avec Entra ID Free. Imposer une force d'authentification Conditional Access
 « phishing-resistant » nécessite **Entra ID P1**.
+
+## Bootstrap Terraform contrôlé depuis la workstation (NOT_APPLIED)
+
+Le tenant personnel a été **confirmé par la sortie Azure CLI** fournie par
+l'opérateur le 22/11/2026 ; il n'existe toujours aucune preuve de création
+des applications, des rôles Graph ou de l'état HCP.
+
+**Prérequis** : disposer du workspace **HCP Free**
+`entra-nabla-state`, seul workspace de son organisation dédiée, en
+mode d'exécution **Local**. Préparer les credentials HCP personnels dans
+`TF_TOKEN_app_terraform_io` hors dépôt (ne les transmettre à personne).
+Le workspace, ses variables et ses secrets doivent rester distincts de
+tous les états Garage. Ne pas demander de ressources Azure payantes.
+
+L'authentification CLI utilise `AZURE_CONFIG_DIR` isolé et YubiKey FIDO2.
+Depuis un checkout à jour, dans un shell de confiance :
+
+```bash
+set -euo pipefail
+export AGENT_EXECUTION_MODE=workstation
+export ENTRA_NABLA_CONFIRMED=true
+export ENTRA_NABLA_TENANT_ID="<GUID-du-tenant-personnel>"
+export AZURE_CONFIG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nabla-entra/azure-cli"
+install -d -m 700 "$AZURE_CONFIG_DIR"
+
+# If not already logged in with the personal FIDO2 key:
+az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions
+bash scripts/entra/entra-nabla-preflight.sh
+export TF_VAR_tenant_id="$ENTRA_NABLA_TENANT_ID"
+export TF_VAR_nabla_tenant_confirmed=true
+export TF_VAR_enable_ci_identity_bootstrap=true
+export TF_VAR_enable_workload_pilot=false
+export TF_VAR_enable_group_management=false
+export TF_VAR_enable_user_management=false
+
+# Use the *Entra directory object ID*, never the subscription GUID or UPN.
+export TF_VAR_ci_bootstrap_operator_object_id="$(az ad signed-in-user show --query id -o tsv)"
+test -n "$TF_VAR_ci_bootstrap_operator_object_id"
+
+# Inspect existing app names FIRST to avoid creating duplicates. If they
+# already exist, import into the HCP state rather than creating another.
+az ad app list --filter "displayName eq 'entra-nabla-plan'" \
+  --query '[].{appId:appId,id:id}' --output table
+az ad app list --filter "displayName eq 'entra-nabla-apply'" \
+  --query '[].{appId:appId,id:id}' --output table
+
+# In a private directory, create HCP remote backend config. Substitute the
+# dedicated HCP *organization name* (not a secret).
+umask 077
+mkdir -p "$HOME/.local/state/nabla-entra/bootstrap"
+cat > "$HOME/.local/state/nabla-entra/bootstrap/hcp.tfbackend" <<'HCP'
+hostname = "app.terraform.io"
+organization = "<DEDICATED_HCP_ORGANIZATION>"
+workspaces { name = "entra-nabla-state" }
+HCP
+
+tofu -chdir=terraform/entra init -lockfile=readonly \
+  -backend-config="$HOME/.local/state/nabla-entra/bootstrap/hcp.tfbackend"
+tofu -chdir=terraform/entra validate
+tofu -chdir=terraform/entra plan -input=false -lock-timeout=5m \
+  -out="$HOME/.local/state/nabla-entra/bootstrap/plan.tfplan"
+tofu -chdir=terraform/entra show -no-color \
+  "$HOME/.local/state/nabla-entra/bootstrap/plan.tfplan"
+```
+
+**Acceptance gate before applying manually**: the plan should contain
+only the **two** CI app registrations, their home-tenant service
+principals, GitHub federated credentials, their requested (not consented)
+Graph API roles and the tenant `terraform_data` guard. No extra users,
+groups, demo workloads, Azure subscription RBAC, Defender plans,
+destroy/replacement or unknown tenant. A submitted plan is not approval.
+
+After reviewing the exact saved plan and confirming the HCP state is
+isolated and locked, an authorized operator may execute
+`tofu -chdir=terraform/entra apply -input=false <saved-plan-file>`
+**locally with the YubiKey interactive session**. This explicit
+operator-only bootstrap is an exception to the usual CI signed apply
+gate; no GitHub runner can bootstrap its own OIDC identity. Do **not**
+trigger a CI apply before this bootstrap.
+
+After apply, run
+`tofu -chdir=terraform/entra output entra_nabla_ci_client_ids`
+and
+`tofu -chdir=terraform/entra output entra_nabla_ci_principal_object_ids`.
+The two nonsecret Client IDs go to the matching GitHub protected
+environments as `ENTRA_GRAPH_CLIENT_ID`; save the stable operator
+object ID as `ENTRA_NABLA_OPERATOR_OBJECT_ID`, plus the tenant ID
+`ENTRA_NABLA_TENANT_ID`, HCP organization/workspace and HCP token
+in their appropriate variables/secrets.
+
+**Permissions and consent still require review**:
+the requested role for plan is `Application.Read.All`
+(broad application directory read); for apply
+`Application.ReadWrite.OwnedBy` (can create and manage owned apps).
+These **are requested in Terraform but not admin-consented or
+granted**. Explicit administrator consent occurs only after reviewing
+application principals, owners, subjects, exact role IDs and negative
+tests, and must be audited. `OwnedBy` must be proven to permit the
+future workload policy with only the intended app/SP ownership; if the
+test fails, *stop*, do not escalate to `Application.ReadWrite.All`.
+
+A failed bootstrap requires examining partial HCP state and Entra
+objects before retrying. Never delete the remote state or run
+`tofu apply -replace` to bypass guardrails. `prevent_destroy`
+makes accidental removals fail closed.
 
 ## Bootstrap des applications et environnement GitHub (non exécuté)
 
