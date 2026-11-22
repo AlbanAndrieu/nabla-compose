@@ -2,9 +2,9 @@
 
 ## Périmètre edge (F17)
 
-Le routeur existant `apps/sample/compose.yml` expose `sample.int.albandrieu.com` via Traefik; `terraform/cloudflare/tunnel.tofu` envoie le public directement au port 8091. Conserver ce direct pour rollback/probes autorisées, pas d'ouverture WAN. Réutiliser `apps/traefik/dynamic/crowdsec.yml`, log JSON Traefik et acquisition `apps/crowdsec/acquis.d/traefik.yaml`. Le bouncer v1.8.1 préparé n'est attaché à aucun router: réception canary hello avant FastAPI. CrowdSec AppSec est un listener/règles WAF différent du blocage IP LAPI; acquis.d/appsec.yaml, les deux collections et le profil middleware `crowdsec-appsec@file` sont maintenant CODED, attachés exclusivement aux routeurs canary public FastAPI. Vérifier version/rules/metrics, listener interne 7422 non publié, clé existante, requêtes bénignes et tests WAF positifs/négatifs avant bascule. Ratelimit Traefik middleware natif avec quotas établis par métriques (séparer webhooks et UI, limiter sur IP réellement prouvée, ne pas bloquer le tunnel entier). Pas de nouveau rate limiter applicatif.
+Le routeur privé `sample.int.albandrieu.com` est retiré d'`apps/sample/compose.yml` après le redéploiement FastAPI confirmé par l'opérateur ; `terraform/cloudflare/tunnel.tofu` envoie le public directement au port 8091. Conserver ce direct pour rollback/probes autorisées, pas d'ouverture WAN. Réutiliser `apps/traefik/dynamic/crowdsec.yml`, log JSON Traefik et acquisition `apps/crowdsec/acquis.d/traefik.yaml`. Le bouncer v1.8.1 préparé n'est attaché à aucun router: réception canary hello avant FastAPI. CrowdSec AppSec est un listener/règles WAF différent du blocage IP LAPI; acquis.d/appsec.yaml, les deux collections et le profil middleware `crowdsec-appsec@file` sont maintenant CODED, attachés exclusivement aux routeurs canary public FastAPI. Vérifier version/rules/metrics, listener interne 7422 non publié, clé existante, requêtes bénignes et tests WAF positifs/négatifs avant bascule. Ratelimit Traefik middleware natif avec quotas établis par métriques (séparer webhooks et UI, limiter sur IP réellement prouvée, ne pas bloquer le tunnel entier). Pas de nouveau rate limiter applicatif.
 
-Canary: créer route Traefik public sans supprimer route LAN; prouver TLS/Host/SNI, headers Cloudflare Access JWT intacts, trusted forwarded headers et peer cloudflared exact (pas tous les réseaux privés), HMAC et absence de spoof; observer metrics Traefik/CrowdSec, vérifier charge UI et 429; changer la route Tunnel via plan signé et tester externe. Ne pas faire confiance à insecureSkipVerify global existant: revoir TLS origine et CA par service. Retirer accès direct seulement après preuves de sondes et rollback. Cloudflare Access exception path webhook reste off.
+Canary: maintenir les routeurs publics Traefik opt-in, sans réintroduire de route privée FastAPI ; prouver TLS/Host/SNI, headers Cloudflare Access JWT intacts, trusted forwarded headers et peer cloudflared exact (pas tous les réseaux privés), HMAC et absence de spoof; observer metrics Traefik/CrowdSec, vérifier charge UI et 429; changer la route Tunnel via plan signé et tester externe. Ne pas faire confiance à insecureSkipVerify global existant: revoir TLS origine et CA par service. Retirer accès direct seulement après preuves de sondes et rollback. Cloudflare Access exception path webhook reste off.
 
 WAF edge: data sources `terraform/cloudflare/waf-inventory.tofu` opt-in, provider 5.28.1; `TF_VAR_waf_inventory_enabled=true` sur plan OpenTofu opérateur (si Terragrunt transmet la valeur; sinon ajouter input temporaire local hors Git). Inventorier rulesets existants et détails via lecture autorisée, comparer plan avant/après, préserver règles/challenges/skip existants et refs, aucune nouvelle règle Cloudflare rate limit standard; utiliser WAF custom pour contrôle méthode/path/IP GitHub, managed protection selon plan. Cloudflare et CrowdSec AppSec complémentaires, pas de double rate limit. Import-first, jamais d'apply automatique; un ruleset zone contient toutes les règles de sa phase. Les données brutes restent dans le state Garage privé. Runtime/plan NOT_RUN.
 
@@ -22,6 +22,19 @@ Réutiliser `apps/grafana/config/grafana-dashboards.yml`, dossiers provisionnés
 
 References: https://docs.crowdsec.net/docs/appsec/quickstart/traefik/ ; https://developers.cloudflare.com/terraform/additional-configurations/waf-custom-rules/ ; https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.28.1/docs/data-sources/rulesets.md .
 
+**Réception opérateur (21/11, après mise à jour CrowdSec)** :
+`appsec_collections=PASS_INSTALLED`, métriques AppSec disponibles,
+7422 non publié et `traefik_network` joint. Ce sont des preuves de
+préparation, **pas encore** une preuve de blocage HTTP 403 ni de
+protection publique. La frontière dashboard/métriques Traefik reste
+`NOT_VERIFIED_REQUIRE_AUTH_AND_METRICS_RECEIPT`.
+Le certificat vérifié pour le canary utilise désormais le SNI
+`traefik.int.albandrieu.com` (certificat interne Traefik), et le
+Host de routage reste `fastapi-sample.albandrieu.com`.
+La variable `APP_DOMAIN` FastAPI dans le conteneur est indépendante
+du routeur privé retiré ; sa migration doit être vérifiée au niveau de
+l'application avant changement de l'environnement runtime.
+
 ## Public Traefik canary CODED (21/11/2026)
 
 `apps/sample/compose.yml` now has a dedicated public-host router with
@@ -30,13 +43,13 @@ rateLimit. Ordinary UI: **30/s, burst 100**; GitHub signed POST path has a
 separate precedence router: **2/s, burst 10**. These are provisional shared
 source-IP budgets, not measured deployment capacity; confirm actual
 Cloudflare/Traefik IP provenance and traffic before applying. Neither route
-changes the existing `sample.int.albandrieu.com` router.
+recreates the retired `sample.int.albandrieu.com` router.
 
 `terraform/cloudflare/tunnel.tofu` has an explicit boolean switch
 `fastapi_sample_tunnel_via_traefik=false` by default. The reviewed canary
 target is `https://traefik:443` (Traefik joins cloudflared's own network
 `ix-cloudflared_default`), `origin_server_name =
-sample.int.albandrieu.com` and `http_host_header =
+traefik.int.albandrieu.com` and `http_host_header =
 fastapi-sample.albandrieu.com` with TLS verification. It must not silently
 set `no_tls_verify=true`. **Shared tunnel state:** confirm the *entire* plan
 does not reconfigure unrelated hostnames and review any changes from null
@@ -66,7 +79,7 @@ Le contrôle runtime distingue explicitement **configuration/collections/metrics
 
 ### Preuve WAF 403 contrôlée (canary, pas le trafic public)
 
-La nouvelle règle `nabla/fastapi-canary` ne correspond qu'à `GET /__nabla_appsec_canary_7de17a3fb1134292` ; elle est installée dans les répertoires AppSec `nabla/` et référencée après `crowdsecurity/appsec-default`. Montages dédiés en lecture seule. Vérifier `cscli appsec-rules list` et `cscli appsec-configs list`, redémarrer CrowdSec si nécessaire selon le runbook, avant test. Tester depuis un conteneur curl éphémère sur `traefik_network` après confirmation de la résolution et de la chaîne TLS, pour que toute décision CrowdSec éventuelle concerne seulement son adresse de test. Exécuter une requête GET au chemin canary avec SNI `sample.int.albandrieu.com` et en-tête Host `fastapi-sample.albandrieu.com`. Réponse **403 attendue** pour cette règle ; distinguer `403` AppSec confirmé par métriques/règle et `403` provenant d'Access ou de FastAPI. Comparer une requête témoin `/health`, vérifier les compteurs `cscli metrics show appsec`, les logs de règle sans contenu sensible et l'absence de blocage de POST signé /webhooks/github. La règle canary ne protège aucune route métier ; elle ne remplace pas le test des règles Hub en production. Test réel NOT_RUN.
+La nouvelle règle `nabla/fastapi-canary` ne correspond qu'à `GET /__nabla_appsec_canary_7de17a3fb1134292` ; elle est installée dans les répertoires AppSec `nabla/` et référencée après `crowdsecurity/appsec-default`. Montages dédiés en lecture seule. Vérifier `cscli appsec-rules list` et `cscli appsec-configs list`, redémarrer CrowdSec si nécessaire selon le runbook, avant test. Tester depuis un conteneur curl éphémère sur `traefik_network` après confirmation de la résolution et de la chaîne TLS, pour que toute décision CrowdSec éventuelle concerne seulement son adresse de test. Exécuter une requête GET au chemin canary avec SNI `traefik.int.albandrieu.com` et en-tête Host `fastapi-sample.albandrieu.com`. Réponse **403 attendue** pour cette règle ; distinguer `403` AppSec confirmé par métriques/règle et `403` provenant d'Access ou de FastAPI. Comparer une requête témoin `/health`, vérifier les compteurs `cscli metrics show appsec`, les logs de règle sans contenu sensible et l'absence de blocage de POST signé /webhooks/github. La règle canary ne protège aucune route métier ; elle ne remplace pas le test des règles Hub en production. Test réel NOT_RUN.
 
 ### P0 — Traefik admin boundary (21/11 ; blocker pour H04)
 

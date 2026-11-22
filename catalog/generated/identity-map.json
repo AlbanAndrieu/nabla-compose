@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23",
+  "catalogRevision": "sha256:99551e175c705282256bea4dc35276727cecd7f02a78aa5d55cea54157387c5a",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -1106,6 +1106,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/hello-nginx",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "hello-nginx-traefik",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/homarr",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "homarr",
@@ -1115,6 +1121,12 @@
       "entityRef": "component:default/homeassistant",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "homeassistant",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/honeypot",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "honeypot",
       "sourceType": "gatus"
     },
     {

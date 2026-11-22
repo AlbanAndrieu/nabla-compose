@@ -35,17 +35,24 @@ services:
             - hello.int.albandrieu.com
           protocol: HTTPS
           visibility: public
-          gatewayRef: resource:default/pfsense-haproxy
+          gatewayRef: component:default/traefik
           backendPort: web
           access:
             required: false
           riskAcceptance:
             id: hello-int-public-static-page
             status: accepted
-            reason: "hello.int.albandrieu.com is an intentionally public static nginx test page reached directly through pfSense WAN HAProxy and Traefik, without Cloudflare. It serves no data and needs no authentication; keep it static and remove the public DNS record if it ever serves anything else."
+            reason: "hello.int.albandrieu.com has a reviewed public DNS exception managed by Cloudflare DDNS, with TLS/Host routing to the static Nginx page through Traefik validated on the LAN; public WAN reachability is unverified since pfSense HAProxy was retired. It serves no private data and needs no authentication; remove the public DNS exception if the static-only contract changes."
             control: static-content-no-data
             reviewAfter: null
     restart: unless-stopped
+    # Lightweight backend health; Traefik and Gatus verify the TLS route independently.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     mem_limit: 128m
     environment:
       UID: 1000

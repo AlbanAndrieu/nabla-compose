@@ -1,12 +1,38 @@
-# Traefik alert rules (from awesome-prometheus-alerts)
+---
+# Target reachability and actual Traefik service state are distinct signals.
+# A count(metric)==0 cannot alert on an entirely missing time series.
 groups:
-- name: Traefik
-  rules:
-    - alert: TraefikServiceDown
-      expr: count(traefik_service_server_up) by (service) == 0
-      for: 0m
-      labels: {severity: critical}
-      annotations:
-        summary: Traefik service down
-        description: "All Traefik services are down."
-# ... (add more Traefik error rules from awesome-prometheus-alerts)
+  - name: Traefik
+    rules:
+      - alert: TraefikMetricsTargetDown
+        expr: up{job="traefik"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          scope: observability
+          impact: blind_spot
+        annotations:
+          summary: "Prometheus cannot scrape Traefik"
+          description: "Traefik metrics endpoint :8082 has been unreachable for at least two minutes."
+
+      - alert: TraefikMetricsTargetAbsent
+        expr: absent(up{job="traefik"})
+        for: 5m
+        labels:
+          severity: warning
+          scope: observability
+          impact: unverified
+        annotations:
+          summary: "Traefik target is missing from Prometheus"
+          description: "The traefik scrape target no longer emits an up series; check Prometheus discovery and configuration."
+
+      - alert: TraefikServiceDown
+        expr: sum by (service) (traefik_service_server_up) == 0
+        for: 2m
+        labels:
+          severity: warning
+          scope: network
+          impact: degraded
+        annotations:
+          summary: "Traefik upstream service has no healthy backend"
+          description: "Traefik reports no healthy upstream servers for {{ $labels.service }}. This alert needs the per-service metric to exist; a missing scrape is handled separately."
