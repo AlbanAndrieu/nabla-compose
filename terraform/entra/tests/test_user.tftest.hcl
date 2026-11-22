@@ -7,7 +7,7 @@ mock_provider "azuread" {
   }
   mock_data "azuread_domains" {
     defaults = { domains = [{
-      domain_name   = "nablalab.onmicrosoft.com", initial = true, default = true, verified = true,
+      domain_name   = "nabla-test.onmicrosoft.com", initial = true, default = true, verified = true,
       admin_managed = true, root = true, authentication_type = "Managed", supported_services = []
     }] }
   }
@@ -17,8 +17,8 @@ mock_provider "azuread" {
 }
 
 variables {
-  tenant_id            = "00000000-0000-0000-0000-000000000001"
-  lab_tenant_confirmed = true
+  tenant_id              = "00000000-0000-0000-0000-000000000001"
+  nabla_tenant_confirmed = true
 }
 
 run "ci_default_creates_no_user" {
@@ -46,7 +46,7 @@ run "user_gets_a_one_time_password_in_the_initial_domain" {
   }
 
   assert {
-    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-lab-user@nablalab.onmicrosoft.com"
+    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-user@nabla-test.onmicrosoft.com"
     error_message = "the test user must live in the tenant's initial onmicrosoft.com domain"
   }
   assert {
