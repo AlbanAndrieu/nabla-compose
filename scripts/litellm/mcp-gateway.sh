@@ -153,7 +153,8 @@ for server in homarr grafana; do
   api "${MASTER_KEY}" GET "/v1/mcp/server/${server}"
   if [[ "${API_CODE}" == 200 ]]; then method=PUT; else method=POST; fi
   api "${MASTER_KEY}" "${method}" /v1/mcp/server "${payload}"
-  [[ "${API_CODE}" == 200 || "${API_CODE}" == 201 ]] || die "${method} MCP server ${server} failed (HTTP ${API_CODE})"
+  # LiteLLM answers 200/201 to POST and 202 to PUT.
+  [[ "${API_CODE}" == 20[012] ]] || die "${method} MCP server ${server} failed (HTTP ${API_CODE})"
   echo "✅ MCP server ${server} (${method})"
 done
 unset upstream payload

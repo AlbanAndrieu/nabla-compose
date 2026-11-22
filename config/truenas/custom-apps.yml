@@ -143,6 +143,11 @@ apps:
     include:
       - apps/litellm/compose.yml
     state: running
+  - name: mcp-gatus
+    include:
+      - apps/mcp-gatus/compose.yml
+    state: running
+    note: read-only Gatus MCP behind the LiteLLM MCP gateway, built from a pinned commit
   - name: mcp-grafana
     include:
       - apps/mcp-grafana/compose.yml

@@ -30,12 +30,11 @@ def _compose(app: str) -> dict:
     return yaml.safe_load((ROOT / f"apps/{app}/compose.yml").read_text(encoding="utf-8"))["services"]
 
 
-def test_mcp_json_reaches_homarr_and_grafana_through_the_gateway():
+def test_mcp_json_reaches_homarr_grafana_and_gatus_through_the_gateway():
     servers = _servers()
     assert servers["nabla-mcp"] == _stdio("scripts/mcp/http-remote.sh", "litellm-gateway", "http://172.17.0.24:4000/mcp/")
     assert servers["fastapi-sample"] == _stdio("scripts/mcp/http-remote.sh", "fastapi-sample", "http://172.17.0.24:8091/mcp")
-    assert servers["gatus"] == _stdio("scripts/mcp/gatus.sh")
-    assert "homarr" not in servers and "grafana" not in servers
+    assert not {"homarr", "grafana", "gatus"} & set(servers)
 
 
 def _payload(server: str, key: str) -> dict:
@@ -51,7 +50,9 @@ def _payload(server: str, key: str) -> dict:
 
 def test_gateway_registers_upstream_credentials_in_the_litellm_database_only():
     config = yaml.safe_load((ROOT / "apps/litellm/config.yaml").read_text(encoding="utf-8"))["mcp_servers"]
-    assert set(config) == {"cyberbro"} and config["cyberbro"]["access_groups"] == ["nabla-mcp"]
+    # Credential-less servers live in config.yaml, the others in the database.
+    assert set(config) == {"cyberbro", "gatus"}
+    assert all(server["access_groups"] == ["nabla-mcp"] for server in config.values())
     litellm = _compose("litellm")["litellm"]
     assert litellm["env_file"] == ["/mnt/cpool/secrets/runtime/litellm/.env.secrets"]
     assert not {"HOMARR_API_KEY", "MCP_GRAFANA_SERVER_TOKEN"} & set(litellm.get("environment", {}))
@@ -127,11 +128,17 @@ def test_http_launcher_refuses_a_missing_or_readable_headers_file(tmp_path, mode
     assert "not-a-real-key" not in result.stdout + result.stderr
 
 
-def test_gatus_runs_pinned_on_loopback_without_a_write_token():
-    text = (MCP / "gatus.sh").read_text(encoding="utf-8")
-    assert "GATUS_MCP_COMMIT=4c7ed599114d920437bd37f6590744573e361e46" in text
-    assert "MCP_HOST=127.0.0.1" in text
-    assert "GATUS_TOKEN" not in text.split("set -euo pipefail", 1)[1]
+def test_gatus_mcp_is_a_pinned_read_only_app_without_a_write_token():
+    commit = "4c7ed599114d920437bd37f6590744573e361e46"
+    sidecar = _compose("mcp-gatus")["mcp-gatus"]
+    assert sidecar["build"]["args"]["GATUS_MCP_COMMIT"] == commit
+    assert sidecar["read_only"] is True and sidecar["cap_drop"] == ["ALL"]
+    assert "GATUS_TOKEN" not in sidecar["environment"] and "env_file" not in sidecar
+    dockerfile = (ROOT / "apps/mcp-gatus/Dockerfile").read_text(encoding="utf-8")
+    assert f"ARG GATUS_MCP_COMMIT={commit}" in dockerfile
+    assert all("@sha256:" in line or line == "FROM scratch" for line in dockerfile.splitlines() if line.startswith("FROM "))
+    config = yaml.safe_load((ROOT / "apps/litellm/config.yaml").read_text(encoding="utf-8"))["mcp_servers"]
+    assert config["gatus"]["url"] == "http://172.17.0.24:8015/mcp"
 
 
 def test_materializer_needs_vaultwarden(tmp_path):

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:cd11a5c2600c7d9e87bee25d6755a168f69364dbd79cc6dc0c32d2d61a1ab61e",
+  "catalogRevision": "sha256:046fd884bb7d214a5aee0e5e36988f2533a3209fec8d5aa3aac1908e0515b006",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1508,6 +1508,26 @@
         "networks": [
           "intranet"
         ]
+      }
+    },
+    {
+      "id": "mcp-gatus",
+      "name": "Gatus MCP",
+      "kind": "mcp-server",
+      "category": "observability",
+      "sourcePath": "apps/mcp-gatus/compose.yml",
+      "composeService": "mcp-gatus",
+      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8015
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-gatus"
       }
     },
     {

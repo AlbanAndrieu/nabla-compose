@@ -256,6 +256,12 @@ mcp_servers:
     url: os.environ/CYBERBRO_MCP_URL
     description: Cyberbro threat-intelligence and IoC analysis tools
     access_groups: [nabla-mcp]
+  gatus:
+    # Read-only (no GATUS_TOKEN), no upstream credential: App mcp-gatus.
+    transport: http
+    url: http://172.17.0.24:8015/mcp
+    description: Gatus endpoint statuses, uptime and response times (read-only)
+    access_groups: [nabla-mcp]
 
 general_settings:
   # master_key: sk_XXX

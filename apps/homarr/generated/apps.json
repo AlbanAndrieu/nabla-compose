@@ -783,6 +783,18 @@
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients."
     },
     {
+      "id": "mcp-gatus",
+      "entityRef": "component:default/mcp-gatus",
+      "name": "Gatus MCP",
+      "group": "observability",
+      "sourcePath": "apps/mcp-gatus/compose.yml",
+      "composeService": "mcp-gatus",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway."
+    },
+    {
       "id": "mcp-grafana",
       "entityRef": "component:default/mcp-grafana",
       "name": "Grafana MCP",

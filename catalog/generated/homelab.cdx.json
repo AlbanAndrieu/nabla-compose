@@ -385,6 +385,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/mcp-gatus"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/mcp-grafana"
     },
     {
@@ -1003,7 +1007,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f"
+        "value": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1011,7 +1015,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:a37c53fd-4cfb-cb76-133b-1bf76c3c85ca",
+  "serialNumber": "urn:uuid:ff830766-b1ff-75c2-6170-7cb003b1af90",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3119,6 +3123,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-gatus",
+      "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway.",
+      "name": "Gatus MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-gatus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-gatus/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

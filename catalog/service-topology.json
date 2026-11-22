@@ -1603,6 +1603,25 @@
       }
     },
     {
+      "id": "mcp-gatus",
+      "name": "Gatus MCP",
+      "kind": "mcp-server",
+      "category": "observability",
+      "sourcePath": "apps/mcp-gatus/compose.yml",
+      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-gatus"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8015
+      }
+    },
+    {
       "id": "mcp-grafana",
       "name": "Grafana MCP",
       "kind": "mcp-server",
@@ -4975,6 +4994,16 @@
     },
     {
       "source": "litellm",
+      "target": "mcp-gatus",
+      "type": "routesTo",
+      "strength": "optional",
+      "description": "The LiteLLM MCP gateway routes Gatus MCP tool calls to the mcp-gatus App.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
+      ]
+    },
+    {
+      "source": "litellm",
       "target": "mcp-grafana",
       "type": "routesTo",
       "strength": "optional",
@@ -5051,6 +5080,36 @@
       "description": "LiteLLM can consume this streamable HTTP MCP endpoint as an upstream MCP server.",
       "evidence": [
         "apps/litellm/config.yaml:mcp_servers.cyberbro"
+      ]
+    },
+    {
+      "source": "mcp-gatus",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:mcp-gatus.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "mcp-gatus",
+      "target": "gatus",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Gatus MCP reads the Gatus status API on its LAN port.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:GATUS_URL"
+      ]
+    },
+    {
+      "source": "mcp-gatus",
+      "target": "litellm",
+      "type": "providesApi",
+      "strength": "optional",
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
       ]
     },
     {

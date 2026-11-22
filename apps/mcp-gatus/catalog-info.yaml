@@ -1,0 +1,23 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mcp-gatus
+  title: Gatus MCP
+  description: Read-only MCP server over Gatus, served to the LiteLLM MCP gateway.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - observability
+    - mcp
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-gatus/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  subcomponentOf: component:default/gatus

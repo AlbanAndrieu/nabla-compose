@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f",
+  "catalogRevision": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -65,6 +65,7 @@
     "litellm": "component:default/litellm",
     "loki": "resource:default/loki",
     "mcp-cyberbro": "component:default/mcp-cyberbro",
+    "mcp-gatus": "component:default/mcp-gatus",
     "mcp-grafana": "component:default/mcp-grafana",
     "mimir": "resource:default/mimir",
     "minio": "resource:default/minio",
@@ -1742,6 +1743,25 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "observability",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "id": "mcp-gatus",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8015,
+        "type": "port"
+      },
+      "name": "Gatus MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-gatus",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-gatus/compose.yml"
     },
     {
       "category": "observability",
@@ -3539,7 +3559,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:cd11a5c2600c7d9e87bee25d6755a168f69364dbd79cc6dc0c32d2d61a1ab61e",
+  "operatorRevision": "sha256:046fd884bb7d214a5aee0e5e36988f2533a3209fec8d5aa3aac1908e0515b006",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -5147,6 +5167,16 @@
       "type": "routesTo"
     },
     {
+      "description": "The LiteLLM MCP gateway routes Gatus MCP tool calls to the mcp-gatus App.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcp-gatus",
+      "type": "routesTo"
+    },
+    {
       "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.",
       "evidence": [
         "scripts/litellm/mcp-gateway.sh:grafana"
@@ -5222,6 +5252,36 @@
         "apps/litellm/config.yaml:mcp_servers.cyberbro"
       ],
       "source": "mcp-cyberbro",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:mcp-gatus.x-nabla.runtime.containerService"
+      ],
+      "source": "mcp-gatus",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "Gatus MCP reads the Gatus status API on its LAN port.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:GATUS_URL"
+      ],
+      "source": "mcp-gatus",
+      "strength": "required",
+      "target": "gatus",
+      "type": "consumesApi"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
+      ],
+      "source": "mcp-gatus",
       "strength": "optional",
       "target": "litellm",
       "type": "providesApi"
@@ -8581,6 +8641,26 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "observability",
+      "composeService": "mcp-gatus",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Gatus endpoint statuses, served to the LiteLLM MCP gateway.",
+      "id": "mcp-gatus",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8015,
+        "type": "port"
+      },
+      "name": "Gatus MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-gatus",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-gatus/compose.yml"
     },
     {
       "category": "observability",

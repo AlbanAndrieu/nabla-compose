@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f",
+  "catalogRevision": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4409,6 +4409,44 @@
           "containerService": "mcp-cyberbro",
           "provider": "truenas-app",
           "source": "apps/cyberbro/compose.yml#services/mcp-cyberbro"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/mcp-gatus",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-gatus/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mcp-gatus",
+        "tags": [
+          "observability",
+          "mcp"
+        ],
+        "title": "Gatus MCP"
+      },
+      "sourcePath": "apps/mcp-gatus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/gatus",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mcp-gatus",
+          "provider": "truenas-app",
+          "source": "apps/mcp-gatus/compose.yml#services/mcp-gatus"
         }
       }
     },

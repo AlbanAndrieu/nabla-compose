@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f",
+  "catalogRevision": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -377,6 +377,12 @@
       "entityRef": "component:default/litellm",
       "evidence": "apps/litellm/compose.yml:services.litellm.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/litellm/compose.yml#services/litellm",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/mcp-gatus",
+      "evidence": "apps/mcp-gatus/compose.yml:services.mcp-gatus.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/mcp-gatus/compose.yml#services/mcp-gatus",
       "sourceType": "compose"
     },
     {

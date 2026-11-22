@@ -14,11 +14,6 @@
         "http://172.17.0.24:4000/mcp/"
       ]
     },
-    "gatus": {
-      "type": "stdio",
-      "command": "bash",
-      "args": ["scripts/mcp/gatus.sh"]
-    },
     "uptime-kuma": {
       "type": "stdio",
       "command": "npx",

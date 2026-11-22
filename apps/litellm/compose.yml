@@ -72,6 +72,12 @@ services:
           description: The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.
           evidence:
             - scripts/litellm/mcp-gateway.sh:grafana
+        - target: mcp-gatus
+          type: routesTo
+          strength: optional
+          description: The LiteLLM MCP gateway routes Gatus MCP tool calls to the mcp-gatus App.
+          evidence:
+            - apps/litellm/config.yaml:mcp_servers.gatus
       # LAN only: the public litellm.albandrieu.com route was retired on 05/11/2026.
       exposure:
         - name: lan
