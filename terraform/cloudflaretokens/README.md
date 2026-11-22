@@ -9,6 +9,7 @@ sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
 | --- | --- |
 | Compte `bdfe00ee…` | Access: Apps and Policies Write, Cloudflare Tunnel Write, Workers Scripts Write (Worker `mta-sts`) |
 | Les 20 zones du compte, listées par identifiant (hors `albandrieu.com` : enregistrements mail de [`mail.tofu`](../cloudflare/mail.tofu) seulement) | DNS Write, Workers Routes Write (domaines `mta-sts.*`) |
+| Zone `albandrieu.com` seulement | Zone Transform Rules Write (Managed Transforms de [`managed-transforms.tofu`](../cloudflare/managed-transforms.tofu), 22/11) |
 | Condition | adresses clientes de `TF_VAR_opentofu_token_client_ips` |
 | Expiration | `opentofu_token_expires_on` (rotation : avancer la date) |
 

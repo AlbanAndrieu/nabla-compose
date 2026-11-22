@@ -17,9 +17,11 @@ locals {
   # MTA-STS Worker with its custom domains (mail.tofu).
   opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write", "Workers Scripts Write"]
   opentofu_zone_permissions    = ["DNS Write", "Workers Routes Write"]
+  # Managed Transforms of albandrieu.com only (managed-transforms.tofu).
+  opentofu_home_zone_permissions = ["Zone Transform Rules Write"]
   opentofu_missing_permissions = concat(
     [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
-    [for name in local.opentofu_zone_permissions : name if !contains(keys(local.zone_group_ids), name)],
+    [for name in concat(local.opentofu_zone_permissions, local.opentofu_home_zone_permissions) : name if !contains(keys(local.zone_group_ids), name)],
   )
   # CrowdSec Cloudflare Worker bouncer (apps/crowdsec/cloudflare-worker-bouncer.yaml):
   # the permissions its documentation lists, on albandrieu.com only.
@@ -50,6 +52,11 @@ resource "cloudflare_account_token" "opentofu" {
         for id in concat([var.zone_id, var.albanandrieu_zone_id], values(var.mail_zone_ids)) :
         "com.cloudflare.api.account.zone.${id}" => "*"
       })
+    },
+    {
+      effect            = "allow"
+      permission_groups = [for name in local.opentofu_home_zone_permissions : { id = local.zone_group_ids[name][0] }]
+      resources         = jsonencode({ "com.cloudflare.api.account.zone.${var.zone_id}" = "*" })
     },
   ]
 

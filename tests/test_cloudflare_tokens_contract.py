@@ -26,7 +26,11 @@ def test_opentofu_token_has_exactly_the_apply_permissions() -> None:
     assert sorted(re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', default)) == sorted(
         re.findall(r'"([a-z0-9.-]+)"\s*=\s*"([0-9a-f]{32})"', shared))
     assert len(re.findall(r'"[0-9a-f]{32}"', shared)) == 18
-    assert text.count('effect            = "allow"') == 4
+    # Managed Transforms (managed-transforms.tofu): albandrieu.com only.
+    assert 'opentofu_home_zone_permissions = ["Zone Transform Rules Write"]' in text
+    assert ('resources         = jsonencode({ "com.cloudflare.api.account.zone.${var.zone_id}" = "*" })'
+            in text)
+    assert text.count('effect            = "allow"') == 5
 
 
 def test_crowdsec_bouncer_token_is_scoped_to_the_main_zone() -> None:
