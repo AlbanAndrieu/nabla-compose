@@ -13,7 +13,7 @@ resource "terraform_data" "personal_tenant_guard" {
 
 locals {
   groups    = toset(["readers", "operators"])
-  workloads = toset(["reader", "denied"])
+  workloads = var.enable_workload_pilot ? toset(["reader", "denied"]) : toset([])
 }
 
 resource "azuread_group" "nabla" {

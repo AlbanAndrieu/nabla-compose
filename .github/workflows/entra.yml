@@ -137,6 +137,11 @@ jobs:
       TF_VAR_enable_group_management: "false"
       TF_VAR_enable_user_management: "false"
       TF_VAR_nabla_tenant_confirmed: "true"
+      # Keep bootstrap objects in the same HCP state, but never create them via CI:
+      # check-plan.py refuses these application and FIC resource addresses.
+      TF_VAR_enable_ci_identity_bootstrap: "true"
+      TF_VAR_enable_workload_pilot: "false"
+      TF_VAR_ci_bootstrap_operator_object_id: "${{ vars.ENTRA_NABLA_OPERATOR_OBJECT_ID }}"
       TF_VAR_tenant_id: "${{ vars.ENTRA_NABLA_TENANT_ID }}"
       TF_VAR_ci_graph_client_id: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
       ARM_CLIENT_ID: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
@@ -168,6 +173,7 @@ jobs:
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || exit 2
           [[ "$TF_VAR_tenant_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
           [[ "$ARM_CLIENT_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
+          [[ "$TF_VAR_ci_bootstrap_operator_object_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
           [[ "$HCP_ORG" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
           [[ "$HCP_WORKSPACE" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
           [[ -n "$TF_TOKEN_app_terraform_io" ]] || exit 2

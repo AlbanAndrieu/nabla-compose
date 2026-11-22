@@ -53,3 +53,30 @@ variable "test_user_initial_password" {
   sensitive   = true
   default     = null
 }
+
+# One-time, explicitly approved workstation bootstrap. CI keeps the two apps
+# declared, but has no authorization to create, mutate or delete them.
+variable "enable_ci_identity_bootstrap" {
+  description = "Opt-in to GitHub OIDC plan/apply registration bootstrap in the trusted personal tenant."
+  type        = bool
+  default     = false
+}
+
+variable "ci_bootstrap_operator_object_id" {
+  description = "Entra directory object ID of the personal operator, not an email; stable across CLI and OIDC."
+  type        = string
+  default     = ""
+  validation {
+    condition = (
+      var.ci_bootstrap_operator_object_id == "" ||
+      can(regex("^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$", var.ci_bootstrap_operator_object_id))
+    )
+    error_message = "Use the Entra user Object ID (GUID), not UPN or subscription ID."
+  }
+}
+
+variable "enable_workload_pilot" {
+  description = "Separate opt-in to create the pre-existing reader/denied demo workload apps."
+  type        = bool
+  default     = false
+}
