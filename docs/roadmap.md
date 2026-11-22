@@ -65,6 +65,19 @@ La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
+**H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
+un agent disposant réellement de la workstation doit exécuter le
+[mandat de test isolé](security/opentofu-postgresql-private-locking-poc.md#mandat-pour-un-autre-agent--recette-exécutable)
+sur une **instance PostgreSQL jetable accessible uniquement par socket Unix ou
+127.0.0.1**. Prouver un seul détenteur du verrou `pg` entre deux clients
+OpenTofu, le refus du concurrent, la récupération après interruption, les ACL,
+la sauvegarde/restauration isolée, et **aucune exposition WAN**.
+Conserver Garage pour tous les états locaux et HCP Free pour Entra jusqu'à
+un nouvel arbitrage ; ne lancer aucun `init -migrate-state`.
+**Owner : agent workstation autorisé ; preuve attendue : rapport daté, SHA,
+commandes expurgées, PASS/FAIL/BLOCKED par test et rollback.**
+Cette recette **ne modifie pas** la priorité opérateur H17 → H13 → H05.
+
 ## Frontières de responsabilité et validation
 
 | Dépôt | Responsabilité canonique |
