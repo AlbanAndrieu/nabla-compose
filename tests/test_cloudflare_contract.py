@@ -62,6 +62,16 @@ class CloudflareContract(unittest.TestCase):
                 continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
 
+    def test_visitor_ip_reaches_the_origins(self):
+        # "remove_visitor_ip_headers" made the honeypot report the Docker gateway
+        # for every visitor and blinds CrowdSec, which decides on Cf-Connecting-Ip.
+        source = (TF / "managed-transforms.tofu").read_text(encoding="utf-8")
+        self.assertIn('resource "cloudflare_managed_transforms" "albandrieu"', source)
+        self.assertNotIn("remove_visitor_ip_headers", source.split("resource ", 1)[1])
+        self.assertIn('{ id = "add_security_headers", enabled = true }', source)
+        imports = (TF / "imports.tofu").read_text(encoding="utf-8")
+        self.assertRegex(imports, r"to = cloudflare_managed_transforms\.albandrieu\n\s*id = var\.zone_id")
+
     def test_mta_sts_is_testing_and_served_by_a_static_worker(self):
         # Owner decision (20/11/2026): testing first, enforce after clean TLS-RPT reports.
         mail = (TF / "mail.tofu").read_text(encoding="utf-8")

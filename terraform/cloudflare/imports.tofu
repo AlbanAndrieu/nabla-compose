@@ -76,3 +76,9 @@ import {
   to       = cloudflare_dns_record.home[each.key]
   id       = "${var.zone_id}/${each.value}"
 }
+
+# Zone singleton: adopt the dashboard Managed Transforms, never create them.
+import {
+  to = cloudflare_managed_transforms.albandrieu
+  id = var.zone_id
+}
