@@ -385,6 +385,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/mcpgrafana"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/memos"
     },
     {
@@ -999,7 +1003,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56"
+        "value": "sha256:f35e41917e1f3393d0fd38a4f30e2657445c60dba04621190779b791de645b68"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1011,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:08fed09f-c6d3-bf76-950e-6e288c0cda5d",
+  "serialNumber": "urn:uuid:f35e4191-7e1f-3393-d0fd-38a4f30e2657",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3115,6 +3119,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcpgrafana",
+      "description": "Read-only MCP server over Grafana, served to the LiteLLM MCP gateway.",
+      "name": "Grafana MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcpgrafana"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana-observability/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

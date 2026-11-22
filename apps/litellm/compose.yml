@@ -60,6 +60,18 @@ services:
           description: LiteLLM exposes Cyberbro threat-intelligence tools through its MCP gateway.
           evidence:
             - apps/litellm/config.yaml:mcp_servers.cyberbro
+        - target: homarr
+          type: consumesApi
+          strength: optional
+          description: The LiteLLM MCP gateway serves the read-only tools of the Homarr MCP endpoint.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:homarr
+        - target: mcpgrafana
+          type: routesTo
+          strength: optional
+          description: The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcpgrafana App.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:grafana
       # LAN only: the public litellm.albandrieu.com route was retired on 05/11/2026.
       exposure:
         - name: lan

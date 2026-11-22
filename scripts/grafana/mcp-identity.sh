@@ -10,7 +10,7 @@
 #   2. creates the Viewer service account mcp-readonly with OpenTofu
 #      (infrastructure/grafana);
 #   3. mints one token straight into Vaultwarden; scripts/litellm/mcp-gateway.sh
-#      installs it for the mcp-grafana sidecar on TrueNAS.
+#      installs it for the grafana-observability App (mcpgrafana) on TrueNAS.
 # No value is ever printed, and none reaches a command line.
 #
 # Usage (owner terminal: Vaultwarden unlocked, TrueNAS ControlMaster open):

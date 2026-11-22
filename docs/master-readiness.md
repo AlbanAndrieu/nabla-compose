@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 90 ; actives : 61 ; planifiées : 24.
+Apps : 91 ; actives : 62 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -15,7 +15,7 @@ Apps : 90 ; actives : 61 ; planifiées : 24.
 | `NO_AVAILABILITY_PROBE` | 26 |
 | `NO_DEPLOY_PATH` | 17 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 44 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 45 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -48,6 +48,7 @@ Apps : 90 ; actives : 61 ; planifiées : 24.
 | `garage` | active | custom-apps.yml | `cpool/garage` (backup-targets) | legacy | ❌ | garage | — | générique | terraform/garage | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | manifest | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/<br>terraform/grafana | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `grafana-observability` | active | deploy-grafana-observability.sh | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `graylog` | disabled | custom-apps.yml | `cpool/graylog` (databases) | manifest | — | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `haproxy-exporter` | disabled | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |

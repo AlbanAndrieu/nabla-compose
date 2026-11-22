@@ -783,6 +783,18 @@
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients."
     },
     {
+      "id": "mcpgrafana",
+      "entityRef": "component:default/mcpgrafana",
+      "name": "Grafana MCP",
+      "group": "observability",
+      "sourcePath": "apps/grafana-observability/compose.yml",
+      "composeService": "mcpgrafana",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Read-only MCP server over Grafana, served to the LiteLLM MCP gateway."
+    },
+    {
       "id": "mimir",
       "entityRef": "resource:default/mimir",
       "name": "Mimir",

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56",
+  "catalogRevision": "sha256:f35e41917e1f3393d0fd38a4f30e2657445c60dba04621190779b791de645b68",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -227,6 +227,12 @@
       "entityRef": "component:default/gatus",
       "evidence": "apps/gatus/compose.yml:services.gatus.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/gatus/compose.yml#services/gatus",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/mcpgrafana",
+      "evidence": "apps/grafana-observability/compose.yml:services.mcpgrafana.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana-observability/compose.yml#services/mcpgrafana",
       "sourceType": "compose"
     },
     {

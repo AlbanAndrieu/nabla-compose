@@ -1,0 +1,79 @@
+---
+name: grafana-observability
+# TrueNAS App named after its Vaultwarden manifest app (grafana-observability).
+# Read-only Grafana MCP served to the LiteLLM MCP gateway
+# (scripts/litellm/mcp-gateway.sh registers it). Its own TrueNAS App, so its
+# runtime secrets (Viewer token, bearer token) never share the Grafana App's.
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  mcpgrafana:
+    logging: *nabla-logging
+    image: grafana/mcp-grafana:1.2.0-alpine@sha256:5ef5ed658b4b8d2f0754a24eea91e67563a321cfd65b1b7abd1038959f3523f2
+    container_name: mcpgrafana
+    restart: unless-stopped
+    mem_limit: 128m
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/mcpgrafana
+    x-nabla:
+      id: mcpgrafana
+      name: Grafana MCP
+      kind: mcp-server
+      category: observability
+      presentationRole: support
+      criticality: low
+      description: Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.
+      runtime:
+        provider: truenas-app
+        containerService: mcpgrafana
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8014
+      relations:
+        - target: grafana
+          type: consumesApi
+          strength: required
+          description: Grafana MCP reads Grafana through the mcp-readonly Viewer service account.
+          evidence:
+            - apps/grafana-observability/compose.yml:GRAFANA_URL
+            - terraform/grafana/main.tofu:grafana_service_account.mcp_readonly
+        - target: litellm
+          type: providesApi
+          strength: optional
+          description: LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:grafana
+    command:
+      - -t
+      - streamable-http
+      - -address
+      - 0.0.0.0:8000
+      - -allowed-hosts
+      - 172.17.0.24:8014
+      - -disable-write
+    env_file:
+      # GRAFANA_SERVICE_ACCOUNT_TOKEN (Viewer) and MCP_GRAFANA_SERVER_TOKEN
+      # (bearer the gateway presents), Vaultwarden nabla/prod/grafana-observability.
+      - path: /mnt/cpool/secrets/runtime/grafana-observability/.env.secrets
+        required: true
+    environment:
+      # Separate Compose project: Grafana through its LAN port.
+      GRAFANA_URL: http://172.17.0.24:30037
+    ports:
+      - name: mcp
+        target: 8000
+        published: "${GRAFANA_MCP_PORT:-8014}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56",
+  "catalogRevision": "sha256:f35e41917e1f3393d0fd38a4f30e2657445c60dba04621190779b791de645b68",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -65,6 +65,7 @@
     "litellm": "component:default/litellm",
     "loki": "resource:default/loki",
     "mcp-cyberbro": "component:default/mcp-cyberbro",
+    "mcpgrafana": "component:default/mcpgrafana",
     "mimir": "resource:default/mimir",
     "minio": "resource:default/minio",
     "mongo": "resource:default/mongo",
@@ -1741,6 +1742,25 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "observability",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
+      "id": "mcpgrafana",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8014,
+        "type": "port"
+      },
+      "name": "Grafana MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcpgrafana",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/grafana-observability/compose.yml"
     },
     {
       "category": "observability",
@@ -3519,7 +3539,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:2390a6750b8b83435c75c9d516f27a1dfc789855bd6cf143abb01dac53a1ee2b",
+  "operatorRevision": "sha256:2229a91c2186b5a802f176bf93466f70b56177b9637723cc619027c87d5ef568",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -5096,6 +5116,16 @@
       "type": "hostedBy"
     },
     {
+      "description": "The LiteLLM MCP gateway serves the read-only tools of the Homarr MCP endpoint.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:homarr"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "homarr",
+      "type": "consumesApi"
+    },
+    {
       "description": "LiteLLM exports LLM telemetry to Langfuse through its OpenTelemetry callback.",
       "evidence": [
         "apps/litellm/compose.yml:LANGFUSE_OTEL_HOST",
@@ -5114,6 +5144,16 @@
       "source": "litellm",
       "strength": "optional",
       "target": "mcp-cyberbro",
+      "type": "routesTo"
+    },
+    {
+      "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcpgrafana App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:grafana"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcpgrafana",
       "type": "routesTo"
     },
     {
@@ -5182,6 +5222,37 @@
         "apps/litellm/config.yaml:mcp_servers.cyberbro"
       ],
       "source": "mcp-cyberbro",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/grafana-observability/compose.yml:mcpgrafana.x-nabla.runtime.containerService"
+      ],
+      "source": "mcpgrafana",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "Grafana MCP reads Grafana through the mcp-readonly Viewer service account.",
+      "evidence": [
+        "apps/grafana-observability/compose.yml:GRAFANA_URL",
+        "terraform/grafana/main.tofu:grafana_service_account.mcp_readonly"
+      ],
+      "source": "mcpgrafana",
+      "strength": "required",
+      "target": "grafana",
+      "type": "consumesApi"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:grafana"
+      ],
+      "source": "mcpgrafana",
       "strength": "optional",
       "target": "litellm",
       "type": "providesApi"
@@ -8510,6 +8581,26 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "observability",
+      "composeService": "mcpgrafana",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
+      "id": "mcpgrafana",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8014,
+        "type": "port"
+      },
+      "name": "Grafana MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcpgrafana",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/grafana-observability/compose.yml"
     },
     {
       "category": "observability",
