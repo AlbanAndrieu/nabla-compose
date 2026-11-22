@@ -75,6 +75,17 @@ def test_generated_topology_carries_monitoring_protocol_capabilities() -> None:
     # The legacy pfSense HAProxy appliance was retired on 18 November.
     # It must not emit an active WAN endpoint or a live Traefik relation.
     assert "pfsense-haproxy" not in nodes
+    backstage = list(yaml.safe_load_all(
+        (ROOT / "catalog/catalog-info.yaml").read_text(encoding="utf-8")
+    ))
+    legacy = [
+        entity for entity in backstage
+        if entity and entity.get("metadata", {}).get("name") == "pfsense-haproxy"
+    ]
+    assert len(legacy) == 1
+    assert legacy[0]["metadata"]["labels"]["albandrieu.com/operational-state"] == "disabled"
+    icons = (ROOT / "catalog/service-icons.json").read_text(encoding="utf-8")
+    assert '"pfsense-haproxy"' not in icons
     assert all(
         rel.get("target") != "pfsense-haproxy"
         for rel in topology["relations"]
