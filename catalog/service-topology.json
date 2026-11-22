@@ -2187,23 +2187,6 @@
       "icon": "📡"
     },
     {
-      "id": "pfsense-haproxy",
-      "name": "pfSense HAProxy",
-      "kind": "reverse-proxy",
-      "category": "network",
-      "sourcePath": "apps/traefik/compose.yml",
-      "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.",
-      "presentationRole": "core",
-      "criticality": "critical",
-      "monitoring": {
-        "type": "port",
-        "target": "tcp://82.66.4.247:443",
-        "host": "82.66.4.247",
-        "port": 443
-      },
-      "icon": "⚖️"
-    },
-    {
       "id": "pfsense-unbound",
       "name": "pfSense Unbound",
       "kind": "dns-resolver",
@@ -6665,17 +6648,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/traefik/compose.yml:traefik.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "traefik",
-      "target": "pfsense-haproxy",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.",
-      "evidence": [
-        "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl",
-        "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
       ]
     },
     {

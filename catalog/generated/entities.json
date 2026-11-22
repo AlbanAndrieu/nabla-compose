@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:fde6a87a54175962f0514e5896ae87a510411a77d545f1203ccb48ff19317c8b",
+  "catalogRevision": "sha256:99551e175c705282256bea4dc35276727cecd7f02a78aa5d55cea54157387c5a",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3111,7 +3111,7 @@
               "port": 8099
             },
             "backendPort": "web",
-            "gatewayRef": "resource:default/pfsense-haproxy",
+            "gatewayRef": "component:default/traefik",
             "hostnames": [
               "hello.int.albandrieu.com"
             ],
@@ -3120,7 +3120,7 @@
             "riskAcceptance": {
               "control": "static-content-no-data",
               "id": "hello-int-public-static-page",
-              "reason": "hello.int.albandrieu.com is an intentionally public static nginx test page reached directly through pfSense WAN HAProxy and Traefik, without Cloudflare. It serves no data and needs no authentication; keep it static and remove the public DNS record if it ever serves anything else.",
+              "reason": "hello.int.albandrieu.com has a reviewed public DNS exception managed by Cloudflare DDNS, with TLS/Host routing to the static Nginx page through Traefik validated on the LAN; public WAN reachability is unverified since pfSense HAProxy was retired. It serves no private data and needs no authentication; remove the public DNS exception if the static-only contract changes.",
               "reviewAfter": null,
               "status": "accepted"
             },
@@ -10248,12 +10248,12 @@
           "albandrieu.com/bia-rto": "PT1H",
           "albandrieu.com/bia-status": "provisional"
         },
-        "description": "pfSense HAProxy public TLS ingress and reverse-proxy edge.",
+        "description": "Retired pfSense HAProxy ingress (decommissioned 18 November 2026); retained for historical architecture references.",
         "labels": {
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "critical",
           "albandrieu.com/operational-criticality": "critical",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "pfsense-haproxy",
         "tags": [

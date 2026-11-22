@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:fde6a87a54175962f0514e5896ae87a510411a77d545f1203ccb48ff19317c8b",
+  "catalogRevision": "sha256:99551e175c705282256bea4dc35276727cecd7f02a78aa5d55cea54157387c5a",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -2329,23 +2329,6 @@
     {
       "category": "network",
       "criticality": "critical",
-      "description": "pfSense HAProxy terminates public TLS and re-encrypts direct *.int.albandrieu.com ingress to Traefik on TrueNAS.",
-      "icon": "⚖️",
-      "id": "pfsense-haproxy",
-      "kind": "reverse-proxy",
-      "monitoring": {
-        "host": "82.66.4.247",
-        "port": 443,
-        "target": "tcp://82.66.4.247:443",
-        "type": "port"
-      },
-      "name": "pfSense HAProxy",
-      "presentationRole": "core",
-      "sourcePath": "apps/traefik/compose.yml"
-    },
-    {
-      "category": "network",
-      "criticality": "critical",
       "description": "Primary LAN recursive resolver at 172.17.0.1:53; delegates int.albandrieu.com to Pi-hole with Forwarding Mode disabled and outgoing interfaces set to All.",
       "id": "pfsense-unbound",
       "kind": "dns-resolver",
@@ -3523,7 +3506,6 @@
     "openclaw-devbox",
     "openclaw-gateway",
     "pfsense",
-    "pfsense-haproxy",
     "pfsense-unbound",
     "postgresql",
     "protonvpn",
@@ -3536,7 +3518,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:f1db8b3c4be339feb5ecd73d68d70628558a19ef64122e15bb514a1380fd82d5",
+  "operatorRevision": "sha256:8161bf5aaf8834d21a17f0d09af2f6fb7bef7b0c3a0547b3fddaf942044c50e1",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -6839,17 +6821,6 @@
       "strength": "required",
       "target": "docker",
       "type": "hostedBy"
-    },
-    {
-      "description": "pfSense HAProxy terminates WAN TLS and opens a new TLS connection to Traefik on 172.17.0.24:443 while preserving the HTTP Host used by Traefik routers.",
-      "evidence": [
-        "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl",
-        "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
-      ],
-      "source": "traefik",
-      "strength": "required",
-      "target": "pfsense-haproxy",
-      "type": "exposedBy"
     },
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
