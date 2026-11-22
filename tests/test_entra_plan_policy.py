@@ -19,7 +19,7 @@ class PlanPolicyTests(unittest.TestCase):
     def test_allows_disposable_app_create(self):
         a = 'azuread_application_registration.workload["reader"]'
         self.assertEqual(POLICY.evaluate({"resource_changes": [
-            change(a, ["create"], {"display_name": "nabla-iam-lab-workload-reader"})
+            change(a, ["create"], {"display_name": "nabla-iam-workload-reader"})
         ]}), (1, []))
 
     def test_blocks_modify_replace_delete(self):
@@ -33,11 +33,11 @@ class PlanPolicyTests(unittest.TestCase):
     def test_blocks_groups_and_implicit_graph_grants(self):
         app = 'azuread_application_registration.workload["reader"]'
         self.assertTrue(POLICY.evaluate({"resource_changes": [
-            change('azuread_group.lab["readers"]', ["create"])
+            change('azuread_group.nabla["readers"]', ["create"])
         ]})[1])
         self.assertTrue(POLICY.evaluate({"resource_changes": [
             change(app, ["create"], {
-                "display_name": "nabla-iam-lab-workload-reader",
+                "display_name": "nabla-iam-workload-reader",
                 "required_resource_access": [{"resource_app_id": "x"}]
             })
         ]})[1])
@@ -46,6 +46,21 @@ class PlanPolicyTests(unittest.TestCase):
         self.assertTrue(POLICY.evaluate({"resource_changes": [
             change("azuread_user.test[0]", ["create"])
         ]})[1])
+
+    def test_bootstrap_identity_resources_denied_in_ci(self):
+        for address in (
+            'azuread_application.ci_identity["plan"]',
+            'azuread_application.ci_identity["apply"]',
+            'azuread_service_principal.ci_identity["plan"]',
+            'azuread_service_principal.ci_identity["apply"]',
+            'azuread_application_federated_identity_credential.ci_github["plan"]',
+            'azuread_application_federated_identity_credential.ci_github["apply"]',
+        ):
+            with self.subTest(address=address):
+                _, errors = POLICY.evaluate({"resource_changes": [
+                    change(address, ["create"], {"display_name": "entra-nabla-plan"})
+                ]})
+                self.assertTrue(errors, "CI must never bootstrap or change OIDC identities")
 
     def test_blocks_enabled_negative_principal(self):
         self.assertTrue(POLICY.evaluate({"resource_changes": [

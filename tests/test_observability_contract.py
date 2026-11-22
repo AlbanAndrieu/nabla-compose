@@ -780,7 +780,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("cAdvisor Prometheus target must remain disabled", stack)
 
     def test_grafana_mcp_is_ephemeral_stdio_and_pinned(self) -> None:
-        for relative in (".mcp.json", ".cursor/mcp.json"):
+        # .mcp.json starts scripts/mcp/grafana.sh (tests/test_mcp_launchers_contract.py).
+        for relative in (".cursor/mcp.json",):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
             grafana = config["mcpServers"]["grafana"]
 
@@ -801,9 +802,9 @@ class ObservabilityContractTests(unittest.TestCase):
             (ROOT / ".cursor" / "mcp.json").read_text(encoding="utf-8")
         )
 
-        self.assertEqual(
-            root_config["mcpServers"]["fastapi-sample"]["url"],
-            "${FASTAPI_SAMPLE_MCP_URL:-http://172.17.0.24:8091/mcp}",
+        self.assertIn(
+            "http://172.17.0.24:8091/mcp",
+            root_config["mcpServers"]["fastapi-sample"]["args"],
         )
         self.assertEqual(
             cursor_config["mcpServers"]["fastapi-sample"]["url"],

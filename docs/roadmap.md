@@ -63,7 +63,27 @@ La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le
 
 ### 7. Autres chantiers conservés
 
+**H16 Entra Nabla** — le 22/11, tenant personnel **confirmé par une sortie Azure CLI** fournie par l'opérateur ; deux YubiKeys signalées enrôlées, test FIDO2 non attesté indépendamment. P1 : tester la
+connexion interactive FIDO2 principale + secours et le bon répertoire,
+puis configurer les applications OIDC `entra-nabla-plan` /
+`entra-nabla-apply` et le workspace HCP Free `entra-nabla-state`
+avant tout plan/apply. Bootstrap OpenTofu de deux applications OIDC + Service Principals et FIC **CODED / NOT_APPLIED** (HCP Free non configuré, Graph consent en attente). [Skills Azure et Defender Free](security/entra-nabla-agent-skills-and-defender-free.md). Voir le [runbook](runbooks/entra-tenant-and-test-user.md).
+Ce travail ne modifie pas l'ordre H17 → H13 → H05.
+
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
+
+**H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
+un agent disposant réellement de la workstation doit exécuter le
+[mandat de test isolé](security/opentofu-postgresql-private-locking-poc.md#mandat-pour-un-autre-agent--recette-exécutable)
+sur une **instance PostgreSQL jetable accessible uniquement par socket Unix ou
+127.0.0.1**. Prouver un seul détenteur du verrou `pg` entre deux clients
+OpenTofu, le refus du concurrent, la récupération après interruption, les ACL,
+la sauvegarde/restauration isolée, et **aucune exposition WAN**.
+Conserver Garage pour tous les états locaux et HCP Free pour Entra jusqu'à
+un nouvel arbitrage ; ne lancer aucun `init -migrate-state`.
+**Owner : agent workstation autorisé ; preuve attendue : rapport daté, SHA,
+commandes expurgées, PASS/FAIL/BLOCKED par test et rollback.**
+Cette recette **ne modifie pas** la priorité opérateur H17 → H13 → H05.
 
 ## Frontières de responsabilité et validation
 
@@ -79,3 +99,25 @@ La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le
 **Contrat d'une PR** : chercher la PR existante, vérifier son rebase sur `master`, corriger les conflits, exécuter les quality gates sur le HEAD exact, puis noter séparément preuves `CODED` / `TESTED` / `DEPLOYED` / `ACCEPTED`. Les suppressions volumineuses ne bloquent plus la quality gate ; les tests, secrets et références restent contrôlés. Ne pas pousser des micro-changements sans valeur de stabilité ni réutiliser un ancien runbook d'incident pour muter la production.
 
 **Critère de clôture** : résultat négatif/protection attendu réellement observé, état après action, horodatage, version et retour arrière. Ne pas transformer un timeout fournisseur en `DOWN`, ni considérer une règle WAF/Access écrite mais non appliquée comme une défense effective. Arbitrage décidé et portes de réception : [portefeuille](roadmap-portfolio.md#ordre-opérateur--22-novembre-2026).
+
+## Dernière priorité — IPv6 Freebox / R7000 / homelab (reporté le 22/11/2026)
+
+**Décision opérateur : IPv6 est reporté en toute fin de roadmap, après les autres chantiers.**
+Ne pas réactiver l'IPv6 du Netgear R7000 ni modifier la délégation Freebox,
+le routage de la workstation, le pare-feu TrueNAS ou les règles Cloudflare
+à l'occasion d'un autre chantier. L'IPv4 reste le chemin de production.
+
+À la reprise (H04 réseau / H10 TrueNAS), établir d'abord l'état réel de la
+Freebox et des préfixes délégués ; vérifier le next hop WAN du R7000, ses
+annonces RA/SLAAC et la résolution NDP depuis la workstation. Le 22/11, après
+la désactivation d'IPv6 sur le R7000, les voisins de l'ancienne passerelle
+LAN (`fe80::120c:6bff:fe62:128e` et `…:3c01::1`) étaient `FAILED`, et
+`tracepath -6` échouait au premier saut (`!H`) : **aucune route IPv6
+fonctionnelle n'est actuellement démontrée**. Ne pas réutiliser un préfixe
+historique ni autoriser un /64 complet à une application par défaut.
+
+Avant toute activation sur TrueNAS : vérifier le filtrage IPv6 entrant,
+le garde `scripts/truenas/ipv6-guard.nft`, les tests de non-exposition depuis
+l'extérieur et le retour arrière. Conserver les détails techniques dans le
+[runbook Freebox/R7000](pfsense/runbooks/freebox-router-mode.md) ; ce report
+n'est ni une preuve de réception, ni une tâche à exécuter maintenant.

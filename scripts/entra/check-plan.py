@@ -33,7 +33,7 @@ def evaluate(plan):
         after = change.get("after") or {}
         if item.get("type") == "azuread_application_registration":
             name = after.get("display_name", "")
-            if not isinstance(name, str) or not name.startswith("nabla-iam-lab-workload-"):
+            if not isinstance(name, str) or not name.startswith("nabla-iam-workload-"):
                 errors.append("Application outside disposable namespace")
             if after.get("required_resource_access") not in (None, []):
                 errors.append("Graph API permission grant blocked")

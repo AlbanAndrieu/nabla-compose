@@ -18,8 +18,11 @@ class EntraWorkflowContract(unittest.TestCase):
     def test_manual_apply_guard_and_state_lease(self):
         data = WORKFLOW.read_text()
         self.assertIn("workflow_dispatch:", data)
-        self.assertIn("entra-lab-apply", data)
-        self.assertIn("ENTRA_LAB_APPLY_ENABLED", data)
+        self.assertIn("entra-nabla-apply", data)
+        self.assertIn("entra-nabla-plan", data)
+        self.assertNotIn("entra-lab-", data)
+        self.assertNotIn("ENTRA_LAB_", data)
+        self.assertIn("ENTRA_NABLA_APPLY_ENABLED", data)
         self.assertIn("SIGNATURE_B64", data)
         self.assertIn('"$EXPECTED_SHA" == "$GITHUB_SHA"', data)
         self.assertIn("tofu plan -lock=false", data)
