@@ -1,3 +1,10 @@
+## [0.115.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.0...0.115.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **sample:** APP_DOMAIN is fastapi-sample.albandrieu.com ([#443](https://github.com/AlbanAndrieu/nabla-compose/issues/443)) ([0ae657d](https://github.com/AlbanAndrieu/nabla-compose/commit/0ae657d001262de9e05b1ba4dc18a59561d1885c))
+
 # [0.115.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.114.0...0.115.0) (2026-11-22)
 
 
