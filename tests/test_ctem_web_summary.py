@@ -1,5 +1,6 @@
 """Export contract: only de-identified Amass aggregates reach /media/www."""
 import json
+from unittest.mock import patch
 from pathlib import Path
 import runpy
 import stat
@@ -90,7 +91,14 @@ class PublicCtemExportContract(unittest.TestCase):
     def test_atomic_publish_and_no_symlink_target(self):
         with tempfile.TemporaryDirectory() as temp:
             d = Path(temp)
-            MODULE["atomic_publish"](d, "amass-summary.json", '{"status":"example"}')
+            # CodeQL: temporary report starts private (0600), final aggregate
+            # alone becomes world-readable (0644) for the controlled web root.
+            with patch.object(MODULE["os"], "open", wraps=MODULE["os"].open) as opened:
+                MODULE["atomic_publish"](d, "amass-summary.json", '{"status":"example"}')
+            staged = [call for call in opened.call_args_list
+                      if ".amass-summary.json.tmp-" in str(call.args[0])]
+            self.assertEqual(len(staged), 1)
+            self.assertEqual(staged[0].args[2], 0o600)
             report = d / "amass-summary.json"
             self.assertEqual(stat.S_IMODE(report.stat().st_mode), 0o644)
             self.assertIn("example", report.read_text())
