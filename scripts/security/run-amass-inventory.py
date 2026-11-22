@@ -17,6 +17,9 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = "5.1.3"
 SCOPE = ROOT / "config/security/public-mail-domains.json"
+# Active Amass GETs / of every name on ports 80/443 (http_probes plugin); / of
+# the honeypot reports the visitor to Project Honey Pot, so never investigate it.
+TRAP_HOSTNAMES = ("login.albandrieu.com",)
 CATALOG = ROOT / "catalog/generated/entities.json"
 EXPOSURE_POLICY = ROOT / "scripts/security/check-public-exposure-paths.py"
 DNS_NAME = re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -258,6 +261,8 @@ def enum_arguments(domains: list[str], mode: str) -> list[str]:
             "8" if mode == "active" else "2", "-d", ",".join(domains)]
     if mode == "active":
         base.extend(["-active", "-p", "80,443"])
+        for name in TRAP_HOSTNAMES:
+            base.extend(["-bl", name])
     return base
 
 

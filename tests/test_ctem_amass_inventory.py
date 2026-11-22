@@ -24,6 +24,12 @@ class AmassInventoryTests(unittest.TestCase):
     def test_empty_output_is_not_a_finding(self):
         self.assertEqual(MODULE["project_names"]("\n", ["example.com"]), ([], 0))
 
+    def test_active_probes_never_investigate_the_honeypot(self):
+        active = MODULE["enum_arguments"](["albandrieu.com"], "active")
+        self.assertEqual(active[active.index("-bl") + 1], "login.albandrieu.com")
+        # Passive mode sends no HTTP request: no blacklist needed.
+        self.assertNotIn("-bl", MODULE["enum_arguments"](["albandrieu.com"], "passive"))
+
     def test_private_export_does_not_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "report.json"

@@ -26,6 +26,12 @@ class HoneypotContract(unittest.TestCase):
         # Home IPv4 (the only owner address Cloudflare sees) and every private/loopback range.
         for address in ("82.66.4.247", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1", "fc00::/7"):
             self.assertIn(address, denied)
+        # Our own probes (FastAPI /sickz, TLS and policy checks) never feed Project Honey Pot.
+        self.assertIn('Require not expr "%{HTTP_USER_AGENT} =~ /^nabla-/"', block)
+
+    def test_external_scanners_never_target_the_trap(self):
+        targets = (ROOT / "config/security/external-attack-surface.txt").read_text(encoding="utf-8")
+        self.assertNotIn("login.albandrieu.com", targets)
 
     def test_public_route_stays_isolated_and_hardened(self):
         service = yaml.safe_load((APP / "compose.yml").read_text(encoding="utf-8"))["services"]["honeypot"]
