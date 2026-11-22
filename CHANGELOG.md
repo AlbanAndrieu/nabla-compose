@@ -1,3 +1,10 @@
+# [0.111.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.110.0...0.111.0) (2026-11-22)
+
+
+### Features
+
+* **ctem:** compare active vantages and export redacted web summaries ([#436](https://github.com/AlbanAndrieu/nabla-compose/issues/436)) ([fefeea1](https://github.com/AlbanAndrieu/nabla-compose/commit/fefeea1b9a2fb7d87d7535cb5b3283a7f260d636))
+
 # [0.110.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.109.0...0.110.0) (2026-11-21)
 
 
