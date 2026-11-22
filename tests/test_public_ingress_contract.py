@@ -271,7 +271,7 @@ class PublicIngressContractTests(unittest.TestCase):
             compose,
         )
         self.assertIn(
-            "DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test",
+            "DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test,nexus,login,vaultwarden",
             compose,
         )
         self.assertNotIn("EXCLUDED_DOMAINS=", compose)

@@ -235,7 +235,8 @@ services:
       - DOMAIN1=albandrieu.com
       # - DOMAIN1_ZONE_ID=015XXX
       # Current companion contract: comma-separated subdomain trees.
-      - DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test
+      # Tunnel hosts are owned by OpenTofu: on 2026-11-22 a restart rewrote nexus to an unproxied CNAME.
+      - DOMAIN1_EXCLUDED_SUB_DOMAINS=int,sample,static,test,nexus,login,vaultwarden
       - DOMAIN2=albanandrieu.com
       # - DOMAIN2_ZONE_ID=227XXX
 

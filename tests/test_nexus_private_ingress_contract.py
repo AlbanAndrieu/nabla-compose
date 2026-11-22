@@ -36,7 +36,7 @@ class NexusPrivateIngressContract(unittest.TestCase):
         self.assertIn('origin_server_name = var.nexus_tunnel_via_traefik ? "nexus.int.albandrieu.com" : null', tunnel)
         variables = (ROOT / "terraform/cloudflare/variables.tofu").read_text(encoding="utf-8")
         block = variables.split('variable "nexus_tunnel_via_traefik"', 1)[1].split("}", 1)[0]
-        self.assertIn("default     = false", block)
+        self.assertIn("default     = true", block)
 
     def test_tofu_reaches_nexus_over_the_lan(self):
         hcl = (ROOT / "infrastructure/nexus/terragrunt.hcl").read_text(encoding="utf-8")
