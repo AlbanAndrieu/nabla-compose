@@ -59,6 +59,19 @@ enabled. Requiring a strictly phishing-resistant FIDO2 authentication strength
 through Conditional Access needs Entra ID **P1**; do not claim this enforcement
 in Entra Free.
 
+**Bootstrap service principal (not yet provisioned)**: first create
+two **single-tenant Entra app registrations** with the above names;
+Microsoft automatically creates one corresponding service principal
+(Enterprise application) in the home tenant. Verify it exists rather
+than blindly creating it again. Register an issuer / subject / audience
+GitHub OIDC credential in each application's Federated credentials tab.
+Grant separately reviewed Microsoft Graph permissions (plan read, apply
+minimal application-write/ownership; explicit admin consent where
+required), and **never** use `az ad sp create-for-rbac`, a default
+subscription Contributor assignment or client password merely to
+bootstrap this lab. Until the HCP local-mode state and GitHub protected
+environments exist, no `apply` is authorized.
+
 **Unattended CI** cannot touch a physical YubiKey. It uses two distinct
 GitHub OIDC-federated applications, `entra-nabla-plan` and
 `entra-nabla-apply`, without static client secrets. Their GitHub environment

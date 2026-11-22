@@ -79,15 +79,31 @@ avec Entra ID Free. Imposer une force d'authentification Conditional Access
 1. Créer dans HCP Terraform l'unique workspace `entra-nabla-state` en
    mode `Local`, organisation gratuite isolée ; son token possède des
    privilèges étendus, même si utilisé pour `plan`.
-2. Entra ID → App registrations : créer deux enregistrements de service
-   `entra-nabla-plan` et `entra-nabla-apply`, attribuer à chacun une
-   identité fédérée GitHub (sans secret client) :
+2. Entra ID → **App registrations** : créer deux **enregistrements
+   d'application monolocataire** `entra-nabla-plan` et
+   `entra-nabla-apply` dans le **tenant personnel vérifié**.
+   Entra crée normalement aussi les **service principals** correspondants
+   (visibles dans **Enterprise applications**) : ne pas exécuter
+   `az ad sp create-for-rbac` et ne pas créer un deuxième objet en doublon.
+   Donner à chaque enregistrement une identité fédérée GitHub
+   (Certificates & secrets → Federated credentials → GitHub Actions,
+   Entity type = Environment), **sans secret client** :
    - issuer : `https://token.actions.githubusercontent.com`
    - audience : `api://AzureADTokenExchange`
    - subject plan :
      `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-plan`
    - subject apply :
      `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-apply`
+   Vérifier séparément les deux **Application (client) IDs**, leurs
+   **Object IDs**, les principals associés et la liste exacte des
+   permissions **Microsoft Graph**. Commencer avec un accès de lecture
+   minimal pour `plan`, puis réserver les écritures autorisées à
+   `apply`; ne pas attribuer automatiquement `Contributor` à
+   l'abonnement Azure ni accorder de permissions tenant-wide.
+   Un consentement administrateur devra être approuvé sur un périmètre
+   explicitement recensé. GitHub ne doit pas pouvoir utiliser une
+   application d'un autre environnement.
+
 3. Dans GitHub Actions, pour les deux **environnements protégés** :
    `ENTRA_NABLA_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`
    (Client ID distinct par environnement), `HCP_TF_ORGANIZATION`,
