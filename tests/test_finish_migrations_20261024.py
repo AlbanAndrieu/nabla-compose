@@ -563,6 +563,12 @@ def test_roadmap_critical_policy_not_removed_by_migration_consolidation():
     assert "archive/roadmap-through-2026-10-24.md" in roadmap
     for marker in ("Ask the user", "democratic-csi", "catalogRevision", "entityRef"):
         assert marker in archive
+    # Since #437 the active roadmap is a compact index: the skill and CSI
+    # policy stays binding through AGENTS.md, the proof vocabulary stays here.
+    agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+    for marker in ("Ask the user before installing", "democratic-csi"):
+        assert marker in agents
+    for marker in ("catalogRevision", "entityRef"):
         assert marker in roadmap
 
 
