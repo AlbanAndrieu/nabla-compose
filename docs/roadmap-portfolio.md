@@ -24,6 +24,7 @@ La priorité est **décidée** ; les réceptions runtime restent indépendantes 
 | Différé | **H08 — Nexus, Joplin et autres Apps** | Conserver [#438](https://github.com/AlbanAndrieu/nabla-compose/pull/438), sans en faire une dépendance artificielle de H17/H13 | À reprendre après les quatre rangs précédents ; NetBox est déjà opérationnel | M |
 | Plus tard | **H09/H10/H11/H12/H14/H16/H19/H20/H21** | Fiabilisation TLS, ZFS, agent OpenClaw #437, RAG, IAM, migration Home Assistant, GitHub et FreshRSS | N'affecte pas la priorité du pilote H18 ni la phase CTEM actuelle | M–L |
 | Suspendu | **H07/H15** | pfSense non remplacé et pile média VPN non activée | Études hors du chemin critique | L |
+| **Dernier — reporté** | **IPv6 — Freebox / R7000 / homelab (H04/H10)** | Reprendre en dernier la délégation /64, le routage RA/NDP et le durcissement TrueNAS ; aucun changement maintenant | R7000 IPv6 désactivé, ancien voisin de passerelle `FAILED` le 22/11 ; avant activation, preuve de non-exposition WAN, pare-feu TrueNAS et rollback. [Détails](roadmap.md#dernière-priorité--ipv6-freebox--r7000--homelab-reporté-le-22112026) | M |
 
 **Clôture H17** : les artefacts Git V2 doivent être synchronisés, `sentry-edge` doit correspondre à **une seule App** dans Sample, et les trois lecteurs doivent afficher la même révision sur leurs SHA déployés. **Sans ce dernier contrôle LAN/OWNER, H17 reste CODED/TESTED, non ACCEPTED.**
 
