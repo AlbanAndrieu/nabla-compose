@@ -13,6 +13,7 @@ import ipaddress
 import json
 from pathlib import Path
 import stat
+import sys
 
 DEFAULT_LOG = Path("/mnt/cpool/traefik/logs/access.log")
 TRUSTED_CLOUDFLARED_PEER = ipaddress.ip_network("10.200.2.0/24")
@@ -125,8 +126,10 @@ def main() -> int:
         return 0
     try:
         report = summarize(args.log_file)
-    except (OSError, ValueError) as exc:
-        parser.error(str(exc))
+    except (OSError, ValueError):
+        # The raw exception can contain private paths: never echo it to CI.
+        print("REJECTED: honeypot log unavailable or unsafe", file=sys.stderr)
+        return 2
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
