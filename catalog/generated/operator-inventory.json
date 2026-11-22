@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:99551e175c705282256bea4dc35276727cecd7f02a78aa5d55cea54157387c5a",
+  "catalogRevision": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -3027,6 +3027,7 @@
       "name": "Sentry Edge",
       "presentationRole": "support",
       "runtime": {
+        "appId": "sentry",
         "containerService": "nginx",
         "networks": [
           "intranet",
@@ -3518,7 +3519,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:8161bf5aaf8834d21a17f0d09af2f6fb7bef7b0c3a0547b3fddaf942044c50e1",
+  "operatorRevision": "sha256:2390a6750b8b83435c75c9d516f27a1dfc789855bd6cf143abb01dac53a1ee2b",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -9704,6 +9705,7 @@
       "name": "Sentry Edge",
       "presentationRole": "support",
       "runtime": {
+        "appId": "sentry",
         "containerService": "nginx",
         "networks": [
           "intranet",
