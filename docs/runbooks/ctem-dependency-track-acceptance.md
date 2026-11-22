@@ -5,7 +5,7 @@
 ## Contrats avant une première installation
 
 - Définition : `apps/dependency-track/compose.yml` (frontend LAN :31084, API LAN :31083), PostgreSQL partagé `dependencytrack`, secret de runtime `/mnt/cpool/secrets/runtime/dependency-track/.env.secrets` en `root:root 0600`, Prometheus job `dependency_track` et Gatus après déploiement.
-- **Épinglage obligatoire des deux images** : les valeurs `latest` sont **interdites pour une nouvelle recette** ; le tag `latest` sur Docker Hub peut encore référencer v4 pendant sa fin de vie, tandis que v5 est une migration de plateforme. Vérifier et épingler une version stable `X.Y.Z` identique entre frontend et API (version consultée 22/11 : 5.2.0) puis recetter les propriétés/variables propres à v5, avec gestion de TLS PostgreSQL et des secrets. Ne pas confondre les anciennes variables `ALPINE_*` et les propriétés `DT_*` de v5 ; **aucun démarrage sans revue de ces différences**.
+- **Épinglage et compatibilité CODED dans la PR #437** : les deux images sont désormais fixées sans substitution à `ghcr.io/dependencytrack/{apiserver,frontend}:5.2.0`, plutôt que `latest` (qui peut encore référencer v4). Le service API utilise `DT_DATASOURCE_URL` et `DT_DATASOURCE_USERNAME` (v5), le CA PostgreSQL montée en lecture seule et `sslmode=verify-full`. Le secret runtime attend `DT_DATASOURCE_PASSWORD`, **réutilisant sans rotation** le champ Vaultwarden historique `ALPINE_DATABASE_PASSWORD` via le manifeste ; le bootstrap PostgreSQL et ses tests utilisent le nouveau nom. Le certificat doit couvrir `172.17.0.24` dans son SAN ou il faut paramétrer un nom DNS vérifiable. **Code préparé, pas une preuve que v5 démarre sur TrueNAS.**
 - S'il existe une base v4 avec des données, exiger **l'outil de migration hors-ligne** dédié + snapshot validé, jamais une simple substitution d'image. Si App absente et base vide, privilégier une première installation fraîche.
 - Le TLS PostgreSQL doit être contrôlé côté client (CA/SAN/hostname, `verify-full` si pris en charge par la configuration JDBC), pas seulement par `hostssl` côté serveur.
 
@@ -21,7 +21,7 @@ sudo bash scripts/truenas/bootstrap-app-postgres.sh --check dependency-track
 sudo bash scripts/truenas/rollout-pending-apps.sh --check dependency-track
 ```
 
-Le `--check` doit **échouer fermé** si l'image est flottante, si le secret manque, si une base existante n'a pas de chemin de migration ou si le client ne valide pas la CA PostgreSQL. Ne pas transformer ces blocages en `DOWN`.
+La configuration **Git** n'autorise plus d'image flottante et les contrôles existants vérifient le secret et la présence du rôle PostgreSQL. **Attention** : le `--check` ne prouve pas à lui seul qu'une base historique v4 est vide, que le SAN est correct ou que l'API v5 fonctionne ; consigner ces points comme **bloquants manuels** jusqu'à un smoke runtime. Ne pas transformer une absence de recette en `DOWN`.
 
 Après revue du plan, si toutes les portes sont vertes, le déploiement est **unitaire et réversible** : la commande de mutation préparée par le script `--plan` est `NABLA_RUNTIME_CHANGE_APPROVED=yes ... --apply dependency-track`, puis observer la DB, la sauvegarde du rôle et l'état App. **Cette étape est NOT_RUN depuis l'environnement distant.**
 
