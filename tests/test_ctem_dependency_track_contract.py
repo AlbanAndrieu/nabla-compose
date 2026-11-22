@@ -50,6 +50,18 @@ def test_v5_datasource_enforces_tls_and_preserves_private_secret() -> None:
     ]
     assert "DT_DATASOURCE_PASSWORD" not in env
     assert all(not key.startswith("ALPINE_DATABASE_") for key in env)
+    assert env["DT_METRICS_ENABLED"] == "true"
+    assert env["DT_MANAGEMENT_PORT"] == "9000"
+    # The API port is for clients; the management port must never be
+    # published on TrueNAS. Prometheus joins the same private bridge.
+    assert all(port["target"] != 9000 for port in source["ports"])
+    prom = yaml.safe_load(
+        (ROOT / "apps/prometheus/prometheus.yml").read_text(encoding="utf-8")
+    )
+    job = next(j for j in prom["scrape_configs"] if j["job_name"] == "dependency_track")
+    assert job["metrics_path"] == "/metrics"
+    assert job["static_configs"][0]["targets"] == ["dependency-track-api:9000"]
+    assert "intranet" in source["networks"]
 
     manifest = json.loads(
         (ROOT / "config/secrets/manifest.json").read_text(encoding="utf-8")
