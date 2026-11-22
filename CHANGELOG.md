@@ -1,3 +1,10 @@
+# [0.112.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.111.0...0.112.0) (2026-11-22)
+
+
+### Features
+
+* **nexus:** APT security proxy, nexus.int on the LAN and CI route through Traefik + CrowdSec ([#438](https://github.com/AlbanAndrieu/nabla-compose/issues/438)) ([06be263](https://github.com/AlbanAndrieu/nabla-compose/commit/06be263b07ad97e4096a639ea334addd2892c5c2)), closes [#432](https://github.com/AlbanAndrieu/nabla-compose/issues/432) [#436](https://github.com/AlbanAndrieu/nabla-compose/issues/436) [#436](https://github.com/AlbanAndrieu/nabla-compose/issues/436) [#436](https://github.com/AlbanAndrieu/nabla-compose/issues/436) [#437](https://github.com/AlbanAndrieu/nabla-compose/issues/437) [#437](https://github.com/AlbanAndrieu/nabla-compose/issues/437)
+
 # [0.111.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.110.0...0.111.0) (2026-11-22)
 
 
