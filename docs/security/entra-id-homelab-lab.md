@@ -1,4 +1,4 @@
-# Entra ID Free : HCP Terraform Free + YubiKey + Falco
+# Entra ID Free : HCP Terraform Free + YubiKey + Harden-Runner
 
 Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 
@@ -36,6 +36,60 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
   Python tests. Apply is **manual and signature-gated** from `master` only.
   No self-hosted runner linked to TrueNAS. No plan/state binaries in artifacts.
 
+## Manual Azure Free → personal Entra tenant onboarding (22 Nov 2026)
+
+**Operator-only; this IaC PR does not create Microsoft accounts or tenants.**
+
+1. Open [Microsoft Azure Free signup](https://azure.microsoft.com/free/)
+   with a **personal** Microsoft identity (never the employer tenant).
+   Complete identity/payment verification required by Microsoft. Do not
+   provision paid Azure resources just to test Microsoft Graph.
+2. The **Azure Free trial** and **Entra ID Free directory edition** are
+   different: Azure trial credit lasts up to 30 days, and Azure may
+   disable services afterward unless the account is converted to pay-as-you-go.
+   Such conversion can create bills; explicitly assess it before agreeing.
+   Entra ID Free does **not** grant Conditional Access P1/P2 features.
+3. In [Entra admin center](https://entra.microsoft.com/), select the
+   personal **Workforce** directory, never an External ID trial, and record
+   only the non-secret **Directory (tenant) ID** and initial
+   `*.onmicrosoft.com` domain. Protect the Global Administrator with
+   phishing-resistant MFA and separate recovery.
+4. Microsoft now restricts **additional** workforce-tenant creation for
+   free/trial customers: if the Create tenant option is blocked, do not
+   assume this is an application/IaC bug or try to create a tenant inside
+   an employer's paid subscription. The original Azure Free onboarding
+   supplies the directory for this lab.
+5. On a trusted workstation only, read-only inventory:
+   ```bash
+   export ENTRA_LAB_TENANT_ID="<personal-tenant-guid>"
+   az login --tenant "$ENTRA_LAB_TENANT_ID" --allow-no-subscriptions
+   az account tenant list --output table
+   ```
+   Verify the selected directory before invoking any Graph or OpenTofu
+   write. No passwords, access tokens, card details or recovery keys in
+   issues, pull requests or conversation logs.
+6. Only after verifying the tenant, create **separate app registrations**
+   for the GitHub plan and apply jobs, respectively, with federation
+   subjects:
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-plan`
+   and
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-apply`.
+   Use issuer `https://token.actions.githubusercontent.com`, audience
+   `api://AzureADTokenExchange`; **no client secret**. Review Graph
+   least-privilege permissions and lab object ownership before admin
+   consent; no group/user management via CI by default.
+7. Independently create a dedicated HCP Terraform Free organization with
+   **exactly one workspace in Local execution mode**, for this disposable
+   Entra pilot only. The owner-equivalent HCP token must not be confused
+   with a read-only credential. Keep `ENTRA_LAB_APPLY_ENABLED` unset
+   until the negative security tests and YubiKey signature are accepted.
+
+References:
+[Microsoft account creation prerequisites](https://learn.microsoft.com/en-us/entra/fundamentals/create-new-tenant),
+[Microsoft Entra licensing](https://learn.microsoft.com/en-us/entra/fundamentals/licensing),
+[Azure Free trial terms](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account),
+[GitHub OIDC workload identity federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust).
+
 ## Bootstrap checklist (not done by this PR)
 
 1. Create a **dedicated HCP Terraform Free organization containing exactly
@@ -55,11 +109,15 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
    `ENTRA_LAB_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`,
    `HCP_TF_ORGANIZATION`, `HCP_TF_WORKSPACE`.
    Set the apply environment variable `ENTRA_LAB_APPLY_ENABLED=true`
-   only after security acceptance. In that environment register
-   `ENTRA_APPROVAL_ALLOWED_SIGNER` as one single-line OpenSSH
-   allowed-signers entry: `entra-operator sk-ssh-ed25519@openssh.com AAAA...`
-   with the **actual PUBLIC key** from the user's YubiKey SSH-FIDO2 key.
-   The private key must never leave the workstation/YubiKey.
+   only after security acceptance. Set
+   `ENTRA_APPROVAL_ALLOWED_SIGNER` as a **repository-level GitHub Actions
+   variable** (public data), one single-line OpenSSH allowed-signers entry:
+   `entra-operator sk-ssh-ed25519@openssh.com AAAA...`, using the actual
+   YubiKey SSH-FIDO2 **PUBLIC** key. This repository-level variable is
+   mandatory because `approval_gate` runs **before** a protected GitHub
+   environment is entered; an environment-only variable cannot be read
+   there. Do not override it with a different environment value. Never
+   upload the private key or a PIN.
 4. Restrict GitHub environments to `master`, configure reviewers (where
    available), protect the workflow and authorization policy, disable admin
    bypass. **No assertion of configured protections without UI evidence**.
