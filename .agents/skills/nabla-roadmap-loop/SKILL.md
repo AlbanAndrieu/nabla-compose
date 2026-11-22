@@ -74,6 +74,29 @@ Every third pass, run a reconciliation cycle, in this order:
 3. Docs: update the runbooks and READMEs the changes made stale.
 4. Refactor: remove the dead code and duplication the passes exposed, with tests.
 
+## Contrat d'entretien des roadmaps (22/11/2026)
+
+- **Une seule table de tâches H01–H21 :** `docs/roadmap-portfolio.md`. Ne
+  jamais copier cette table dans `docs/roadmap.md` : le second fichier reste
+  un index court de séquence, dépendances et preuves de réception.
+- **Une PR déjà ouverte :** contrôler `master` (rebase/review des conflits) et
+  réutiliser son périmètre avant toute écriture ; pas de PR supplémentaire pour
+  une simple reformulation de backlog.
+- **Après chaque livraison :** distinguer `CODED`, `TESTED`, `DEPLOYED`
+  et `ACCEPTED` avec date, SHA et vantage ; un merge, un HTTP 200 ou une
+  source YAML n'autorise pas à déclarer la réception WAN.
+- **Ne pas rouvrir un gate reçu :** si CSI/NetworkPolicy ou restaurations PG
+  sont réceptionnés, ne garder que leurs reliquats sous l'ID propriétaire
+  (secrets, PKI, API, etc.). Historique et commandes dans un runbook daté
+  ou Git, jamais recopiés en bloc dans la roadmap active.
+- **Arbitrage en cours :** conserver les priorités approuvées tant que le
+  propriétaire ne les a pas modifiées. Un tableau de recommandations doit
+  être explicitement nommé « proposé », avec critères de clôture, dépendances
+  et indication `NOT_VERIFIED` si la preuve runtime manque.
+- **Valider après consolidation :** `python3 scripts/quality/check-roadmap-portfolio.py --check`,
+  `python3 -m pytest -q tests/test_roadmap_portfolio_contract.py`, puis
+  pre-push sur le HEAD exact ; ne pas éditer pendant le gate.
+
 ## Pitfalls the passes hit
 
 - Never edit the clone while the pre-push gate runs: it fails on a dirty
