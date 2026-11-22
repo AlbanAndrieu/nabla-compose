@@ -142,12 +142,17 @@ def atomic_publish(directory: Path, filename: str, content: str) -> None:
     if dest.is_symlink() or (dest.exists() and not dest.is_file()):
         raise ValueError("existing destination is not regular")
     tmp = directory / (f".{filename}.tmp-{os.getpid()}")
+    # Create the staging inode privately; expose only the explicitly
+    # de-identified result after it has been written and fsynced.
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                 | getattr(os, "O_NOFOLLOW", 0), 0o644)
+                 | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as out:
             out.write(content)
             out.flush()
+            os.fsync(out.fileno())
+            # Only this validated public aggregate is made readable for Apache.
+            os.fchmod(out.fileno(), 0o644)
             os.fsync(out.fileno())
         os.replace(tmp, dest)
     finally:
