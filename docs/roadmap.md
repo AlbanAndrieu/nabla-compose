@@ -63,6 +63,14 @@ La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le
 
 ### 7. Autres chantiers conservés
 
+**H16 Entra Nabla** — le 22/11, tenant personnel créé et deux
+YubiKeys enrôlées selon l'opérateur (`NOT_VERIFIED`). P1 : tester la
+connexion interactive FIDO2 principale + secours et le bon répertoire,
+puis configurer les applications OIDC `entra-nabla-plan` /
+`entra-nabla-apply` et le workspace HCP Free `entra-nabla-state`
+avant tout plan/apply. Voir le [runbook](runbooks/entra-tenant-and-test-user.md).
+Ce travail ne modifie pas l'ordre H17 → H13 → H05.
+
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :

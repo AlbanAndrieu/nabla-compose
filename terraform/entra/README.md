@@ -1,4 +1,4 @@
-# Entra ID Free lab — HCP Free remote state (local OpenTofu execution)
+# Entra Nabla — HCP Free remote state (local OpenTofu execution)
 
 Source of truth: [H16 security runbook](../../docs/security/entra-id-homelab-lab.md).
 
@@ -10,7 +10,7 @@ Source of truth: [H16 security runbook](../../docs/security/entra-id-homelab-lab
 - Default CI disables Entra group and user writes to minimize Graph permissions.
 - `.terraform.lock.hcl` is committed and must not be relaxed in CI.
 
-Run `tofu init -backend-config=/path/outside/repo/entra.hcp.tfbackend`
+Run `tofu init -backend-config=/path/outside/repo/entra-nabla.hcp.tfbackend`
 on the workstation only after setting up an HCP token and verifying that
 the workspace is Local. Then run `tofu validate` and `tofu plan`.
 Never run `tofu apply` locally without an explicit reviewed plan: the CI
@@ -24,3 +24,12 @@ removed. HCP workspace creation and state migration are NOT_APPLIED.
 used by the plan job is NOT guaranteed read-only and can hold organization-owner
 privileges. This is a disposable pilot only. For strong production read/write
 separation choose Azure Blob + Entra OIDC or a paid HCP tier.
+
+**Nomenclature décidée le 22/11** : CI environments
+`entra-nabla-plan` et `entra-nabla-apply`, applications
+Graph/OIDC de mêmes noms ; HCP Free workspace proposé
+`entra-nabla-state`. L'opérateur déclare avoir créé le tenant
+et ajouté deux YubiKeys pour l'accès interactif. Aucune connexion
+Microsoft ni création d'application n'a été vérifiée ici.
+Ne jamais inclure le courriel administrateur ni la clé privée dans
+un fichier d'environnement public.

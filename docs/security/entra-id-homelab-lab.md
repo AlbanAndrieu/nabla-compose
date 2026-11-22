@@ -1,10 +1,10 @@
-# Entra ID Free : HCP Terraform Free + YubiKey + Harden-Runner
+# Entra Nabla : Entra ID Free, HCP Terraform Free, YubiKey and Harden-Runner
 
 Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 
 ## Decisions and threat model
 
-- Use a **personal Entra ID tenant**, never the employer tenant.
+- Use the **operator-created personal Entra ID tenant** (account and two YubiKeys reported by the operator on 2026-11-22, not independently verified). Never use an employer tenant or a Microsoft personal-account token for tenant administration.
 - **HCP Terraform Free** is the new name of Terraform Cloud. A Free workspace
   supports up to 500 managed resources (confirm your current plan), but this
   lab uses HCP for **remote state ONLY** and sets workspace execution mode
@@ -17,7 +17,7 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
   ONLY the owners team, no custom teams or fine-grained workspace RBAC. The
   CI HCP token is therefore **organization-owner-equivalent** even in the plan
   workflow: it is NOT genuinely read-only. Provision a **dedicated HCP Free
-  organization containing only this disposable Entra lab workspace**; NEVER
+  organization containing only this disposable Entra Nabla workspace**; NEVER
   put TrueNAS, Cloudflare, GitHub governance or other sensitive states there.
   Rotate/revoke tokens; treat GitHub plan/apply environment protection as an
   application safeguard, NOT an HCP permission boundary.
@@ -28,7 +28,7 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
   alternative explicitly trades away this isolation.
 - CI uses **GitHub OIDC → Entra** for provider authentication, with distinct
   plan/apply application identities scoped to lab-owned objects. Workstation
-  login uses a separate personal Entra user via browser+YubiKey FIDO2.
+  login is interactive in a trusted browser using a registered YubiKey FIDO2 passkey (the primary key preferred, the second independently tested for recovery). The Entra passkey is distinct from the YubiKey SSH-FIDO2 signing credential for Terraform approval.
 - Entra Graph application permission `Application.ReadWrite.OwnedBy` is
   sensitive: never make the CI service principal owner of privileged company
   apps. Tenant-wide group writes remain disabled in CI.
@@ -36,11 +36,47 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
   Python tests. Apply is **manual and signature-gated** from `master` only.
   No self-hosted runner linked to TrueNAS. No plan/state binaries in artifacts.
 
+## Existing Nabla account : two YubiKeys and authentication boundaries
+
+The operator reports an existing personal Microsoft/Azure account, a
+personal Entra tenant and **two enrolled YubiKeys** (2026-11-22).
+This is **operator-supplied information, not an observed Microsoft session**.
+The tenant ID and initial domain are used as **private configuration inputs**
+on the workstation and as protected GitHub environment variables, not committed
+to this public repository. The personal email address, access tokens, passkey
+metadata, private keys, PIN/PUK, recovery codes and YubiKey serials must never
+be published.
+
+**Interactive access**: use the tenant-specific browser sign-in flow
+`az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions`,
+then explicitly select the physical FIDO2 security key. Test both YubiKeys,
+one at a time, in the *actual Entra directory administrator identity*.
+Passkeys enrolled in the underlying **personal Microsoft account** do not
+automatically prove registration under the Entra workforce identity:
+check [Security info](https://mysignins.microsoft.com/security-info) within
+the intended tenant before claiming acceptance. Keep Security Defaults
+enabled. Requiring a strictly phishing-resistant FIDO2 authentication strength
+through Conditional Access needs Entra ID **P1**; do not claim this enforcement
+in Entra Free.
+
+**Unattended CI** cannot touch a physical YubiKey. It uses two distinct
+GitHub OIDC-federated applications, `entra-nabla-plan` and
+`entra-nabla-apply`, without static client secrets. Their GitHub environment
+names MUST match these strings exactly. The `apply` additionally requires
+a separate SSH-FIDO2 YubiKey signature of a sanitized plan manifest;
+this is a human approval, **not** an Entra passkey sign-in.
+
+External sources:
+- https://learn.microsoft.com/en-us/entra/identity/authentication/how-to-register-passkey-with-security-key
+- https://learn.microsoft.com/en-us/entra/fundamentals/security-defaults
+- https://learn.microsoft.com/en-us/entra/identity/authentication/concept-authentication-strength-advanced-options
+- https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively
+
 ## Manual Azure Free → personal Entra tenant onboarding (22 Nov 2026)
 
 **Operator-only; this IaC PR does not create Microsoft accounts or tenants.**
 
-1. Open [Microsoft Azure Free signup](https://azure.microsoft.com/free/)
+1. **Already completed as reported**: [Microsoft Azure Free signup](https://azure.microsoft.com/free/)
    with a **personal** Microsoft identity (never the employer tenant).
    Complete identity/payment verification required by Microsoft. Do not
    provision paid Azure resources just to test Microsoft Graph.
@@ -61,8 +97,8 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
    supplies the directory for this lab.
 5. On a trusted workstation only, read-only inventory:
    ```bash
-   export ENTRA_LAB_TENANT_ID="<personal-tenant-guid>"
-   az login --tenant "$ENTRA_LAB_TENANT_ID" --allow-no-subscriptions
+   export ENTRA_NABLA_TENANT_ID="<personal-tenant-guid>"
+   az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions
    az account tenant list --output table
    ```
    Verify the selected directory before invoking any Graph or OpenTofu
@@ -71,9 +107,9 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 6. Only after verifying the tenant, create **separate app registrations**
    for the GitHub plan and apply jobs, respectively, with federation
    subjects:
-   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-plan`
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-plan`
    and
-   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-apply`.
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-apply`.
    Use issuer `https://token.actions.githubusercontent.com`, audience
    `api://AzureADTokenExchange`; **no client secret**. Review Graph
    least-privilege permissions and lab object ownership before admin
@@ -81,7 +117,7 @@ Date: 2026-11-17. **CODED only — no cloud apply, no runtime evidence.**
 7. Independently create a dedicated HCP Terraform Free organization with
    **exactly one workspace in Local execution mode**, for this disposable
    Entra pilot only. The owner-equivalent HCP token must not be confused
-   with a read-only credential. Keep `ENTRA_LAB_APPLY_ENABLED` unset
+   with a read-only credential. Keep `ENTRA_NABLA_APPLY_ENABLED` unset
    until the negative security tests and YubiKey signature are accepted.
 
 References:
@@ -93,7 +129,7 @@ References:
 ## Bootstrap checklist (not done by this PR)
 
 1. Create a **dedicated HCP Terraform Free organization containing exactly
-   one disposable Entra-lab workspace** in **Local** execution mode.
+   one disposable Entra Nabla workspace** in **Local** execution mode.
    HCP Free does not support custom team/workspace RBAC. Configure the
    HCP owner-scoped token in GitHub environment secret `HCP_TF_TOKEN`
    only for this isolated organization; any separate plan/apply tokens are
@@ -102,13 +138,13 @@ References:
 2. In Entra personal tenant create plan and apply Graph Service Principals
    with correct owner/Graph permissions, admin consent, and federated
    GitHub OIDC identities for
-   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-plan` and
-   `repo:AlbanAndrieu/nabla-compose:environment:entra-lab-apply`.
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-plan` and
+   `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-apply`.
    No client secrets and no company tenant permission.
 3. GitHub environment variables for both:
-   `ENTRA_LAB_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`,
+   `ENTRA_NABLA_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`,
    `HCP_TF_ORGANIZATION`, `HCP_TF_WORKSPACE`.
-   Set the apply environment variable `ENTRA_LAB_APPLY_ENABLED=true`
+   Set the apply environment variable `ENTRA_NABLA_APPLY_ENABLED=true`
    only after security acceptance. Set
    `ENTRA_APPROVAL_ALLOWED_SIGNER` as a **repository-level GitHub Actions
    variable** (public data), one single-line OpenSSH allowed-signers entry:
@@ -124,7 +160,7 @@ References:
 5. Configure the same HCP workspace on workstation via a locally created
    `.tfbackend` file (outside Git) with `organization` and
    `workspaces { name = "..." }`, and authenticate HCP CLI using an
-   independent personal HCP token. No HCP token in dotfiles.
+   independent personal HCP token. No HCP token in dotfiles. The suggested HCP workspace name is `entra-nabla-state` (not yet provisioned).
 6. Confirm `tofu init -backend-config=... -lockfile=readonly`, test state
    lock contention, HCP state history/restore, and Graph least privilege.
 
@@ -223,7 +259,7 @@ a workload's runtime identity.
 
 ## HCP migration scope
 
-Only the disposable Entra lab state is selected for HCP Free.
+Only the disposable Entra Nabla state is selected for HCP Free.
 [Risk-based migration decision](garage-hcp-state-migration-decision.md)
 documents why Garage states must NOT be bulk-migrated before inventory,
 state-secret review, cost/resource-count evaluation, verified backups
