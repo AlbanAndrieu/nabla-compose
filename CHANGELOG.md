@@ -1,3 +1,10 @@
+# [0.115.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.114.0...0.115.0) (2026-11-22)
+
+
+### Features
+
+* **skills:** add Azure compliance and Entra skills ([#442](https://github.com/AlbanAndrieu/nabla-compose/issues/442)) ([8da3617](https://github.com/AlbanAndrieu/nabla-compose/commit/8da3617690ed321967245572439bd8d3ce6a87a4))
+
 # [0.114.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.113.0...0.114.0) (2026-11-22)
 
 
