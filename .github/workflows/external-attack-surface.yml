@@ -192,8 +192,10 @@ jobs:
       - name: Scan reviewed WAN IP only; no raw banner or UDP scanning
         if: inputs.confirm_wan == true
         run: |
-          nmap -sT -Pn -n --max-retries 1 --max-rate 10 --host-timeout 180s \
-            -p 21,22,23,25,53,80,110,143,443,445,465,587,993,995,2375,2376,3000,31085,3306,3389,4000,5432,5601,6379,6443,7000,8080,8082,8091,8443,9090,9200,9922,10443,11434,18789,30059,30068,31086,31087,31090 \
+          # 1-1024 plus homelab app ports (8081 Nexus, 30000+ TrueNAS Apps) and the
+          # Freebox OS remote-access ports (52190 HTTPS, 60146 HTTP), ~1100 ports at 10/s.
+          nmap -sT -Pn -n --max-retries 1 --max-rate 10 --host-timeout 300s \
+            -p 1-1024,2375,2376,3000,3100,3306,3389,4000,5432,5601,6379,6443,7000,8000,8080,8081,8082,8085,8091,8443,9090,9200,9922,10443,11434,18789,30059,30068,31085,31086,31087,31090,52190,60146 \
             -oX ports.xml 82.66.4.247
       - name: Confirm public certificates and produce minimal JSON
         shell: bash
