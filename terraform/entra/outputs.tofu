@@ -7,8 +7,8 @@ output "workload_client_ids" {
 output "service_principal_object_ids" {
   value = { for k, v in azuread_service_principal.workload : k => v.object_id }
 }
-output "lab_group_ids" {
-  value = { for k, v in azuread_group.lab : k => v.object_id }
+output "nabla_group_ids" {
+  value = { for k, v in azuread_group.nabla : k => v.object_id }
 }
 output "test_user_principal_name" {
   value = one(azuread_user.test[*].user_principal_name)

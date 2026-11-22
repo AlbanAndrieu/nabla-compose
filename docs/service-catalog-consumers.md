@@ -52,7 +52,7 @@ native `conditions` and can enrich metrics with `nabla_entity_ref`.
 
 Homarr app fields map naturally to the Nabla catalog: name, URL, description and icon. Homarr also supports a distinct ping URL.
 
-Homarr exposes authenticated OpenAPI/tRPC APIs. API keys are passed using the `ApiKey` header. The stable Homarr MCP endpoint is currently `/api/mcp/mcp`; Homarr v2 prefers `/api/mcp` and keeps the previous URL as a compatibility alias. For that reason the repository expects the complete URL in `HOMARR_MCP_URL`.
+Homarr exposes authenticated OpenAPI/tRPC APIs. API keys are passed using the `ApiKey` header. The stable Homarr MCP endpoint is currently `/api/mcp/mcp`; Homarr v2 prefers `/api/mcp` and keeps the previous URL as a compatibility alias. Cursor reads the complete URL from `HOMARR_MCP_URL`; `.mcp.json` starts a launcher instead (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
 
 | Nabla | Homarr |
 | --- | --- |
@@ -138,6 +138,8 @@ The selected community MCP is `adambenhassen/gatus-mcp`. It serves Streamable HT
 export GATUS_MCP_URL='http://gatus-mcp:3000/mcp'
 ```
 
+No server-side `gatus-mcp` is deployed: `.mcp.json` runs it per session on the workstation (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
+
 Do not provide `GATUS_TOKEN` to that MCP deployment unless external-result submission is intentionally required.
 
 ## Uptime Kuma
@@ -217,17 +219,7 @@ Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 
 `AlbanAndrieu/fastapi-sample` exposes FastMCP Streamable HTTP on `/mcp` from the same FastAPI process. Its local project configuration uses `http://127.0.0.1:8080/mcp`.
 
-The Nabla root MCP config defaults to:
-
-```text
-https://fastapi-sample.fastapicloud.dev/mcp
-```
-
-It can be overridden in clients that support default environment expansion:
-
-```bash
-export FASTAPI_SAMPLE_MCP_URL='http://127.0.0.1:8080/mcp'
-```
+The TrueNAS runtime serves it at `http://172.17.0.24:8091/mcp` behind the internal `X-MCP-Key` credential: without `MCP_OPS_KEY` in Sample's runtime it answers 503 `Operational access unavailable`. `.mcp.json` starts a launcher that sends that header (see [Claude Code launchers](#claude-code-launchers-scriptsmcp)).
 
 Cursor points directly to the production URL.
 
@@ -339,6 +331,30 @@ Rules:
 3. stable `x-nabla.id` values are reconciliation identifiers;
 4. consumer deletion requires an explicit policy rather than blind destructive sync;
 5. generation must be deterministic and enforced by the quality gate.
+
+## Claude Code launchers (scripts/mcp)
+
+The Claude desktop app passes no shell variable to MCP servers, so a `${VAR}`
+URL or header in `.mcp.json` stays empty. Homarr, Grafana, Gatus and FastAPI
+Sample therefore start a launcher, like `truenas-readonly`:
+
+| Server | Launcher | Private file (`~/.config/nabla/mcp/`) | Vaultwarden source |
+| --- | --- | --- | --- |
+| homarr | `http-remote.sh homarr http://172.17.0.24:30100/api/mcp/mcp` | `homarr.headers` (`ApiKey`) | `nabla/prod/homarr` `HOMARR_API_KEY` |
+| fastapi-sample | `http-remote.sh fastapi-sample http://172.17.0.24:8091/mcp` | `fastapi-sample.headers` (`X-MCP-Key`) | `nabla/prod/fastapisample` `MCP_OPS_KEY` |
+| grafana | `grafana.sh` (container, `--disable-write`) | `grafana.env` | `nabla/prod/grafana-observability` `GRAFANA_SERVICE_ACCOUNT_TOKEN` |
+| gatus | `gatus.sh` | none | none |
+
+- `scripts/mcp/materialize-keys.sh`, run with Vaultwarden unlocked in the owner's
+  terminal, writes the files in mode 600 and never prints a value. A missing
+  field is reported and skipped (exit 3).
+- `http-remote.sh` bridges Streamable HTTP to stdio with `mcp-remote@0.16.5`
+  and `--header-file`, and Grafana gets `--env-file`: no key reaches a command line.
+- `gatus.sh` builds `adambenhassen/gatus-mcp` at a pinned commit, serves it on a
+  random `127.0.0.1` port for the session only, without `GATUS_TOKEN`.
+- The Homarr key is the full API key: its MCP exposes write tools
+  (`app_delete`, `apiKeys_delete`...). Only a gateway filter or a dedicated
+  Homarr user would narrow it.
 
 ## MCP environment inventory
 

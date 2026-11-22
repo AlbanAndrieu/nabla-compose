@@ -5,7 +5,7 @@ resource "terraform_data" "personal_tenant_guard" {
   input = var.tenant_id
   lifecycle {
     precondition {
-      condition     = var.lab_tenant_confirmed && data.azuread_client_config.current.tenant_id == var.tenant_id
+      condition     = var.nabla_tenant_confirmed && data.azuread_client_config.current.tenant_id == var.tenant_id
       error_message = "Refusing changes until personal tenant is confirmed and the provider identity matches."
     }
   }
@@ -13,13 +13,13 @@ resource "terraform_data" "personal_tenant_guard" {
 
 locals {
   groups    = toset(["readers", "operators"])
-  workloads = toset(["reader", "denied"])
+  workloads = var.enable_workload_pilot ? toset(["reader", "denied"]) : toset([])
 }
 
-resource "azuread_group" "lab" {
+resource "azuread_group" "nabla" {
   for_each                = var.enable_group_management ? local.groups : toset([])
   display_name            = "${var.name_prefix}-${each.key}"
-  description             = "Disposable Entra lab group"
+  description             = "Disposable Entra Nabla group"
   security_enabled        = true
   prevent_duplicate_names = true
   depends_on              = [terraform_data.personal_tenant_guard]
@@ -49,6 +49,6 @@ data "azuread_user" "existing" {
 
 resource "azuread_group_member" "existing" {
   for_each         = var.enable_group_management ? var.test_users : {}
-  group_object_id  = azuread_group.lab[each.value.group].object_id
+  group_object_id  = azuread_group.nabla[each.value.group].object_id
   member_object_id = data.azuread_user.existing[each.key].object_id
 }

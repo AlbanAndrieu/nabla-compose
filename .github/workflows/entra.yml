@@ -1,5 +1,5 @@
 ---
-name: Entra ID lab - signed HCP OpenTofu
+name: Entra Nabla - signed HCP OpenTofu
 
 on:
   pull_request:
@@ -59,8 +59,8 @@ jobs:
         run: |
           set -euo pipefail
           tofu fmt -check -diff terraform/entra
-          bash -n scripts/entra/entra-lab-preflight.sh
-          python3 -m unittest tests.test_entra_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract tests.test_entra_approval -v
+          bash -n scripts/entra/entra-nabla-preflight.sh
+          python3 -m unittest tests.test_entra_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract tests.test_entra_approval tests.test_entra_nabla_naming tests.test_entra_bootstrap_contract -v
       - name: zizmor pinned offline audit
         shell: bash
         run: |
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:
-      name: "${{ inputs.operation == 'apply' && 'entra-lab-apply' || 'entra-lab-plan' }}"
+      name: "${{ inputs.operation == 'apply' && 'entra-nabla-apply' || 'entra-nabla-plan' }}"
     permissions:
       contents: read
       actions: read
@@ -136,17 +136,22 @@ jobs:
       TF_VAR_ci_use_oidc: "true"
       TF_VAR_enable_group_management: "false"
       TF_VAR_enable_user_management: "false"
-      TF_VAR_lab_tenant_confirmed: "true"
-      TF_VAR_tenant_id: "${{ vars.ENTRA_LAB_TENANT_ID }}"
+      TF_VAR_nabla_tenant_confirmed: "true"
+      # Keep bootstrap objects in the same HCP state, but never create them via CI:
+      # check-plan.py refuses these application and FIC resource addresses.
+      TF_VAR_enable_ci_identity_bootstrap: "true"
+      TF_VAR_enable_workload_pilot: "false"
+      TF_VAR_ci_bootstrap_operator_object_id: "${{ vars.ENTRA_NABLA_OPERATOR_OBJECT_ID }}"
+      TF_VAR_tenant_id: "${{ vars.ENTRA_NABLA_TENANT_ID }}"
       TF_VAR_ci_graph_client_id: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
       ARM_CLIENT_ID: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
-      ARM_TENANT_ID: "${{ vars.ENTRA_LAB_TENANT_ID }}"
+      ARM_TENANT_ID: "${{ vars.ENTRA_NABLA_TENANT_ID }}"
       ARM_USE_OIDC: "true"
       ARM_USE_CLI: "false"
       TF_TOKEN_app_terraform_io: "${{ secrets.HCP_TF_TOKEN }}"
       HCP_ORG: "${{ vars.HCP_TF_ORGANIZATION }}"
       HCP_WORKSPACE: "${{ vars.HCP_TF_WORKSPACE }}"
-      APPLY_ENABLED: "${{ vars.ENTRA_LAB_APPLY_ENABLED }}"
+      APPLY_ENABLED: "${{ vars.ENTRA_NABLA_APPLY_ENABLED }}"
       ALLOWED_SIGNER: "${{ vars.ENTRA_APPROVAL_ALLOWED_SIGNER }}"
       GH_TOKEN: "${{ github.token }}"
     steps:
@@ -168,6 +173,7 @@ jobs:
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || exit 2
           [[ "$TF_VAR_tenant_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
           [[ "$ARM_CLIENT_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
+          [[ "$TF_VAR_ci_bootstrap_operator_object_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
           [[ "$HCP_ORG" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
           [[ "$HCP_WORKSPACE" =~ ^[A-Za-z0-9_-]{2,70}$ ]] || exit 2
           [[ -n "$TF_TOKEN_app_terraform_io" ]] || exit 2

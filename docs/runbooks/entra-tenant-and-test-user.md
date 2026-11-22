@@ -1,159 +1,236 @@
-# Entra ID Free — tenant personnel et utilisateur de test (H16)
+# Entra Nabla — compte personnel, deux YubiKeys et pilote H16
 
-**État : CODED, test OpenTofu simulé au vert ; aucun compte, tenant, state ni
-utilisateur créé.** L'opérateur crée lui-même le compte, accepte les conditions
-et saisit téléphone et carte. Contexte et modèle de menace :
-[lab Entra H16](../security/entra-id-homelab-lab.md) ; module :
-[`terraform/entra`](../../terraform/entra/README.md).
+**Actualisé le 22 novembre 2026.** La connexion Azure CLI a confirmé le tenant
+Entra ID Free déclaré par l'opérateur ; l'enrôlement des **deux YubiKeys** sont **déclarés par
+l'opérateur**, mais aucune authentification Microsoft n'a été exécutée par les outils du dépôt. Les applications Graph/OIDC, le workspace HCP et les
+ressources IaC restent `NOT_APPLIED`.
 
-## 0. Quelle voie pour un tenant gratuit (vérifié le 15/11/2026)
+Source : [architecture, modèle de menace et signature YubiKey](../security/entra-id-homelab-lab.md).
+Module : [terraform/entra](../../terraform/entra/README.md).
 
-| Voie | Ce qu'on obtient | Verdict |
-| --- | --- | --- |
-| [Compte Azure gratuit](https://azure.microsoft.com/pricing/purchase-options/azure-account) | Un tenant Entra ID Free (« Default Directory », domaine `*.onmicrosoft.com`) dont on est Global Administrator, et un abonnement Azure : 200 $ de crédit sur 30 jours. Carte de crédit ou de débit non prépayée, avec une autorisation temporaire d'environ 1 $, et vérification par téléphone. | **Retenu** : l'abonnement porte aussi le state Azure Blob. |
-| [Programme développeur Microsoft 365](https://learn.microsoft.com/office/developer-program/microsoft-365-developer-program-faq) | Bac à sable E5 de 90 jours, renouvelable sous conditions. Le compte de facturation est obligatoire. | Réservé aux abonnés Visual Studio Pro/Enterprise, aux partenaires (ISV Success, AI Cloud Partner Program) et aux contrats Premier/Unified : pas accessible à titre personnel. |
-| [Entra : Gérer les locataires > Créer](https://learn.microsoft.com/entra/fundamentals/create-new-tenant) | Un tenant supplémentaire | Réservé aux clients payants ; un tenant gratuit ou d'essai ne peut pas en créer d'autre. |
-| Essai Entra External ID | Un tenant *externe* (CIAM) de 30 jours | Hors sujet : ce n'est pas un tenant d'effectifs. |
+## Choix d'architecture
 
-Le tenant Entra ID Free n'expire pas. **L'abonnement Azure, si** : avant le
-30ᵉ jour, il faut passer au paiement à l'utilisation, sinon l'abonnement est
-désactivé et le state Blob devient inaccessible. Le tenant, lui, reste. On n'a
-droit qu'à un seul compte gratuit par personne : si le tien a déjà servi,
-souscris directement au paiement à l'utilisation. Entra ID Free reste gratuit
-et le state ne pèse que quelques Ko.
+- Utiliser exclusivement **le tenant Workforce personnel**, sans toucher
+  au tenant de l'employeur. Le compte administrateur personnel et le domaine
+  initial sont fournis par l'opérateur, **jamais publiés dans le dépôt**.
+- Privilégier la connexion **FIDO2 matérielle dans le navigateur** avec la
+  YubiKey principale. Confirmer séparément la seconde clé et sa capacité à
+  se connecter à l'**identité Entra effective**, pas seulement au compte
+  Microsoft personnel. Conserver une méthode de récupération indépendante.
+- Backend de state : **HCP Terraform Free** dans une organisation dédiée,
+  workspace `entra-nabla-state` en mode `Local`, zéro autre état. **L'ancien
+  guide Azure Blob est obsolète** ; ne pas créer de compte de stockage Azure
+  pour ce pilote.
+- Apps OIDC GitHub : `entra-nabla-plan`, `entra-nabla-apply`.
+  Aucun mot de passe d'application ou jeton personnel dans la CI.
 
-## 1. Créer le compte et le tenant (toi)
+## Connexion sur la workstation
 
-1. Utilise un **compte Microsoft personnel**, jamais un compte professionnel,
-   dans une fenêtre de navigation privée. Ajoute la YubiKey comme clé de
-   sécurité (passkey) dans *Compte Microsoft > Sécurité*.
-2. Va sur <https://azure.microsoft.com/free>, clique sur « Commencer
-   gratuitement » et connecte-toi avec ce compte. Remplis le profil, puis
-   la vérification par téléphone et la carte. Accepte le contrat.
-3. Dans le [centre d'administration Entra](https://entra.microsoft.com), ouvre
-   *Entra ID > Vue d'ensemble*. Note l'**ID de locataire** (GUID) et le
-   **domaine initial** `*.onmicrosoft.com`, et vérifie que la licence est
-   « Microsoft Entra ID Free ». Facultatif : *Propriétés > Nom* →
-   `Nabla IAM Lab`.
-4. Laisse les **paramètres de sécurité par défaut** activés : ils imposent la
-   MFA aux comptes du tenant.
-5. Dans le [portail Azure](https://portal.azure.com), ouvre *Gestion des coûts
-   > Budgets* et crée un budget de 1 € par mois avec une alerte. Avant le
-   30ᵉ jour, *Abonnements > Mettre à niveau* : passe au paiement à
-   l'utilisation.
-
-## 2. State Azure Blob (toi, une seule fois)
-
-Le state H16 est un blob Azure, avec bail natif et authentification Entra
-uniquement. Ce n'est **jamais Garage** : la CI GitHub ne joint pas le LAN.
+Saisir l'ID du tenant depuis la console locale uniquement (pas dans Git) :
 
 ```bash
 export AGENT_EXECUTION_MODE=workstation
-export ENTRA_LAB_CONFIRMED=true
-export ENTRA_LAB_TENANT_ID="<GUID du tenant>"
-export ENTRA_STATE_RG=nabla-entra-lab-state
-export ENTRA_STATE_ACCOUNT="<nom unique : 3 à 24 minuscules ou chiffres>"
-export ENTRA_STATE_CONTAINER=entra-lab-tfstate
-az login --tenant "$ENTRA_LAB_TENANT_ID"
-az account show --query '{tenant:tenantId, subscription:name}' -o table
-az group create --name "$ENTRA_STATE_RG" --location francecentral
-az storage account create --name "$ENTRA_STATE_ACCOUNT" --resource-group "$ENTRA_STATE_RG" \
-  --location francecentral --sku Standard_LRS --kind StorageV2 --https-only true \
-  --min-tls-version TLS1_2 --allow-blob-public-access false --allow-shared-key-access false
-az storage account blob-service-properties update --account-name "$ENTRA_STATE_ACCOUNT" \
-  --resource-group "$ENTRA_STATE_RG" --enable-versioning true \
-  --enable-delete-retention true --delete-retention-days 30 \
-  --enable-container-delete-retention true --container-delete-retention-days 30
-az storage container-rm create --storage-account "$ENTRA_STATE_ACCOUNT" \
-  --resource-group "$ENTRA_STATE_RG" --name "$ENTRA_STATE_CONTAINER" --public-access off
-scope="$(az storage account show --name "$ENTRA_STATE_ACCOUNT" --resource-group "$ENTRA_STATE_RG" --query id -o tsv)/blobServices/default/containers/$ENTRA_STATE_CONTAINER"
-az role assignment create --assignee "$(az ad signed-in-user show --query id -o tsv)" \
-  --role "Storage Blob Data Contributor" --scope "$scope"
+export ENTRA_NABLA_CONFIRMED=true
+export ENTRA_NABLA_TENANT_ID="<GUID-du-tenant-personnel>"
+export AZURE_CONFIG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nabla-entra/azure-cli"
+install -d -m 700 "$AZURE_CONFIG_DIR"
+# Interactive sign-in: select the intended directory and use a YubiKey.
+az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions
+# Stable core command: avoid experimental 'az account tenant list' extension.
+az account show --query '{tenant:tenantId,subscription:name}' --output json
+bash scripts/entra/entra-nabla-preflight.sh
 ```
 
-Le chiffrement au repos est toujours actif côté Azure. Le rôle `Owner` de
-l'abonnement ne donne pas accès aux blobs par Entra : c'est l'affectation
-ci-dessus qui le donne, avec quelques minutes de propagation.
+Le domaine initial déclaré pour ce tenant est
+`albanandrieuhotmail.onmicrosoft.com`. La session Azure CLI doit être
+vérifiée par **Tenant ID** via `az account show`, pas uniquement par le nom
+« Répertoire par défaut ». Le nom `nabla-test.onmicrosoft.com` était une
+fixture de test, **jamais le domaine de production**.
+`az account tenant list` peut tenter d'installer l'extension expérimentale
+`account` ; ne pas l'utiliser pour ce préflight.
 
-## 3. Mot de passe initial (toi)
+**Diagnostic des erreurs Azure CLI sur Ubuntu/mise.** Des erreurs
+`pkg_resources` dans l'extension facultative `ai-examples` et
+`No module named rpds.rpds` révèlent un environnement Python/extension
+incohérent, pas nécessairement un échec de connexion. Les avertissements
+`SyntaxWarning` d'Azure Batch ne sont pas bloquants. Sur la workstation,
+tester dans l'ordre `az version`, `az extension list -o table` et
+`az account show --query tenantId -o tsv`; retirer `ai-examples`
+et l'extension `account` si elle a été installée uniquement par
+la commande expérimentale, après revue des extensions nécessaires.
+Le client mise actuel utilise un Python 3.14 : préférer un environnement
+Azure CLI **Python 3.12** isolé pour éviter les incompatibilités de
+modules compilés. Ne pas supprimer la session Azure existante ni
+modifier la version globale de Python pour cela.
 
-Dans Vaultwarden, crée l'élément `nabla/lab/entra-test-user` avec un
-mot de passe généré d'au moins 16 caractères. Tu le transmets ensuite à
-OpenTofu sans jamais l'afficher :
+Vérifier le domaine et l'identité sous
+[Entra admin center](https://entra.microsoft.com/) ; puis vérifier les
+deux passkeys sous [Security info](https://mysignins.microsoft.com/security-info).
+Le PIN et le toucher restent sous le contrôle du navigateur/clé physique.
+Éviter `az login -u ... -p ...` et toute automatisation de mot de passe.
+
+**Licence :** Security Defaults et les passkeys peuvent être utilisées
+avec Entra ID Free. Imposer une force d'authentification Conditional Access
+« phishing-resistant » nécessite **Entra ID P1**.
+
+## Bootstrap Terraform contrôlé depuis la workstation (NOT_APPLIED)
+
+Le tenant personnel a été **confirmé par la sortie Azure CLI** fournie par
+l'opérateur le 22/11/2026 ; il n'existe toujours aucune preuve de création
+des applications, des rôles Graph ou de l'état HCP.
+
+**Prérequis** : disposer du workspace **HCP Free**
+`entra-nabla-state`, seul workspace de son organisation dédiée, en
+mode d'exécution **Local**. Préparer les credentials HCP personnels dans
+`TF_TOKEN_app_terraform_io` hors dépôt (ne les transmettre à personne).
+Le workspace, ses variables et ses secrets doivent rester distincts de
+tous les états Garage. Ne pas demander de ressources Azure payantes.
+
+L'authentification CLI utilise `AZURE_CONFIG_DIR` isolé et YubiKey FIDO2.
+Depuis un checkout à jour, dans un shell de confiance :
 
 ```bash
-export BW_SESSION="$(bw unlock --raw)"
-export TF_VAR_test_user_initial_password="$(bw get password nabla/lab/entra-test-user)"
-```
+set -euo pipefail
+export AGENT_EXECUTION_MODE=workstation
+export ENTRA_NABLA_CONFIRMED=true
+export ENTRA_NABLA_TENANT_ID="<GUID-du-tenant-personnel>"
+export AZURE_CONFIG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nabla-entra/azure-cli"
+install -d -m 700 "$AZURE_CONFIG_DIR"
 
-## 4. Préflight, init, plan (toi)
+# If not already logged in with the personal FIDO2 key:
+az login --tenant "$ENTRA_NABLA_TENANT_ID" --allow-no-subscriptions
+bash scripts/entra/entra-nabla-preflight.sh
+export TF_VAR_tenant_id="$ENTRA_NABLA_TENANT_ID"
+export TF_VAR_nabla_tenant_confirmed=true
+export TF_VAR_enable_ci_identity_bootstrap=true
+export TF_VAR_enable_workload_pilot=false
+export TF_VAR_enable_group_management=false
+export TF_VAR_enable_user_management=false
 
-```bash
-cd ~/w/nabla-compose
-bash scripts/entra/entra-lab-preflight.sh
-export TF_VAR_tenant_id="$ENTRA_LAB_TENANT_ID" TF_VAR_lab_tenant_confirmed=true TF_VAR_enable_user_management=true
-cd terraform/entra
-tofu init -backend-config="storage_account_name=$ENTRA_STATE_ACCOUNT" -backend-config="container_name=$ENTRA_STATE_CONTAINER"
-tofu validate
+# Use the *Entra directory object ID*, never the subscription GUID or UPN.
+export TF_VAR_ci_bootstrap_operator_object_id="$(az ad signed-in-user show --query id -o tsv)"
+test -n "$TF_VAR_ci_bootstrap_operator_object_id"
+
+# Inspect existing app names FIRST to avoid creating duplicates. If they
+# already exist, import into the HCP state rather than creating another.
+az ad app list --filter "displayName eq 'entra-nabla-plan'" \
+  --query '[].{appId:appId,id:id}' --output table
+az ad app list --filter "displayName eq 'entra-nabla-apply'" \
+  --query '[].{appId:appId,id:id}' --output table
+
+# In a private directory, create HCP remote backend config. Substitute the
+# dedicated HCP *organization name* (not a secret).
 umask 077
-tofu plan -out=entra.tfplan
+mkdir -p "$HOME/.local/state/nabla-entra/bootstrap"
+cat > "$HOME/.local/state/nabla-entra/bootstrap/hcp.tfbackend" <<'HCP'
+hostname = "app.terraform.io"
+organization = "<DEDICATED_HCP_ORGANIZATION>"
+workspaces { name = "entra-nabla-state" }
+HCP
+
+tofu -chdir=terraform/entra init -lockfile=readonly \
+  -backend-config="$HOME/.local/state/nabla-entra/bootstrap/hcp.tfbackend"
+tofu -chdir=terraform/entra validate
+tofu -chdir=terraform/entra plan -input=false -lock-timeout=5m \
+  -out="$HOME/.local/state/nabla-entra/bootstrap/plan.tfplan"
+tofu -chdir=terraform/entra show -no-color \
+  "$HOME/.local/state/nabla-entra/bootstrap/plan.tfplan"
 ```
 
-Plan attendu : **6 to add, 0 to change, 0 to destroy**.
+**Acceptance gate before applying manually**: the plan should contain
+only the **two** CI app registrations, their home-tenant service
+principals, GitHub federated credentials, their requested (not consented)
+Graph API roles and the tenant `terraform_data` guard. No extra users,
+groups, demo workloads, Azure subscription RBAC, Defender plans,
+destroy/replacement or unknown tenant. A submitted plan is not approval.
 
-- `terraform_data.personal_tenant_guard` ;
-- `azuread_application_registration.workload["reader"|"denied"]` ;
-- `azuread_service_principal.workload["reader"|"denied"]`, avec `denied`
-  désactivé ;
-- `azuread_user.test[0]` : UPN `nabla-iam-lab-user@<domaine initial>`,
-  `password = (sensitive value)`, `force_password_change = true`.
+After reviewing the exact saved plan and confirming the HCP state is
+isolated and locked, an authorized operator may execute
+`tofu -chdir=terraform/entra apply -input=false <saved-plan-file>`
+**locally with the YubiKey interactive session**. This explicit
+operator-only bootstrap is an exception to the usual CI signed apply
+gate; no GitHub runner can bootstrap its own OIDC identity. Do **not**
+trigger a CI apply before this bootstrap.
 
-Au moindre écart (update, destroy, autre ressource ou autre tenant), arrête.
-`ENTRA_LAB_PREFLIGHT_OK` doit s'afficher avant le plan.
+After apply, run
+`tofu -chdir=terraform/entra output entra_nabla_ci_client_ids`
+and
+`tofu -chdir=terraform/entra output entra_nabla_ci_principal_object_ids`.
+The two nonsecret Client IDs go to the matching GitHub protected
+environments as `ENTRA_GRAPH_CLIENT_ID`; save the stable operator
+object ID as `ENTRA_NABLA_OPERATOR_OBJECT_ID`, plus the tenant ID
+`ENTRA_NABLA_TENANT_ID`, HCP organization/workspace and HCP token
+in their appropriate variables/secrets.
 
-## 5. Apply contrôlé (toi, après relecture du plan)
+**Permissions and consent still require review**:
+the requested role for plan is `Application.Read.All`
+(broad application directory read); for apply
+`Application.ReadWrite.OwnedBy` (can create and manage owned apps).
+These **are requested in Terraform but not admin-consented or
+granted**. Explicit administrator consent occurs only after reviewing
+application principals, owners, subjects, exact role IDs and negative
+tests, and must be audited. `OwnedBy` must be proven to permit the
+future workload policy with only the intended app/SP ownership; if the
+test fails, *stop*, do not escalate to `Application.ReadWrite.All`.
 
-```bash
-tofu apply entra.tfplan
-rm -f entra.tfplan
-tofu output test_user_principal_name
-unset TF_VAR_test_user_initial_password
-```
+A failed bootstrap requires examining partial HCP state and Entra
+objects before retrying. Never delete the remote state or run
+`tofu apply -replace` to bypass guardrails. `prevent_destroy`
+makes accidental removals fail closed.
 
-Le fichier `entra.tfplan` contient le mot de passe en clair : supprime-le
-juste après l'apply. Il est ignoré par Git (`*.tfplan`).
+## Bootstrap des applications et environnement GitHub (non exécuté)
 
-## 6. Première connexion de l'utilisateur de test
+1. Créer dans HCP Terraform l'unique workspace `entra-nabla-state` en
+   mode `Local`, organisation gratuite isolée ; son token possède des
+   privilèges étendus, même si utilisé pour `plan`.
+2. Entra ID → **App registrations** : créer deux **enregistrements
+   d'application monolocataire** `entra-nabla-plan` et
+   `entra-nabla-apply` dans le **tenant personnel vérifié**.
+   Entra crée normalement aussi les **service principals** correspondants
+   (visibles dans **Enterprise applications**) : ne pas exécuter
+   `az ad sp create-for-rbac` et ne pas créer un deuxième objet en doublon.
+   Donner à chaque enregistrement une identité fédérée GitHub
+   (Certificates & secrets → Federated credentials → GitHub Actions,
+   Entity type = Environment), **sans secret client** :
+   - issuer : `https://token.actions.githubusercontent.com`
+   - audience : `api://AzureADTokenExchange`
+   - subject plan :
+     `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-plan`
+   - subject apply :
+     `repo:AlbanAndrieu/nabla-compose:environment:entra-nabla-apply`
+   Vérifier séparément les deux **Application (client) IDs**, leurs
+   **Object IDs**, les principals associés et la liste exacte des
+   permissions **Microsoft Graph**. Commencer avec un accès de lecture
+   minimal pour `plan`, puis réserver les écritures autorisées à
+   `apply`; ne pas attribuer automatiquement `Contributor` à
+   l'abonnement Azure ni accorder de permissions tenant-wide.
+   Un consentement administrateur devra être approuvé sur un périmètre
+   explicitement recensé. GitHub ne doit pas pouvoir utiliser une
+   application d'un autre environnement.
 
-Dans une fenêtre privée, ouvre <https://myaccount.microsoft.com> et connecte-toi
-avec l'UPN et le mot de passe initial. Entra impose un nouveau mot de passe, puis
-l'enregistrement de la MFA (paramètres de sécurité par défaut). Range le
-nouveau mot de passe dans l'élément Vaultwarden.
+3. Dans GitHub Actions, pour les deux **environnements protégés** :
+   `ENTRA_NABLA_TENANT_ID`, `ENTRA_GRAPH_CLIENT_ID`
+   (Client ID distinct par environnement), `HCP_TF_ORGANIZATION`,
+   `HCP_TF_WORKSPACE` et secret d'environnement `HCP_TF_TOKEN`.
+   Enregistrer la ligne `ENTRA_APPROVAL_ALLOWED_SIGNER` au **niveau
+   du dépôt** (clé publique SSH-FIDO2 seulement), car le job
+   `approval_gate` ne possède pas d'environnement.
+4. Ne pas activer `ENTRA_NABLA_APPLY_ENABLED` avant contrôle du périmètre
+   Graph et du plan, validation des tests négatifs, signature YubiKey,
+   et protection des environnements GitHub.
+5. Les applications OIDC GitHub s'authentifient **automatiquement par
+   fédération**, pas en touchant une YubiKey sur le runner. La clé matérielle
+   fournit l'**approbation humaine indépendante** de l'apply Terraform.
 
-## Garanties et limites
+## Sécurité et recette
 
-- **CI : plan seulement, jamais d'utilisateur.** Le workflow fixe
-  `TF_VAR_enable_user_management: "false"`, et `check-plan.py` rejette toute
-  ressource `azuread_user` hors liste blanche.
-- **Mot de passe** : variable sensible, absente du code et des sorties,
-  masquée dans le plan. `azuread` 3.10.0 n'a pas d'attribut *write-only* :
-  la valeur est donc **dans le state**, lisible par qui lit le blob,
-  identité CI de plan comprise. Elle ne vaut que jusqu'à la première
-  connexion, qu'il faut faire juste après l'apply.
-- `ignore_changes = [password]` : changer la valeur dans Vaultwarden ne
-  réinitialise rien. Pour réinitialiser, passe par le portail Entra ou
-  recrée l'utilisateur (`tofu plan -replace='azuread_user.test[0]' -out=entra.tfplan`).
-- **Suppression** : `TF_VAR_enable_user_management=false` puis plan et apply
-  (1 to destroy). L'utilisateur reste 30 jours dans les utilisateurs
-  supprimés.
-- Test hors ligne : `TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra test`.
+Vérifier mauvais tenant, mauvais subject OIDC, token HCP absent, signature
+incorrecte/expirée, différence d'empreinte de plan, refus de l'écriture
+de groupes et utilisateurs en CI, et absence de client secret.
+`CODED` ne vaut pas `DEPLOYED` ou `ACCEPTED`.
+Ne pas exécuter d'apply depuis ce runbook.
 
-## Dépannage
-
-| Symptôme | Cause probable |
-| --- | --- |
-| `ENTRA_LAB_BLOCKED: …` | Variable manquante, autre tenant actif dans `az`, ou clé statique `ARM_*` exportée. |
-| `AuthorizationPermissionMismatch` à l'init | Affectation `Storage Blob Data Contributor` pas encore propagée : attendre. |
-| `MissingSubscriptionRegistration` | `az provider register --namespace Microsoft.Storage` |
-| `Refusing changes until personal tenant is confirmed…` | `TF_VAR_lab_tenant_confirmed` absent ou identité `az` sur un autre tenant. |
-| `Export TF_VAR_test_user_initial_password…` | Étape 3 non faite dans ce shell. |
+Références :
+- https://learn.microsoft.com/en-us/entra/identity/authentication/how-to-register-passkey-with-security-key
+- https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust
+- https://learn.microsoft.com/en-us/entra/fundamentals/security-defaults
