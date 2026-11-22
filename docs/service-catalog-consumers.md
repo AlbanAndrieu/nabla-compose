@@ -343,7 +343,7 @@ one endpoint, and upstream secrets stay on TrueNAS.
 | --- | --- | --- | --- | --- |
 | cyberbro | `apps/litellm/config.yaml` | `mcp-cyberbro` sidecar, 8013 | none | all |
 | homarr | LiteLLM database (`mcp-gateway.sh`) | `http://172.17.0.24:30100/api/mcp/mcp` | `nabla/prod/homarr` `HOMARR_API_KEY`, `api_key` auth sent as `ApiKey` (`upstream_token_header`) | 77 tools Homarr annotates `readOnlyHint` (`scripts/litellm/homarr-readonly-tools.json`) |
-| grafana | LiteLLM database (`mcp-gateway.sh`) | App `grafana-observability` (`mcpgrafana`), 8014, `-disable-write` | bearer `MCP_GRAFANA_SERVER_TOKEN` (`nabla/prod/grafana-observability`) | Viewer role |
+| grafana | LiteLLM database (`mcp-gateway.sh`) | App `mcp-grafana`, 8014, `-disable-write` | bearer `MCP_GRAFANA_SERVER_TOKEN` (`nabla/prod/grafana-observability`) | Viewer role |
 
 - The servers share the access group `nabla-mcp`. The client key
   `mcp-claude-code` (`nabla/prod/litellm-mcp-client`) grants that group and no
@@ -352,17 +352,18 @@ one endpoint, and upstream secrets stay on TrueNAS.
   `LITELLM_SALT_KEY`; LiteLLM needs no extra env file. Two security contracts
   shaped this: the root installer writes only `runtime/<app>/.env.secrets`, and an
   `env_file` must sit under the runtime directory of its own Compose App.
-- The Grafana MCP is its own TrueNAS App, `apps/grafana-observability`, named
-  after its manifest entry: its runtime file holds only the Viewer token and the
-  bearer token, never the Grafana admin password.
-  `sudo bash scripts/truenas/deploy-grafana-observability.sh --check|--apply` on
+- The Grafana MCP is its own TrueNAS App, `apps/mcp-grafana` (prefix `mcp-` like
+  `mcp-cyberbro`): its runtime file holds only the Viewer token and the bearer
+  token (Vaultwarden `nabla/prod/grafana-observability`), never the Grafana admin
+  password.
+  `sudo bash scripts/truenas/deploy-mcp-grafana.sh --check|--apply` on
   TrueNAS creates it and checks that it refuses a call without the bearer (401).
 - `scripts/grafana/mcp-identity.sh check|apply` keeps the Grafana side as code:
   - the admin password lives in Vaultwarden (`nabla/prod/grafana`);
   - the `mcp-readonly` Viewer service account comes from OpenTofu (`infrastructure/grafana`);
   - its token goes straight into Vaultwarden, never into the OpenTofu state.
 - `scripts/litellm/mcp-gateway.sh check|apply` (owner terminal, Vaultwarden unlocked):
-  - fills `MCP_GRAFANA_SERVER_TOKEN` and installs the `grafana-observability`
+  - fills `MCP_GRAFANA_SERVER_TOKEN` and installs the `mcp-grafana`
     runtime file with `materialize_runtime.py --ssh truenas`;
   - upserts the homarr and grafana servers through the admin API (`/v1/mcp/server`);
   - mints the client key into `~/.config/nabla/mcp/litellm-gateway.headers` (600).
