@@ -93,6 +93,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H04 : WAF Vercel de Bababou (`vercel-waf`) | bloqué (forfait) | Inventaire conforme à la base du HCL (aucune règle, challenge anti-bot, gen/sqli/xss/rce en `log`). Import dans l'état Garage réussi ; plan revu : 1 modification (SQLi/XSS/RCE en `deny`, une règle de 300 req/60 s/IP sur les trois domaines). Apply refusé : `payment_required - OWASP Core Ruleset is not available for this plan`. WAF relu inchangé (version 1). Sauvegarde d'état `20261122T135556Z-249698f0`. Jeton : `VERCEL_API_TOKEN=$VERCEL_TOKEN` (item `nabla/prod/vercel`) |
 | Unité `github-artifact-app` (App `nabla-github-app`) | bloqué | App enregistrée le 20/11 (id 5854763), mais `/mnt/cpool/secrets/runtime/nabla-github-app/` n'a ni `github-app.json` ni clé : ID d'installation inconnu, `discover-github-app-installation.py --apply` impossible |
 | Redéploiements du 22/11 : homarr, nexus, prometheus, traefik ; CrowdSec | DEPLOYED | `redeploy-impacted-apps.py --apply` (`NABLA_IMPACTED_REDEPLOY_APPROVED=yes`), `deploy-crowdsec.sh --apply` ; le contrôle Loki pfSense de ce script est périmé (pfSense retiré le 18/11) |
+| Home Assistant arrêté (Gatus en échec, port 30103 refusé) | DEPLOYED | `app.stop` du 21/11 14:50 d'origine inconnue ; `midclt call -j app.start home-assistant` le 22/11 : `RUNNING`, `/manifest.json` 200 en 10 s. Leçon : en mode sprint, redémarrer sans demander (skill, section « Decide, do not ask ») |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
 

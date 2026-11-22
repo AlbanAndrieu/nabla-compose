@@ -32,6 +32,22 @@ Still never:
 
 A step that needs one of these becomes a parked question. Keep going with the rest.
 
+## Decide, do not ask
+
+Sprint mode overrides the per-action confirmations of other skills (the
+user skill `truenas-ops`: restart, redeploy, checkout update, Sample update).
+Never end a turn on a yes/no question about an action listed above: do it,
+check the result, report it.
+
+- An App that is stopped or unhealthy, and that no roadmap or runbook line marks
+  as stopped on purpose (`disabled`, `planned`): start or redeploy it, then check
+  its probe. On 22/11, a "restart Home Assistant?" question only annoyed the owner.
+- A teammate session's finished commits: check the fast-forward and the diff,
+  then push them to the PR through the pre-push hook. Never leave the owner a
+  push command to type.
+- Ask only about the "Still never" list, a paid plan, or a credential that only
+  the owner can create. Park it in the state runbook and keep going.
+
 ## One PR per repository
 
 Fold all work into the open PR of each repository: the PR of the checkout's
