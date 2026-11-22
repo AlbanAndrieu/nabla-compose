@@ -16,11 +16,12 @@ déclaré derrière Traefik** dans `apps/nginx/compose.yml` :
   de cible, scrape échoué ou absence de backend sain (si le metric
   `traefik_service_server_up` existe).
 
-**Attention au décalage de topologie :** la déclaration
-`x-nabla.exposure.public.gatewayRef=pfsense-haproxy` et son
-`riskAcceptance.reason` évoquent encore l'ancien HAProxy,
-retiré le 18/11. Ils décrivent une **intention/exception publique
-historique**, et **ne prouvent plus aucune exposition WAN**.
+**Réconciliation H04 (#436) :** le routeur `x-nabla` de Hello référence
+maintenant `component:default/traefik`. Le nœud et la relation
+`exposedBy` actifs de l'ancien pfSense HAProxy ont été retirés de la
+topologie Compose ; l'entité historique Backstage reste présente, mais
+`operational-state: disabled`. Le pfSense a été retiré le 18/11.
+**Le DNS public et l'exposition WAN restent non vérifiés.**
 Le nom `hello.int.albandrieu.com` est une exception DNS publique
 gérée séparément par `cloudflare-ddns` (sans proxy).
 Ne pas ajouter à la légère un second routeur, un NAT WAN ou une
@@ -28,6 +29,13 @@ nouvelle route Cloudflare Tunnel. Auditer d'abord DNS public,
 Pi-hole, TLS et l'absence de pfSense ; enregistrer les constats
 dans H04 puis décider séparément de la politique publique.
 Aucun basculement DNS n'a été effectué par cette PR.
+
+La vérification propriétaire du 22/11 a également confirmé que le
+conteneur `nginx` est relié à `traefik_network` sur `172.16.56.12`
+et qu'une requête `curl --fail-with-body` vers le nom avec
+`--resolve ...:172.17.0.24` aboutit, sans `-k`, et récupère 481 octets.
+**Le statut HTTP exact n'était pas affiché** ; Gatus HTTPS 200 et la
+réception de la liaison WAN restent à confirmer séparément.
 
 ## Réception après synchronisation Git sur TrueNAS
 
