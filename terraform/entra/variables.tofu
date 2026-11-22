@@ -1,21 +1,21 @@
 variable "tenant_id" {
-  description = "GUID of personal lab tenant only; NEVER employer tenant."
+  description = "GUID of personal Nabla tenant only; NEVER employer tenant."
   type        = string
   validation {
     condition     = can(regex("^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$", var.tenant_id))
     error_message = "An explicit tenant GUID is required."
   }
 }
-variable "lab_tenant_confirmed" {
+variable "nabla_tenant_confirmed" {
   type    = bool
   default = false
 }
 variable "name_prefix" {
   type    = string
-  default = "nabla-iam-lab"
+  default = "nabla-iam"
 }
 variable "test_users" {
-  description = "Existing UPNs to add to lab groups; the one managed test user lives in users.tofu."
+  description = "Existing UPNs to add to Nabla groups; the one managed test user lives in users.tofu."
   type = map(object({
     upn   = string
     group = string
