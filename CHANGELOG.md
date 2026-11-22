@@ -1,3 +1,10 @@
+# [0.113.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.112.1...0.113.0) (2026-11-22)
+
+
+### Features
+
+* **h16:** Entra Nabla OIDC Terraform bootstrap, YubiKey, and PostgreSQL POC ([#439](https://github.com/AlbanAndrieu/nabla-compose/issues/439)) ([8010c01](https://github.com/AlbanAndrieu/nabla-compose/commit/8010c01f7c58c1a86053c82448e0596278226885))
+
 ## [0.112.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.112.0...0.112.1) (2026-11-22)
 
 
