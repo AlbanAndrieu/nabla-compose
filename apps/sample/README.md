@@ -530,9 +530,12 @@ The local host port defaults to `8091`, mapped to container port `8080`:
 curl -fsS http://127.0.0.1:8091/health
 ```
 
-The internal Traefik route is `https://sample.int.albandrieu.com`.
-It is intentionally the only `Host(...)` router for this container because the
-current Pi-hole synchronizer extracts one hostname per Docker container.
+The historical private Traefik route `sample.int.albandrieu.com` has been
+retired after the operator confirmed FastAPI was redeployed (21/11/2026).
+LAN probes continue to use `http://172.17.0.24:8091`. The public
+Traefik router is retained only for an explicitly accepted canary cutover.
+`APP_DOMAIN` is an independent FastAPI runtime setting still requiring
+application-level verification before it can be changed.
 
 The protected public route is `https://fastapi-sample.albandrieu.com`.
 
@@ -541,14 +544,10 @@ The protected public route is `https://fastapi-sample.albandrieu.com`.
 Keep the LAN and public ingress paths separate:
 
 ```text
-LAN workstation
+LAN workstation / TrueNAS probes
       |
       v
-Pi-hole DNS
-sample.int.albandrieu.com -> 172.17.0.24
-      |
-      v
-Traefik :443
+http://172.17.0.24:8091
       |
       v
 fastapi-sample:8080
@@ -591,7 +590,7 @@ Do not add AutoXpose labels to FastAPI Sample. AutoXpose may keep its persisted
 Nginx Proxy Manager provider for other services, but it is not an owner of
 either Sample hostname:
 
-- `sample.int.albandrieu.com` -> Pi-hole / Traefik;
+- legacy `sample.int.albandrieu.com` -> router removed from Traefik; any remaining DNS is migration residue to audit;
 - `fastapi-sample.albandrieu.com` -> Cloudflare Tunnel / Access.
 
 ### TLS / Access acceptance
@@ -868,9 +867,12 @@ The local host port defaults to `8091`, mapped to container port `8080`:
 curl -fsS http://127.0.0.1:8091/health
 ```
 
-The internal Traefik route is `https://sample.int.albandrieu.com`.
-It is intentionally the only `Host(...)` router for this container because the
-current Pi-hole synchronizer extracts one hostname per Docker container.
+The historical private Traefik route `sample.int.albandrieu.com` has been
+retired after the operator confirmed FastAPI was redeployed (21/11/2026).
+LAN probes continue to use `http://172.17.0.24:8091`. The public
+Traefik router is retained only for an explicitly accepted canary cutover.
+`APP_DOMAIN` is an independent FastAPI runtime setting still requiring
+application-level verification before it can be changed.
 
 The protected public route is `https://fastapi-sample.albandrieu.com`.
 
@@ -879,14 +881,10 @@ The protected public route is `https://fastapi-sample.albandrieu.com`.
 Keep the LAN and public ingress paths separate:
 
 ```text
-LAN workstation
+LAN workstation / TrueNAS probes
       |
       v
-Pi-hole DNS
-sample.int.albandrieu.com -> 172.17.0.24
-      |
-      v
-Traefik :443
+http://172.17.0.24:8091
       |
       v
 fastapi-sample:8080
@@ -929,7 +927,7 @@ Do not add AutoXpose labels to FastAPI Sample. AutoXpose may keep its persisted
 Nginx Proxy Manager provider for other services, but it is not an owner of
 either Sample hostname:
 
-- `sample.int.albandrieu.com` -> Pi-hole / Traefik;
+- legacy `sample.int.albandrieu.com` -> router removed from Traefik; any remaining DNS is migration residue to audit;
 - `fastapi-sample.albandrieu.com` -> Cloudflare Tunnel / Access.
 
 ### TLS / Access acceptance

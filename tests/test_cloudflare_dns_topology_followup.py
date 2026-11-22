@@ -49,6 +49,13 @@ def test_hello_has_private_pihole_and_explicit_public_cloudflare_dns_owners() ->
     }
     assert exception_hosts.issuperset({"hello.int.albandrieu.com"})
     assert "s3.int.albandrieu.com,hello.int.albandrieu.com" in traefik
+    declared_nginx = yaml.safe_load(nginx)
+    hello = declared_nginx["services"]["nginx"]["x-nabla"]["exposure"][0]
+    assert hello["gatewayRef"] == "component:default/traefik"
+    assert hello["visibility"] == "public"
+    assert "public WAN reachability is unverified" in hello["riskAcceptance"]["reason"]
+    assert "id: pfsense-haproxy" not in traefik
+    assert "82.66.4.247:443" not in traefik
     assert "vaultwarden.int.albandrieu.com" not in traefik
     assert "PROXIED=false" in traefik
 
@@ -65,7 +72,24 @@ def test_generated_topology_carries_monitoring_protocol_capabilities() -> None:
     }
     assert nodes["pfsense-unbound"]["monitoring"]["type"] == "port"
     assert nodes["pfsense-unbound"]["monitoring"]["port"] == 53
-    assert nodes["pfsense-haproxy"]["monitoring"]["port"] == 443
+    # The legacy pfSense HAProxy appliance was retired on 18 November.
+    # It must not emit an active WAN endpoint or a live Traefik relation.
+    assert "pfsense-haproxy" not in nodes
+    backstage = list(yaml.safe_load_all(
+        (ROOT / "catalog/catalog-info.yaml").read_text(encoding="utf-8")
+    ))
+    legacy = [
+        entity for entity in backstage
+        if entity and entity.get("metadata", {}).get("name") == "pfsense-haproxy"
+    ]
+    assert len(legacy) == 1
+    assert legacy[0]["metadata"]["labels"]["albandrieu.com/operational-state"] == "disabled"
+    icons = (ROOT / "catalog/service-icons.json").read_text(encoding="utf-8")
+    assert '"pfsense-haproxy"' not in icons
+    assert all(
+        rel.get("target") != "pfsense-haproxy"
+        for rel in topology["relations"]
+    )
     assert nodes["pfsense-exporter"]["kind"] == "metrics-exporter"
     assert nodes["pfsense-exporter"]["monitoring"]["type"] == "port"
     assert declared["pfsense-exporter"]["monitoring"]["target"] == "tcp://172.17.0.24:9945"

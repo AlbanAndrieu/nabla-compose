@@ -54,6 +54,157 @@ en déduisant une IP mutualisée d'une réponse DNS.
   en direct. Les fournisseurs CDN doivent autoriser la reconnaissance
   active sur leurs points de présence.
 
+### Comparaison LAN/Internet — collecte privée de l'artefact externe
+
+Après un profil GitHub Actions `discovery-active` **approuvé**, récupérer
+son `run_id` depuis l'onglet Actions. Le nouveau client
+`scripts/security/pull-ctem-amass-artifact.py` réutilise la GitHub App
+existante, avec droit `Actions:read` sur `AlbanAndrieu/nabla-compose`.
+Il refuse une run hors `master`, un événement non manuel, une exécution
+échouée/incomplète ou âgée de plus de sept jours. Il vérifie le SHA de
+provenance, l'identité `external-github-hosted`, `scan_mode=active`
+et l'absence de liste nominative dans l'artefact. Il ne crée ni
+token supplémentaire, ni route publique, ni connexion PostgreSQL depuis
+GitHub.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/security/pull-ctem-amass-artifact.py --check
+# Remplacer 123456789 par l'ID de la run discovery-active approuvée
+sudo env CTEM_EXTERNAL_AMASS_PULL_APPROVED=YES \
+  python3 scripts/security/pull-ctem-amass-artifact.py --pull --run-id 123456789
+
+# Les deux sources restent en local, avec permissions root 0600.
+sudo python3 scripts/security/compare-ctem-amass-vantages.py \
+  --internal /mnt/cpool/ctem/amass/reports/summary-latest.json \
+  --external /mnt/cpool/ctem/amass/reports/external/amass-active-123456789.json \
+  --output /mnt/cpool/ctem/amass/reports/vantage-comparison-123456789.json
+```
+
+Le comparateur est **fail-closed** : versions, mode, scope exact,
+révisions V2, statuts complets, horodatages frais et décalage
+maximal de sept jours sont contrôlés avant toute conclusion.
+Il émet `SAME_COUNTS_NOT_SAME_ASSETS` ou
+`COUNT_DIFFERENCE_REVIEW` (pas `DOWN` ni une vulnérabilité).
+Ces compteurs ne révèlent **pas** les FQDN présents dans un seul des
+deux inventaires ; il faut un dispositif de transfert chiffré de
+l'inventaire externe pour établir des différences nominatives.
+**Ne jamais envoyer les données nominatives via un artifact public.**
+
+Le JSON de comparaison, toujours privé 0600, se consulte avec :
+`sudo jq '{status,rows,semantics}' /mnt/cpool/ctem/amass/reports/vantage-comparison-123456789.json`.
+Un dashboard exposé sur Traefik ou Cloudflare n'est pas créé.
+
+### Publication contrôlée vers `/media/www` (workstation)
+
+La racine `/mnt/cpool/ctem/amass/reports` contient des FQDN et des
+correspondances Backstage V2 privés : **elle ne doit pas être exportée
+par NFS ni liée directement à Apache**. Le partage `/mnt/cpool/www`
+est, lui, un export NFS déjà déclaré pour la workstation. Le code
+`scripts/security/publish-ctem-web-summary.py` **ne copie jamais un
+fichier privé**. Il reconstruit un JSON et un HTML *dépersonnalisés*
+à partir de nombres, catégories de conformité et date seulement.
+
+| Emplacement | Sensibilité | Exposition |
+| --- | --- | --- |
+| TrueNAS `/mnt/cpool/ctem/amass/reports` | Secret interne (0600) | TrueNAS uniquement |
+| TrueNAS `/mnt/cpool/www/reports/ctem` | Agrégats expurgés | Partage NFS `www` existant |
+| Workstation `/media/www/reports/ctem` | Même export NFS, pas une deuxième copie | Lecture directe NFS |
+| Workstation `/var/www/reports/ctem` | Copie locale validée | Apache `Alias /reports`, sous contrôle d'accès |
+
+Le script refuse un scan incomplet, un mauvais mode/vantage, un
+`catalogRevision` incohérent, une portée différente des domaines
+canoniques, les sommes incohérentes et une source mondiale ou
+symlinkée. Il écrit uniquement `amass-summary.json` et
+`index.html` **sans FQDN, sans IP, sans `entityRef`**, jamais
+`candidates-*.json`, `ctem-amass-*.html` ni les logs.
+Le dossier `www` doit être un dataset ZFS *déjà monté* : aucun
+fallback dans le système TrueNAS.
+
+```bash
+# Sur TrueNAS après premier scan actif réussi :
+python3 scripts/security/publish-ctem-web-summary.py --check
+
+# Publication des agrégats sur le partage NFS existant (opt-in)
+sudo env CTEM_WEB_PUBLISH_APPROVED=YES \
+  python3 scripts/security/publish-ctem-web-summary.py --apply
+```
+
+Pour la publication après la campagne hebdomadaire, ajouter
+`NABLA_CRON_CTEM_WEB_ENABLED=true` à la tâche `scripts/cron.sh`
+**déjà existante** ; ce flag reste désactivé par défaut et n'active
+ni Amass ni le transfert de lui-même. Ne jamais ajouter le dossier
+privé à `sharing.nfs` ou au DocumentRoot.
+
+**Apache n'utilise pas le dossier NFS**. Le playbook
+`ansible-workstation/playbooks/security-scans.yml` installe le
+miroir *optionnel* `/opt/script/publish-ctem-web-mirror.py` ; cette
+commande valide les clés JSON du fichier reçu puis régénère le HTML
+local sur `/var/www/reports/ctem` :
+
+```bash
+# Sur la workstation, utilisateur ordinaire (pas sudo)
+python3 /opt/script/publish-ctem-web-mirror.py --check
+CTEM_WORKSTATION_MIRROR_APPROVED=YES \
+  python3 /opt/script/publish-ctem-web-mirror.py --apply
+```
+
+Le module `nabla-lan-only.conf` de la PR workstation #39 sert
+`http://<workstation>:8087/reports/ctem/` **uniquement au LAN** ;
+un tunnel public ne doit pas obtenir accès sur la seule présence d'un
+en-tête `Cf-Access-Jwt-Assertion`. Une vérification cryptographique
+du jeton Access, ou un mécanisme équivalent, serait nécessaire pour
+une publication hors LAN. Ne pas créer de timer supplémentaire avant
+validation des ACL NFS et Apache.
+
+**Réception Apache/NFS du 21/11 :** les deux `findmnt -T` fournis par
+l'opérateur prouvent le montage NFSv4.2 `/media/www` sur
+`nabla:/mnt/cpool/www`. Les liens symboliques des sites historiques
+`/var/www/nabla-site-apache` et `/var/www/nabla-site-bababou`
+continuent donc à dépendre du NFS. Cela ne démontre **pas** le déploiement
+du miroir CTEM local : `apache2ctl -S` ne montre que les VirtualHosts
+80 et 8082, sans listener 8087 visible. `getfacl` sur le
+`public` historique révèle `group::rwx` pour `www-data` :
+il faut réviser les droits d'écriture avant de considérer cette
+racine comme une source web durcie. Le déploiement de l'Alias
+`/reports`, du listener LAN 8087 et de la copie locale demeure
+`NOT_VERIFIED`. Voir
+[runbook commun workstation/TrueNAS](workstation-truenas-report-sharing-and-honeypot.md).
+
+### CTEM Honeypot — source de preuves de trafic (21/11)
+
+La découverte Amass inventorie les surfaces, tandis que le honeypot
+observe les **requêtes effectives** depuis un autre point de mesure.
+Ces deux catégories d'évidence ne doivent pas être fusionnées en
+vulnérabilités ou en personnes identifiées.
+
+- Service LAN `172.17.0.24:31090/healthz` = `ok` selon le propriétaire ;
+  nom `login.albandrieu.com` non résolu après suppression du record A
+  périmé. CNAME Tunnel attendu sous OpenTofu, non appliqué ici.
+- Traefik `honeypot-public` (GET) /
+  `honeypot-login-attempt` (POST), CrowdSec AppSec et quotas sont
+  **CODED, NOT_DEPLOYED**. Le switch Tunnel reste false.
+- Les tentatives `POST /login` reçoivent 403 côté Apache et
+  aucun identifiant n'est stocké. Le scénario CrowdSec de 5 POST
+  regroupés par IP est **versionné mais non monté** ; revue en
+  simulation avant tout ban.
+- `scripts/security/summarize-honeypot-traefik.py` fournit un
+  compteur agrégé privé (méthode, chemin allowlisté, classe de
+  réponse, visiteurs réseau distincts), **sans IP, User-Agent,
+  query string, cookies, JWT, body ou FQDN découvert** ; seules
+  les entrées Traefik du honeypot dont le pair TCP appartient au
+  réseau cloudflared déclaré sont admises. `/healthz` ne compte pas.
+  Ne pas confondre `unique_source_count` et personnes physiques.
+- Conserver les logs bruts sous contrôle d'accès sur TrueNAS ; pas
+  d'export nominatif vers la workstation `/reports`, GitHub,
+  DefectDojo sans triage ou la page publique du site.
+
+**Recette :** publier d'abord le CNAME avec l'App Tunnel direct,
+valider HTTP 200 `/healthz` depuis l'extérieur, ensuite déployer
+le routeur Traefik et tester source IP, TLS/SNI et AppSec sans
+`-k`, puis seulement proposer la bascule.
+[Procédure détaillée](../../apps/honeypot/README.md).
+
 ### Visualisation privée des actifs Amass
 
 Le runner TrueNAS produit après scan **achevé** :

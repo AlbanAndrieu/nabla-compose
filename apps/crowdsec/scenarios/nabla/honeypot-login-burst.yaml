@@ -1,0 +1,28 @@
+---
+# NOT MOUNTED by default. Pilot with cscli simulation enable before any
+# approved installation: an ordinary GET /login must NEVER cause remediation.
+# Source attribution comes from Traefik JSON logs + trusted cloudflared peer,
+# not from the honeypot Apache's potentially spoofable direct Docker headers.
+type: leaky
+name: nabla/honeypot-login-burst
+description: "Repeated POST to the credential-free login decoy behind Traefik"
+filter: >-
+  evt.Meta.log_type == 'http_access-log'
+  && evt.Meta.service == 'http'
+  && evt.Meta.http_verb == 'POST'
+  && evt.Meta.http_path == '/login'
+  && evt.Unmarshaled.traefik != nil
+  && evt.Unmarshaled.traefik["RouterName"] != nil
+  && evt.Unmarshaled.traefik["RouterName"] contains "honeypot-login-attempt"
+groupby: evt.Meta.source_ip
+capacity: 5
+leakspeed: "30s"
+blackhole: 5m
+labels:
+  service: http
+  type: bruteforce
+  confidence: 2
+  spoofable: 0
+  behavior: "http:bruteforce"
+  label: "Repeated login attempts against opt-in honeypot"
+  remediation: true

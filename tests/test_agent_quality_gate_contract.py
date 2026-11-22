@@ -56,9 +56,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('TARGETED_LABEL="Local loop"', text)
         self.assertIn("Agent local loop passed", text)
         self.assertIn("full repository unit/contract suite is deferred", text)
-        self.assertGreaterEqual(
+        # A single diff-scope pass remains after deleting large-deletion policy.
+        self.assertEqual(
             text.count('"${LOCAL_LOOP}" != true && "${BASE_REF}" != "HEAD"'),
-            2,
+            1,
         )
         self.assertIn("generator_scope_changed=false", text)
         self.assertIn(
@@ -68,13 +69,17 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("no changed files require formatter/linter fixes", text)
         self.assertIn("QG_PROTECTED_BRANCH", text)
         self.assertIn("QG_BASE_STALE", text)
-        self.assertIn("QG_LARGE_DELETION", text)
-        self.assertIn("reviewed-large-deletions.tsv", text)
-        self.assertIn("is_reviewed_large_deletion", text)
+        # Large diffs and intentional deletions must never fail this gate.
+        # Retain provenance/branch, executable-bit and secret-scan checks.
+        self.assertNotIn("QG_LARGE_DELETION", text)
+        self.assertNotIn("reviewed-large-deletions.tsv", text)
+        self.assertFalse((ROOT / "config/quality/reviewed-large-deletions.tsv").exists())
+        self.assertNotIn("is_reviewed_large_deletion", text)
+        self.assertNotIn("check_destructive_diff", text)
+        self.assertNotIn("QUALITY_ALLOW_LARGE_DELETION", text)
+        self.assertNotIn("diff-filter=D", text)
         self.assertIn("git hash-object", text)
-        self.assertIn('git rev-parse "${BASE_REF}:${file}"', text)
-        self.assertIn("exact blob approval", text)
-        self.assertIn("diff-filter=D", text)
+        self.assertIn("diff-filter=ACMR", text)
         self.assertIn("QG_EXEC_BIT", text)
         self.assertIn("QG_PYTHON_MISSING", text)
         self.assertIn("QG_PYTHON_DEPS_MISSING", text)
@@ -128,7 +133,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("apps/*/compose.yml|apps/*/compose.yaml", text)
         self.assertIn("QG_GIT_SCOPE", text)
         self.assertIn('changed_output="$(collect_changed_files)"', text)
-        self.assertIn('deleted_output="$(collect_deleted_files)"', text)
+        self.assertNotIn("collect_deleted_files", text)
         self.assertNotIn("mapfile -t CHANGED_FILES < <(collect_changed_files)", text)
         self.assertIn("edge_security_contract_scope_changed", text)
         self.assertIn("pfSense/CrowdSec targeted contracts", text)
@@ -177,7 +182,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         start = gate.index("collect_changed_files() {")
-        end = gate.index("\ncollect_deleted_files() {", start)
+        end = gate.index("\n# Process substitution", start)
         collect = gate[start:end]
         self.assertIn('if [[ -f "${file}" ]]; then', collect)
         self.assertNotIn('[[ -f "${file}" ]] && printf', collect)

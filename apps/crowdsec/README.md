@@ -216,6 +216,34 @@ locale, la remédiation part en bordure.
   conteneur. Cette commande supprime le Worker, le KV, les routes et le widget
   Turnstile.
 
+## Honeypot public (PR #436) — préparation sans bannissement
+
+Le routage `login.albandrieu.com` par Traefik sera **opt-in**
+via `honeypot_tunnel_via_traefik=false` dans OpenTofu.
+Les routeurs `honeypot-public` et `honeypot-login-attempt`
+vérifient le TCP peer cloudflared 10.200.2.0/24,
+réutilisent `crowdsec-appsec@file` et des quotas distincts.
+L'AppSec est **fail-closed** après bascule seulement ;
+la voie actuelle Tunnel → `:31090` ne passe pas par lui.
+
+Un `POST /login` reçoit un 403 du honeypot Apache sans
+authentification ni stockage d'identifiants. Le scénario
+`scenarios/nabla/honeypot-login-burst.yaml` est prêt,
+mais **non monté** : il ne peut déclencher aucun ban.
+Recevoir d'abord `cscli simulation status`,
+`cscli explain` sur événements synthétiques, l'IP réelle
+dans les logs Traefik et les faux positifs avant de le monter
+et de lui autoriser une remédiation. Un GET ou `/healthz`
+n'est jamais une preuve d'attaque. Le Worker Cloudflare
+`cloudflare-bouncer` reste séparément opt-in.
+
+Le collecteur CTEM
+`scripts/security/summarize-honeypot-traefik.py` agrège
+seulement les log lines du router avec peer cloudflared
+prouvé, et ne sort aucun identifiant, IP ou body.
+Les IP brutes restent sur TrueNAS dans les logs privés.
+[Plan de déploiement](../honeypot/README.md).
+
 ## WAF AppSec — pilote FastAPI TrueNAS (21/11/2026)
 
 **CODED, NOT_DEPLOYED.** Test offline via `bash scripts/truenas/diagnose-crowdsec-appsec.sh --check` ; preflight Docker read-only via `sudo bash scripts/truenas/diagnose-crowdsec-appsec.sh --runtime`. Réutilisation du moteur CrowdSec 1.8.1 et du plugin Traefik épinglé v1.8.1. Les collections `crowdsecurity/appsec-virtual-patching` et `crowdsecurity/appsec-generic-rules` alimentent `crowdsecurity/appsec-default` via `acquis.d/appsec.yaml`. Le moteur écoute `0.0.0.0:7422` **uniquement dans le conteneur**, sans port hôte, sur le réseau Docker existant `traefik_network`. Le répertoire `acquis.d` est monté en lecture seule ; aucun secret n'y est écrit.

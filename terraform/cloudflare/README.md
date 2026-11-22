@@ -2,8 +2,7 @@
 
 **État : import-first, rien n'est appliqué.** Premier changement porté :
 renommer le hostname public `sample.albandrieu.com` en
-`fastapi-sample.albandrieu.com`. Le nom interne `sample.int.albandrieu.com`
-(Pi-hole/Traefik) et l'App TrueNAS `sample` ne changent pas.
+`fastapi-sample.albandrieu.com`. Le routeur Traefik privé historique `sample.int.albandrieu.com` est retiré du Compose FastAPI (21/11/2026). L'App TrueNAS `sample` et son port LAN 8091 restent inchangés. Le canary HTTPS utilise SNI `traefik.int.albandrieu.com` et Host public `fastapi-sample.albandrieu.com`, sans désactivation de la vérification TLS.
 
 Provider `cloudflare/cloudflare` épinglé en `= 5.28.1` (dernière v5 au
 31/10/2026). État distant : bucket Garage `opentofu-state`, clé
@@ -33,6 +32,34 @@ référencées par identifiant (`locals` de `access.tofu`).
 Après adoption, ne plus modifier ces objets dans le dashboard : la dérive
 serait écrasée au prochain apply. Le module voisin
 [`cloudflare-ops`](../cloudflare-ops/README.md) reste dédié à un tunnel séparé.
+
+## Honeypot : record A supprimé et bascule Traefik préparée (21/11)
+
+Le propriétaire a supprimé le A historique
+`login.albandrieu.com → 82.66.4.247`. Le nom n'a
+désormais **aucune résolution publique observée** par
+`dig @1.1.1.1` ; l'App répond `ok` en LAN :31090.
+Le CNAME `login.albandrieu.com` →
+`${var.tunnel_id}.cfargotunnel.com`, proxifié, est déjà
+déclaré dans `dns-policy.yaml:new_tunnel_hostnames` ;
+`honeypot_login` conserve la politique Access
+`Everyone bypass`. **Aucun apply n'est effectué par cette PR.**
+
+Un nouveau flag `honeypot_tunnel_via_traefik` vaut false :
+le Tunnel reste direct vers 31090. Après réception du
+routeur Traefik (peer cloudflared exact, SNI
+`traefik.int.albandrieu.com` vérifié, Host
+`login.albandrieu.com`, WAF/AppSec et chemins POST 403),
+un plan ciblé peut faire passer **uniquement ce hostname**
+à `https://traefik:443`. Revenir à false est le rollback.
+Aucun CAPTCHA ne doit masquer toutes les visites de
+Project Honey Pot ; décisions CrowdSec progressives seulement.
+
+**Ordre requis :** préflight état Garage / imports, vérifier
+`CNAME login` absent, accepter l'intégralité du plan DNS/Access/Tunnel
+partagé, apply contrôlé, réception `/healthz` depuis l'extérieur
+sans visiter `/`, puis déploiement et tests Traefik.
+[Runbook](../../apps/honeypot/README.md).
 
 ## Jeton API (hors dépôt)
 

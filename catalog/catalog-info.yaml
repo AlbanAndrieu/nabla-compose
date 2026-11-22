@@ -180,9 +180,9 @@ kind: Resource
 metadata:
   name: pfsense-haproxy
   title: pfSense HAProxy
-  description: pfSense HAProxy public TLS ingress and reverse-proxy edge.
+  description: Retired pfSense HAProxy ingress (decommissioned 18 November 2026); retained for historical architecture references.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: disabled
     albandrieu.com/operational-criticality: critical
     albandrieu.com/business-criticality: critical
     albandrieu.com/bia-scope: direct
