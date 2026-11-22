@@ -1,3 +1,10 @@
+## [0.112.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.112.0...0.112.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **nexus:** keep the CI route on Traefik, shield tunnel DNS ([#440](https://github.com/AlbanAndrieu/nabla-compose/issues/440)) ([22e037c](https://github.com/AlbanAndrieu/nabla-compose/commit/22e037cf48fd9663d2fefe04f5cf1600eea5f794))
+
 # [0.112.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.111.0...0.112.0) (2026-11-22)
 
 

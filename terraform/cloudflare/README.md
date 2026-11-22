@@ -211,9 +211,9 @@ l'ingress, autres hostnames du tunnel inchangés, puis `No changes`.
 
 ## 5. Après réception
 
-Retirer `sample.albandrieu.com` (et `…/api`) des `destinations` des deux
-applications Access (plan attendu : 2 change). Les blocs `import` deviennent
-des no-op une fois les ressources dans l'état.
+Fait le 22/11/2026 : `sample.albandrieu.com` (et `…/api`) ne figure plus dans les
+`destinations` des deux applications Access (le nom ne résout plus publiquement).
+Les blocs `import` deviennent des no-op une fois les ressources dans l'état.
 
 ## DNS as code (enregistrements publics)
 

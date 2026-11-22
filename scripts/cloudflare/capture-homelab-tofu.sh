@@ -24,7 +24,7 @@ case "${1:-}" in
     ;;
 esac
 
-hostname="${1:-sample.albandrieu.com}"
+hostname="${1:-fastapi-sample.albandrieu.com}"
 zone_name="albandrieu.com"
 account_id="bdfe00eeee5845782ab91adfbff71ee1"
 module_dir="$(git rev-parse --show-toplevel)/terraform/cloudflare"

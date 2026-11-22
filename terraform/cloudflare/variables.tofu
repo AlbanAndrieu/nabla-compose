@@ -110,9 +110,9 @@ variable "fastapi_github_webhook_edge_ready" {
 }
 
 variable "nexus_tunnel_via_traefik" {
-  description = "Route nexus.albandrieu.com through Traefik + CrowdSec; true only after the nexus-public router answers on TrueNAS (CI Maven depends on it)."
+  description = "Route nexus.albandrieu.com through Traefik + CrowdSec; cut over on 2026-11-22; false reverts the CI Maven route to the plain :8081 origin."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "fastapi_sample_tunnel_via_traefik" {

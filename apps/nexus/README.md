@@ -27,7 +27,7 @@ loses Nexus because the tunnel keeps `:8081` until the last step:
 2. LAN: `curl -sS -o /dev/null -w '%{http_code}' https://nexus.int.albandrieu.com/service/rest/v1/status` → 200.
 3. Public router, as cloudflared calls it (SNI `nexus.int`, Host `nexus.albandrieu.com`):
    `curl -sS -o /dev/null -w '%{http_code}' -H 'Host: nexus.albandrieu.com' https://nexus.int.albandrieu.com/service/rest/v1/status` → 200.
-4. `terraform/cloudflare`: plan then apply with `nexus_tunnel_via_traefik = true`.
+4. `terraform/cloudflare`: plan then apply (`nexus_tunnel_via_traefik` defaults to `true` since the 22/11 cut-over).
 5. Re-run the `maven-build` workflow of `nabla-servers-bower-sample`: its
    *Check Nexus access* step must print `Nexus: 200 application/java-archive`.
    Rollback: `nexus_tunnel_via_traefik = false` and apply.
