@@ -15,7 +15,7 @@ Apps : 90 ; actives : 61 ; planifiées : 24.
 | `NO_AVAILABILITY_PROBE` | 26 |
 | `NO_DEPLOY_PATH` | 17 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 45 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 44 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -71,7 +71,7 @@ Apps : 90 ; actives : 61 ; planifiées : 24.
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `netbox` | active | custom-apps.yml | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | ✅ |
 | `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | manifest | ✅ | — | — | générique | terraform/nexus | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | ✅ |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `npmplus` | planned | ❌ | `cpool/npmplus` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ntopng` | active | custom-apps.yml | `cpool/compose` (none (noSnapshot))<br>`cpool/ntopng` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | ✅ |
