@@ -62,10 +62,13 @@
   backend Nginx `:80` et réseau `traefik_network`.
   Healthcheck Docker ajouté ; smoke HTTPS/SNI documenté dans
   [Hello](../apps/nginx/README.md).
-  **Attention** : la déclaration historique d'exposition
-  `gatewayRef=pfsense-haproxy` n'est pas une preuve WAN,
-  pfSense étant retiré. Pas de nouvelle route Tunnel/NAT ;
-  réception LAN puis revue du DNS public avant correction H04.
+  **Réconciliation 22/11 :** `gatewayRef` pointe sur Traefik,
+  l'ancien nœud et la relation pfSense HAProxy ont été retirés du
+  graphe Compose ; la ressource Backstage historique est `disabled`.
+  L'opérateur a constaté `nginx` sur `traefik_network` (172.16.56.12)
+  et une requête TLS vérifiée aboutissant sur le routeur `:443`, sans
+  code HTTP explicitement affiché. **Aucune preuve WAN** : pas de
+  nouvelle route Tunnel/NAT, DNS public et réception Gatus à confirmer.
 - **Gatus** : sondes existantes CrowdSec LAPI :8084/health,
   Traefik TCP (désormais :443) et backend Hello 8099.
   Nouvelle sonde `Hello Nginx via Traefik` HTTPS 200 et sonde
