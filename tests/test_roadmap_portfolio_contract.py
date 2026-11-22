@@ -38,7 +38,11 @@ def test_active_roadmap_has_a_single_canonical_worklist() -> None:
     assert len(active) < 20_000
     assert "## Backlog arbitrable" not in active
     assert "[portefeuille H01–H21](roadmap-portfolio.md)" in active
-    assert "## Arbitrage proposé — à valider (22 novembre 2026)" in portfolio
+    assert "## Ordre opérateur — 22 novembre 2026" in portfolio
+    assert "| H17 | P0 |" in portfolio
+    assert "| H13 | P0 |" in portfolio
+    assert "| H18 | P1 |" in portfolio
+    assert "| H08 | P2 |" in portfolio
     assert "## Séquence approuvée — 14 novembre 2026" in portfolio
     assert "| H01 | P0 |" in portfolio and "| H02 | P0 |" in portfolio
     assert "GATE CSI ATTEINTE" in portfolio
