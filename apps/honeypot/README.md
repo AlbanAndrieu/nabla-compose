@@ -37,8 +37,8 @@ un plan qui supprime/modifie des routes sans revue**.
 | Méthode | Chemin | Réponse et impact |
 | --- | --- | --- |
 | GET / HEAD | `/healthz` | 200 statique, **aucun événement Project Honey Pot** |
-| GET | `/` | script Project Honey Pot original, chaque GET signale une visite |
-| GET | `/honeypot/keywaspish.php` | script d'origine, réservé au diagnostic ; éviter les probes |
+| GET | `/` | script Project Honey Pot original, chaque GET signale une visite ; 403 avant PHP pour l'IP du domicile (`82.66.4.247`) et toute adresse privée |
+| GET | `/honeypot/keywaspish.php` | script d'origine, même exclusion ; éviter les probes |
 | GET | `/login` | formulaire de **simulation** statique, sans `name` sur les champs |
 | POST | `/login` | 403 Apache (pas de PHP, body max 1 KiB, sans authentification) |
 | Autres | `/wp-login.php`, etc. | 404 ; aucun fallback vers un vrai login |
@@ -54,6 +54,16 @@ Depuis la révision 21/11, Apache exclut aussi les requêtes exactes
 leur résultat HTTP 200. Les 30-secondes de sondes qui remplissaient
 le journal avec `127.0.0.1` ne sont donc plus comptées comme visites
 après redéploiement. Les logs déjà produits restent inchangés.
+
+### Voir ce que le honeypot a reçu
+
+- **Côté TrueNAS** : `ssh truenas sudo -n docker logs --since 24h honeypot`.
+  Une ligne `GET /` en 200 est une visite signalée à Project Honey Pot ;
+  les refus d'exclusion apparaissent en `AH01630` dans le journal d'erreur.
+- **Côté Project Honey Pot** : tableau de bord du compte
+  (projecthoneypot.org, *Your Honey Pots*) : visites enregistrées,
+  adresses piège distribuées, collecteurs et spams reçus sur ces adresses.
+  Le script envoie IP, User-Agent, Referer et URI à `hpr8.projecthoneypot.org`.
 
 ## Plan de publication progressif, pas exécuté
 

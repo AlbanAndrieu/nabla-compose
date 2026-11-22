@@ -18,6 +18,15 @@ class HoneypotContract(unittest.TestCase):
         proxies = re.findall(r"(?m)^RemoteIP(?:Internal|Trusted)Proxy\s+(.+)$", conf)
         self.assertEqual(proxies, ["10.200.0.0/16", "172.16.56.0/24"])
 
+    def test_owner_and_private_addresses_never_reach_the_trap_script(self):
+        conf = (APP / "apache/honeypot.conf").read_text(encoding="utf-8")
+        block = conf.split('<Files "keywaspish.php">', 1)[1].split("</Files>", 1)[0]
+        self.assertIn("Require all granted", block)
+        denied = re.search(r"Require not ip (.+)", block).group(1).split()
+        # Home IPv4 (the only owner address Cloudflare sees) and every private/loopback range.
+        for address in ("82.66.4.247", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1", "fc00::/7"):
+            self.assertIn(address, denied)
+
     def test_public_route_stays_isolated_and_hardened(self):
         service = yaml.safe_load((APP / "compose.yml").read_text(encoding="utf-8"))["services"]["honeypot"]
         public = [r for r in service["x-nabla"]["exposure"] if r["visibility"] == "public"]
