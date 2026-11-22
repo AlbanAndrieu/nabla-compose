@@ -1,4 +1,6 @@
 # Offline contract (mocked provider, no Azure call):
+# Mock uses the operator-reported initial domain for readability. This fixture
+# neither proves directory ownership nor configures the live Azure provider.
 #   tofu -chdir=terraform/entra init -backend=false
 #   TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra test
 mock_provider "azuread" {
@@ -7,7 +9,7 @@ mock_provider "azuread" {
   }
   mock_data "azuread_domains" {
     defaults = { domains = [{
-      domain_name   = "nablalab.onmicrosoft.com", initial = true, default = true, verified = true,
+      domain_name   = "albanandrieuhotmail.onmicrosoft.com", initial = true, default = true, verified = true,
       admin_managed = true, root = true, authentication_type = "Managed", supported_services = []
     }] }
   }
@@ -17,8 +19,21 @@ mock_provider "azuread" {
 }
 
 variables {
-  tenant_id            = "00000000-0000-0000-0000-000000000001"
-  lab_tenant_confirmed = true
+  tenant_id              = "00000000-0000-0000-0000-000000000001"
+  nabla_tenant_confirmed = true
+}
+
+run "bootstrap_explicit_opt_in_only" {
+  command = plan
+
+  assert {
+    condition = (
+      length(azuread_application.ci_identity) == 0 &&
+      length(azuread_service_principal.ci_identity) == 0 &&
+      length(azuread_application_federated_identity_credential.ci_github) == 0
+    )
+    error_message = "GitHub OIDC identity bootstrap must default to OFF."
+  }
 }
 
 run "ci_default_creates_no_user" {
@@ -46,7 +61,7 @@ run "user_gets_a_one_time_password_in_the_initial_domain" {
   }
 
   assert {
-    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-lab-user@nablalab.onmicrosoft.com"
+    condition     = azuread_user.test[0].user_principal_name == "nabla-iam-user@albanandrieuhotmail.onmicrosoft.com"
     error_message = "the test user must live in the tenant's initial onmicrosoft.com domain"
   }
   assert {

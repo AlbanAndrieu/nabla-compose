@@ -14,7 +14,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ManifestTests(unittest.TestCase):
-    def plan(self, name="nabla-iam-lab-workload-reader"):
+    def plan(self, name="nabla-iam-workload-reader"):
         return {"resource_changes": [{
             "address": 'azuread_application_registration.workload["reader"]',
             "type": "azuread_application_registration",
