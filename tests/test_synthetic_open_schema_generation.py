@@ -59,8 +59,9 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
         and resource["metadata"]["labels"]["cloudflare_access"] == "required"
     ]
 
-    # Explicit v2 policy includes a small set of public routes without Access.
-    assert len(protected) == 26
+    # Explicit v2 policy includes a small set of public routes without Access:
+    # hello-nginx, honeypot, joplin, reactive-resume, vaultwarden (22/11/2026).
+    assert len(protected) == 27
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"
