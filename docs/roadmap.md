@@ -1,4 +1,4 @@
-# Services Homelab — roadmap d'exécution active
+# Services Homelab — roadmap active
 
 > **Consolidée le 22 novembre 2026 dans la [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437).** Cette page sert d'**index court des travaux encore ouverts**. Les 21 chantiers, leur propriétaire, l'effort indicatif, les arbitrages proposés et les preuves attendues sont dans le **[portefeuille H01–H21](roadmap-portfolio.md)** (source unique du backlog arbitrable). Procédures dans les runbooks, décisions dans les ADR et historique dans Git / [journal d'exécution du 21/11](runbooks/2026-11-21-roadmap-loop-state.md). Ne pas recopier les incidents ni considérer un merge comme une réception TrueNAS/Cloudflare.
 
@@ -6,7 +6,7 @@
 
 ## Statuts et ordre de décision
 
-- **CODED** : code source versionné, sans affirmation d'exécution ; **TESTED** : tests sur SHA identifié ; **DEPLOYED** : processus déployé observé ; **ACCEPTED** : test fonctionnel réel, horodaté et réussi ; **PARTIAL** : réception incomplète ; **NOT_VERIFIED** : absence de preuve fraîche. `DENIED`, `NOT_RUN` et `UNVERIFIED` ne signifient jamais `DOWN`.
+- **CODED** : code source versionné, sans affirmation d'exécution ; **TESTED** : tests sur SHA identifié ; **DEPLOYED** : processus déployé observé ; **ACCEPTED (runtime)** : test fonctionnel réel, horodaté et réussi ; **PARTIAL** : réception incomplète ; **NOT_VERIFIED** : absence de preuve fraîche. `DENIED`, `NOT_RUN` et `UNVERIFIED` ne signifient jamais `DOWN`.
 - **Séquence approuvée le 14/11** : **H01 → H02 → H04 → H05 → H12 → H13 → H16**. Les gates **H01 CSI/NetworkPolicy** et **H02 sauvegarde/restauration** sont atteints selon les preuves du **21/11** ; ne pas refaire ces migrations. Le **prochain point d'entrée effectif est H04/H05**, et H03 (secrets) est un prérequis transversal. La séquence historique reste conservée telle quelle pour les contrôles automatisés.
 - **Aucune nouvelle priorité autorisée implicitement** : le [tableau d'arbitrage proposé](roadmap-portfolio.md#arbitrage-proposé--à-valider-22-novembre-2026) est un choix à confirmer. Le reste H01/H02 (Keycloak, rotation `postgres_exporter`) est suivi **dans H03/H08/H09/H10/H16**, pas comme une seconde migration CSI/backup.
 
