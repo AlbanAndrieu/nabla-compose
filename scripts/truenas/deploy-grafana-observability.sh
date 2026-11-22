@@ -32,7 +32,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "${CANONICAL_ROOT}"
 # shellcheck source=../lib/truenas.sh
 source "${CANONICAL_ROOT}/scripts/lib/truenas.sh"
-truenas_repo_provenance "${CANONICAL_ROOT}"
+truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
 compose_path="${CANONICAL_ROOT}/apps/${APP_ID}/compose.yml"
 docker compose -f "${compose_path}" config --quiet --no-interpolate --no-env-resolution
