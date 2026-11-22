@@ -24,15 +24,23 @@ class CloudflareContract(unittest.TestCase):
     def test_access_application_names_are_the_kebab_case_resource_names(self):
         # One naming rule for every Access application shown in the dashboard.
         source = module_source()
-        apps = re.findall(
-            r'resource "cloudflare_zero_trust_access_application" "(\w+)" \{.*?\n  name\s+= "([^"]+)"',
+        blocks = re.findall(
+            r'^resource "cloudflare_zero_trust_access_application" "(\w+)" \{\n(.*?)^\}',
             source,
-            flags=re.S,
+            flags=re.S | re.M,
         )
-        self.assertGreaterEqual(len(apps), 14)
-        for resource, name in apps:
+        self.assertGreaterEqual(len(blocks), 14)
+        for resource, body in blocks:
             with self.subTest(resource=resource):
-                self.assertEqual(name, resource.replace("_", "-"))
+                if "for_each" in body:
+                    # A for_each app takes its name from the map key, checked below.
+                    self.assertRegex(body, r"\n  name\s+= each\.key\n")
+                    continue
+                self.assertEqual(re.search(r'\n  name\s+= "([^"]+)"', body)[1], resource.replace("_", "-"))
+        route_keys = re.findall(r'^    "([^"]+)" = \{$', source, flags=re.M)
+        self.assertTrue(route_keys)
+        for key in route_keys:
+            self.assertRegex(key, r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
     def test_every_resource_is_imported_first(self):
         imports = (TF / "imports.tofu").read_text(encoding="utf-8")
@@ -67,13 +75,24 @@ class CloudflareContract(unittest.TestCase):
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf",
-                                    "cloudflare_dns_record.mail_dmarc"}:
+                                    "cloudflare_dns_record.mail_dmarc",
+                                    "cloudflare_zero_trust_access_application.route"}:
                 self.assertIn(f"to       = {kind}.{name}[each.key]", imports)
                 continue
             if f"{kind}.{name}" in created:
                 self.assertNotIn(f"to = {kind}.{name}\n", imports)
                 continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
+
+    def test_visitor_ip_reaches_the_origins(self):
+        # "remove_visitor_ip_headers" made the honeypot report the Docker gateway
+        # for every visitor and blinds CrowdSec, which decides on Cf-Connecting-Ip.
+        source = (TF / "managed-transforms.tofu").read_text(encoding="utf-8")
+        self.assertIn('resource "cloudflare_managed_transforms" "albandrieu"', source)
+        self.assertNotIn("remove_visitor_ip_headers", source.split("resource ", 1)[1])
+        self.assertIn('{ id = "add_security_headers", enabled = true }', source)
+        imports = (TF / "imports.tofu").read_text(encoding="utf-8")
+        self.assertRegex(imports, r"to = cloudflare_managed_transforms\.albandrieu\n\s*id = var\.zone_id")
 
     def test_mta_sts_is_testing_and_served_by_a_static_worker(self):
         # Owner decision (20/11/2026): testing first, enforce after clean TLS-RPT reports.

@@ -109,6 +109,12 @@ variable "fastapi_github_webhook_edge_ready" {
   default     = false
 }
 
+variable "nexus_tunnel_via_traefik" {
+  description = "Route nexus.albandrieu.com through Traefik + CrowdSec; true only after the nexus-public router answers on TrueNAS (CI Maven depends on it)."
+  type        = bool
+  default     = false
+}
+
 variable "fastapi_sample_tunnel_via_traefik" {
   description = "Canary public-origin cutover: false keeps 8091; true requires prior Traefik CrowdSec/LAPI/TLS/real-IP/WAF acceptance."
   type        = bool
@@ -122,4 +128,10 @@ variable "honeypot_tunnel_via_traefik" {
   description = "False keeps honeypot :31090; true routes login through Traefik AppSec after explicit acceptance."
   type        = bool
   default     = false
+}
+
+variable "route_access_application_ids" {
+  description = "Dashboard IDs of the route Access applications to adopt (access-routes.tofu)."
+  type        = map(string)
+  default     = {}
 }

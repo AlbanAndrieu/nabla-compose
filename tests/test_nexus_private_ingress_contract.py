@@ -9,9 +9,9 @@ RUNBOOK = ROOT / "docs/runbooks/nexus-private-dns-ingress.md"
 
 
 class NexusPrivateIngressContract(unittest.TestCase):
-    def test_private_router_remains_opt_in_and_explicit(self):
+    def test_private_router_is_enabled_with_env_rollback(self):
         text = COMPOSE.read_text(encoding="utf-8")
-        self.assertIn('traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-false}"', text)
+        self.assertIn('traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-true}"', text)
         self.assertIn('Host(`nexus.int.albandrieu.com`)', text)
         self.assertIn("traefik.http.routers.nexus-private.entrypoints: websecure", text)
         self.assertIn("traefik.http.routers.nexus-private.service: nexus-private", text)
@@ -23,7 +23,24 @@ class NexusPrivateIngressContract(unittest.TestCase):
         self.assertIn("traefik.http.services.nexus-private.loadbalancer.server.scheme: http", text)
         self.assertIn("traefik.docker.network: traefik_network", text)
         self.assertIn('networks: ["traefik_network"]', text)
-        self.assertNotIn("Host(`nexus.albandrieu.com`)", text)
+
+    def test_public_router_is_crowdsec_bounced_and_tunnel_gated(self):
+        text = COMPOSE.read_text(encoding="utf-8")
+        self.assertIn('traefik.http.routers.nexus-public.rule: "Host(`nexus.albandrieu.com`)"', text)
+        self.assertIn('traefik.http.routers.nexus-public.middlewares: crowdsec@file', text)
+        self.assertIn('traefik.http.routers.nexus-public.tls: "true"', text)
+        # The public router never carries the LAN allowlist: its socket peer is cloudflared.
+        self.assertNotIn("nexus-public.middlewares: nexus-private-lan-only", text)
+        tunnel = (ROOT / "terraform/cloudflare/tunnel.tofu").read_text(encoding="utf-8")
+        self.assertIn('service = var.nexus_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:8081"', tunnel)
+        self.assertIn('origin_server_name = var.nexus_tunnel_via_traefik ? "nexus.int.albandrieu.com" : null', tunnel)
+        variables = (ROOT / "terraform/cloudflare/variables.tofu").read_text(encoding="utf-8")
+        block = variables.split('variable "nexus_tunnel_via_traefik"', 1)[1].split("}", 1)[0]
+        self.assertIn("default     = false", block)
+
+    def test_tofu_reaches_nexus_over_the_lan(self):
+        hcl = (ROOT / "infrastructure/nexus/terragrunt.hcl").read_text(encoding="utf-8")
+        self.assertIn('get_env("NEXUS_URL", "https://nexus.int.albandrieu.com")', hcl)
 
     def test_readonly_runbook_never_bypasses_tls_or_exposes_public_int(self):
         text = RUNBOOK.read_text(encoding="utf-8")

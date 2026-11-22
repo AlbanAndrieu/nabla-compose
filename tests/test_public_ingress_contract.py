@@ -245,18 +245,15 @@ class PublicIngressContractTests(unittest.TestCase):
         )
 
         self.assertIn('TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"', script)
-        self.assertIn('INTERNAL_HOST="${INTERNAL_HOST:-sample.int.albandrieu.com}"', script)
+        self.assertIn('INTERNAL_HOST="${INTERNAL_HOST:-traefik.int.albandrieu.com}"', script)
         self.assertIn(
             'LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://${TRUENAS_HOST}:8091/health}"',
             script,
         )
-        self.assertIn('PFSENSE_DNS="${PFSENSE_DNS:-172.17.0.1}"', script)
-        self.assertIn('PIHOLE_DNS="${PIHOLE_DNS:-172.17.0.24}"', script)
-        self.assertIn("internal Pi-hole DNS (authoritative private record)", script)
-        self.assertIn("pfSense/Unbound split DNS", script)
-        self.assertIn("system resolver view", script)
-        self.assertIn("prefer pfSense/Unbound", script)
         self.assertIn("non-blocking warning", script)
+        # #436: no sample.int DNS, the retired pfSense is never queried; TLS check is opt-in.
+        self.assertIn('CHECK_TRAEFIK_CANARY_TLS:-false', script)
+        self.assertNotIn("PFSENSE_DNS", script)
         self.assertIn("CF-Access-Client-Id", script)
         self.assertIn("CF-Access-Client-Secret", script)
         self.assertIn("Cloudflare Access is enforcing authentication", script)

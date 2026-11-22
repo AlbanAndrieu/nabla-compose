@@ -59,8 +59,9 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
         and resource["metadata"]["labels"]["cloudflare_access"] == "required"
     ]
 
-    # Explicit v2 policy includes a small set of public routes without Access.
-    # 2026-11-21: TrueNAS moved behind Cloudflare Access (#432).
+    # Explicit v2 policy includes a small set of public routes without Access:
+    # hello-nginx, honeypot, joplin, reactive-resume, vaultwarden (22/11/2026).
+    # TrueNAS moved behind Cloudflare Access on 21/11/2026 (#432).
     assert len(protected) == 27
     for resource in protected:
         headers = resource["spec"]["headers"]

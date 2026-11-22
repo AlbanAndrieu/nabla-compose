@@ -63,10 +63,9 @@ services:
     networks: ["traefik_network"]
     labels:
       com.albandrieu.nabla.entity-ref: component:default/nexus
-      # Disabled until DNS, TLS and reverse-proxy ownership are verified.
-      # Explicit opt-in during reviewed TrueNAS redeploy; does not change
-      # the public nexus.albandrieu.com route.
-      traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-false}"
+      # Enabled 22/11/2026: Pi-hole resolves nexus.int and Traefik serves its certificate.
+      # NEXUS_PRIVATE_INGRESS_ENABLED=false in the app env is the rollback.
+      traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-true}"
       traefik.docker.network: traefik_network
       traefik.http.routers.nexus-private.rule: "Host(`nexus.int.albandrieu.com`)"
       traefik.http.routers.nexus-private.entrypoints: websecure
@@ -76,6 +75,14 @@ services:
       # The public Cloudflare tunnel does not join these trusted workstation LANs.
       traefik.http.routers.nexus-private.middlewares: nexus-private-lan-only
       traefik.http.middlewares.nexus-private-lan-only.ipallowlist.sourcerange: "172.17.0.0/24,192.168.1.0/24"
+      # Public route for CI (Cloudflare Access service token), only once the tunnel targets
+      # https://traefik:443 (nexus_tunnel_via_traefik). IP-only bouncer: AppSec body limits
+      # would break artifact uploads; CrowdSec reads the client IP from Cf-Connecting-Ip.
+      traefik.http.routers.nexus-public.rule: "Host(`nexus.albandrieu.com`)"
+      traefik.http.routers.nexus-public.entrypoints: websecure
+      traefik.http.routers.nexus-public.tls: "true"
+      traefik.http.routers.nexus-public.service: nexus-private
+      traefik.http.routers.nexus-public.middlewares: crowdsec@file
       traefik.http.services.nexus-private.loadbalancer.server.scheme: http
       traefik.http.services.nexus-private.loadbalancer.server.port: "8081"
 

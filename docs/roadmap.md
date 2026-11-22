@@ -19,6 +19,7 @@
 | **Vaultwarden + correctif DNS** | 21/11 : Vaultwarden **1.37.5** healthy, adaptateur `bitwarden-api` healthy après suppression de surcharges Pi-hole obsolètes ; `talosconfig` et kubeconfig placés dans le coffre | Secrets applicatifs Keycloak/Joplin/Homarr toujours à matérialiser ; ne pas redéployer Vaultwarden 1.37.5 par réflexe |
 | **pfSense retiré** | 18/11 : Freebox/R7000 remplace le pfSense ; #436 fusionnée le 22/11 retire l'ancien nœud HAProxy actif de la topologie | Revue DNS/Ingress H04, éventuel remplaçant H07 différé |
 | **Hello via Traefik** | 22/11 : `nginx` dans `traefik_network` (`172.16.56.12`), commande `curl --fail-with-body --resolve` vers `:443` valide sans `-k` | Code HTTP exact, Gatus runtime et exposition WAN restent à mesurer |
+| **MCP `truenas-readonly`** | 22/11 : clé dédiée `mcp_readonly` (READONLY_ADMIN), TLS vérifié, 19 outils en lecture (00f0bc7c) | portracker, 2FA et sortie de `auth.login_with_api_key` (H10) |
 | **CTEM et catalogues déclaratifs** | PRs #421/#422/#431/#436 fusionnées ; contrats et projections V2 validés en CI | Amass LAN/externe réel, confrontation des contrôles Cloudflare et import DefectDojo validé |
 
 ## Travaux restant à réceptionner — lot d'exécution
@@ -45,11 +46,20 @@ Le report P2 provenait de trois incertitudes **techniques**, non d'un arbitrage 
 
 ### 5. H03/H04 — dépendances strictement nécessaires
 
-Matérialiser les secrets de **Dependency-Track/CTEM** dans les fichiers root:root 0600, prouver l'authentification et l'isolation PostgreSQL sans exposer leurs valeurs ; Cloudflare DNS, Tunnel, AppSec et WAF sont validés par contrôles extérieurs négatifs et plans import-first, mais **aucun apply implicite**. Vaultwarden 1.37.5 et son adaptateur étaient déjà sains au dernier relevé ; ne pas réinitialiser ces services.
+Matérialiser les secrets de **Dependency-Track/CTEM** dans les fichiers root:root 0600, prouver l'authentification et l'isolation PostgreSQL sans exposer leurs valeurs ; Cloudflare DNS, Tunnel, AppSec et WAF sont validés par contrôles extérieurs négatifs et plans import-first, mais **aucun apply implicite**. WAF Vercel de Bababou : import fait, apply refusé le 22/11 (`payment_required`, OWASP Core Ruleset hors forfait), WAF inchangé ; décision du propriétaire : forfait Pro ou rate limiting seul ([runbook](../terraform/vercel-waf/README.md)). Vaultwarden 1.37.5 et son adaptateur étaient déjà sains au dernier relevé ; ne pas réinitialiser ces services.
 
 ### 6. H08 autres Apps et Nexus : non urgents
 
-La [PR #438 Nexus](https://github.com/AlbanAndrieu/nabla-compose/pull/438), Joplin et les déploiements généraux restent suivis et sécurisés, mais ne prennent pas de capacité au chantier prioritaire H17/H13. NetBox était déjà en production le 21/11. La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le pin OpenClaw et les contrôles d'agents sans lancement automatique depuis le travail documentaire.
+La [PR #438 Nexus](https://github.com/AlbanAndrieu/nabla-compose/pull/438), Joplin et les déploiements généraux restent suivis et sécurisés, mais ne prennent pas de capacité au chantier prioritaire H17/H13. NetBox était déjà en production le 21/11.
+
+**Nexus, cache de paquets** (relevé du 22/11) : 3.92.3 Community, 9 dépôts Maven et NuGet seulement ; les dépôts de `terraform/nexus` (`apt-ubuntu-26-04`, `npm-all`, `pypi-all`, `docker-all`, `terraform-proxy`…) répondent 404, **jamais appliqués**.
+
+- [x] proxy séparé `apt-ubuntu-26-04-security` (`security.ubuntu.com`, `resolute-security`), `CODED` le 22/11 ;
+- [ ] `tofu plan` puis `apply` de `terraform/nexus` (jeton admin depuis Vaultwarden), relire la liste des dépôts ;
+- [ ] accès HTTPS privé `nexus.int` et route publique CI via Traefik + CrowdSec (`nexus_tunnel_via_traefik`), `CODED` le 22/11 ([apps/nexus](../apps/nexus/README.md)) ; puis 3.98.3 après test de restauration de `cpool/nexus3` ;
+- [ ] clients de la workstation (apt, npm, pip, uv) : `ansible-workstation`, `docs/workstation-nexus-package-cache.md`.
+
+La [PR #437](https://github.com/AlbanAndrieu/nabla-compose/pull/437) continue le pin OpenClaw et les contrôles d'agents sans lancement automatique depuis le travail documentaire.
 
 ### 7. Autres chantiers conservés
 

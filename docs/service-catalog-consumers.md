@@ -184,13 +184,32 @@ That transport is not the right basis for a TrueNAS 25.10+/26 MCP integration.
 
 The repository therefore uses the third-party read-only `@profanter-dev/truenas-mcp`, pinned to `1.0.6`. It targets TrueNAS SCALE 25.10+, uses `wss://<host>/api/current` JSON-RPC 2.0, and exposes no mutating tools.
 
+`.mcp.json` starts `scripts/mcp/truenas-readonly.sh`. The launcher reads the key
+from `TRUENAS_MCP_API_KEY` or from `~/.config/nabla/mcp/truenas-readonly.key`, a
+file that must be yours with mode 600. It starts the package outside the repository,
+because the package loads `dotenv` from its working directory.
+
+TLS stays verified. The TrueNAS certificate names only `truenas.albandrieu.com`, which
+resolves to the Cloudflare Tunnel from the LAN. The preload `truenas-pin-host.mjs` pins
+that name to `172.17.0.24` for this process only, and `TRUENAS_INSECURE` stays `false`.
+`TRUENAS_MCP_HOST` (default `truenas.albandrieu.com:7000`) and `TRUENAS_MCP_ADDR`
+(default `172.17.0.24`) override the target.
+
+The key belongs to a dedicated user, `mcp_readonly`, a member of
+`truenas_readonly_administrators` (role `READONLY_ADMIN`). Create the user and the key
+from the owner terminal, with the TrueNAS ControlMaster open and Vaultwarden unlocked:
+
 ```bash
-export TRUENAS_MCP_HOST='truenas.example.internal:443'
-export TRUENAS_MCP_API_KEY='...read-only API key...'
-export TRUENAS_MCP_INSECURE=false
+scripts/truenas/mcp-readonly-identity.sh check
+scripts/truenas/mcp-readonly-identity.sh apply
 ```
 
-`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. Keep TLS verification enabled when possible. The selected MCP still authenticates with `auth.login_with_api_key`, which is deprecated since TrueNAS 26 (renamed 27); before TrueNAS 28, reassess it or move to an MCP/wrapper using the modern `truenas/api_client`/SCRAM path.
+`apply` writes the key file and the Vaultwarden item `nabla/prod/truenas-mcp-readonly`.
+It never prints the key. A missing local copy rotates the key.
+
+The package still authenticates with `auth.login_with_api_key`. This method is
+deprecated since TrueNAS 26 (renamed 27). Before TrueNAS 28, reassess it, or move to an
+MCP or wrapper on the modern `truenas/api_client`/SCRAM path.
 
 Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 

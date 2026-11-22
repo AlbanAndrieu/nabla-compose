@@ -64,7 +64,9 @@ class GitHubAppManifestTests(unittest.TestCase):
     def test_world_readable_directory_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "unsafe"
-            out.mkdir(mode=0o755)
+            out.mkdir()
+            # mkdir(mode=...) is masked by the umask (0700 under umask 077).
+            out.chmod(0o755)
             with self.assertRaises(ValueError):
                 app.verify_output(out)
 

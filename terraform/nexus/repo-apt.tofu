@@ -4,6 +4,8 @@ locals {
     { name = "apt-ubuntu-25-04", remote_url = "https://archive.ubuntu.com/ubuntu/", distribution = "plucky" },
     { name = "apt-ubuntu-25-10", remote_url = "https://archive.ubuntu.com/ubuntu/", distribution = "questing" },
     { name = "apt-ubuntu-26-04", remote_url = "https://archive.ubuntu.com/ubuntu/", distribution = "resolute" },
+    # Security updates are published on security.ubuntu.com first: a separate proxy, never the archive one.
+    { name = "apt-ubuntu-26-04-security", remote_url = "https://security.ubuntu.com/ubuntu/", distribution = "resolute-security" },
     { name = "apt-debian-12", remote_url = "https://deb.debian.org/debian/", distribution = "bookworm" },
     { name = "apt-debian-13", remote_url = "https://deb.debian.org/debian/", distribution = "trixie" },
   ]

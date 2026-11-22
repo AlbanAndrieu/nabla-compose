@@ -50,6 +50,11 @@ services:
         published: 30103
         host_ip: 172.17.0.24
         protocol: tcp
+    devices:
+      # ZHA's Zigbee radio (Sonoff Dongle Plus V2, relevé du 22/11). The host
+      # side uses the stable by-id name (ttyUSBn follows enumeration order); the
+      # container keeps the /dev/ttyUSB0 that the existing ZHA entry points to.
+      - /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_b2c8033665c2ef11bfb0c0138148b910-if00-port0:/dev/ttyUSB0
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro

@@ -32,6 +32,22 @@ Still never:
 
 A step that needs one of these becomes a parked question. Keep going with the rest.
 
+## Decide, do not ask
+
+Sprint mode overrides the per-action confirmations of other skills (the
+user skill `truenas-ops`: restart, redeploy, checkout update, Sample update).
+Never end a turn on a yes/no question about an action listed above: do it,
+check the result, report it.
+
+- An App that is stopped or unhealthy, and that no roadmap or runbook line marks
+  as stopped on purpose (`disabled`, `planned`): start or redeploy it, then check
+  its probe. On 22/11, a "restart Home Assistant?" question only annoyed the owner.
+- A teammate session's finished commits: check the fast-forward and the diff,
+  then push them to the PR through the pre-push hook. Never leave the owner a
+  push command to type.
+- Ask only about the "Still never" list, a paid plan, or a credential that only
+  the owner can create. Park it in the state runbook and keep going.
+
 ## One PR per repository
 
 Fold all work into the open PR of each repository: the PR of the checkout's
@@ -102,10 +118,23 @@ Every third pass, run a reconciliation cycle, in this order:
 - Never edit the clone while the pre-push gate runs: it fails on a dirty
   tree. Run it in the background and work on runtime checks or another
   repository meanwhile.
+- The owner's untracked files (even inside a submodule) also block the gate:
+  gate a `git clone --shared` of the exact SHA in the scratchpad instead, with
+  `pre-commit install --hook-type pre-push --config .pre-commit-pre-push.yaml`
+  (a hook guard blocks copying into `.git/hooks`).
+- Git hooks run `python3` from `PATH`: export `VIRTUAL_ENV` and prepend
+  `.venv/bin`, or the catalog hooks fail on `import yaml`.
+- CI does not run the whole test suite, so `master` can be red: after merging
+  `origin/master`, run `pytest -q tests` once and fix what it broke.
 - Services of one TrueNAS App share one x-nabla `status`; keep an optional
   service on a Compose profile instead (`dsomm-baseline`).
 - Root on TrueNAS (`systemd-run`): set `HOME` and pass `safe.directory`
   through `GIT_CONFIG_COUNT/KEY_0/VALUE_0`, or root git refuses the checkout.
+  Root only reads it: a root `checkout`/`pull` there leaves root-owned files,
+  and the next pull stops halfway (files written, `master` not moved, the
+  hourly cron skipped) as on 22/11. Write the checkout as `albandrieu`.
+- PostgreSQL entrypoint: wait for `init process complete` in `docker logs`
+  before `pg_isready`, which first answers from the temporary `initdb` server.
 - Ansible against TrueNAS: `ANSIBLE_SSH_ARGS="-o ControlMaster=auto -o BatchMode=yes"`
   (no `ControlPersist`) reuses the YubiKey ControlMaster of `~/.ssh/config`.
 - Sample's TrueNAS observer needs its diagnostics key:
@@ -120,6 +149,13 @@ Every third pass, run a reconciliation cycle, in this order:
   the process drops privileges (ntopng).
 - A consumer that forbids extra fields (Sample's `DeclaredService`) must
   accept a new catalog field and ship before the generator emits it.
+- Cloudflare: a hostname moved from `tunnel` to `retired` in one apply is
+  imported, then deleted by the `tunnel` destroy. Drop its id from
+  `dns-record-ids.auto.tfvars`, or the next plan recreates it (error 9007).
+- OpenTofu credentials from the workstation env: Vercel wants
+  `VERCEL_API_TOKEN="$VERCEL_TOKEN"`; the `github` unit runs with
+  `env -u TF_VAR_github_app_pem` and `GITHUB_TOKEN="$(gh auth token)"`.
+  A provider `payment_required` is a parked owner question, never a plan upgrade.
 - Once only credential-blocked items remain, a pass re-tests the blocker and
   moves on: do not investigate the same item again.
 
