@@ -534,8 +534,11 @@ The historical private Traefik route `sample.int.albandrieu.com` has been
 retired after the operator confirmed FastAPI was redeployed (21/11/2026).
 LAN probes continue to use `http://172.17.0.24:8091`. The public
 Traefik router is retained only for an explicitly accepted canary cutover.
-`APP_DOMAIN` is an independent FastAPI runtime setting still requiring
-application-level verification before it can be changed.
+`APP_DOMAIN` is `fastapi-sample.albandrieu.com`, the deployment's own domain,
+since 22/11/2026. Verified in the application: it is a display label, the
+socket demo target and part of the owner-history Redis key (that history
+starts empty when enabled); FastAPI Cloud detection only looks at
+`.fastapicloud.dev`.
 
 The protected public route is `https://fastapi-sample.albandrieu.com`.
 
@@ -871,8 +874,11 @@ The historical private Traefik route `sample.int.albandrieu.com` has been
 retired after the operator confirmed FastAPI was redeployed (21/11/2026).
 LAN probes continue to use `http://172.17.0.24:8091`. The public
 Traefik router is retained only for an explicitly accepted canary cutover.
-`APP_DOMAIN` is an independent FastAPI runtime setting still requiring
-application-level verification before it can be changed.
+`APP_DOMAIN` is `fastapi-sample.albandrieu.com`, the deployment's own domain,
+since 22/11/2026. Verified in the application: it is a display label, the
+socket demo target and part of the owner-history Redis key (that history
+starts empty when enabled); FastAPI Cloud detection only looks at
+`.fastapicloud.dev`.
 
 The protected public route is `https://fastapi-sample.albandrieu.com`.
 

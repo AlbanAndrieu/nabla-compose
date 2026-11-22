@@ -14,7 +14,7 @@ class PublicIngressContractTests(unittest.TestCase):
     def test_sample_internal_traefik_host_is_retired(self) -> None:
         compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
-        self.assertIn("APP_DOMAIN: sample.int.albandrieu.com", compose)
+        self.assertIn("APP_DOMAIN: fastapi-sample.albandrieu.com", compose)
         self.assertIn('SENTRY_ENABLED: "true"', compose)
         self.assertIn("SENTRY_ENVIRONMENT: homelab", compose)
         self.assertIn('SENTRY_AI_INTEGRATIONS_ENABLED: "true"', compose)

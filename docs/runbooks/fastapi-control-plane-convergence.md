@@ -31,9 +31,10 @@ protection publique. La frontière dashboard/métriques Traefik reste
 Le certificat vérifié pour le canary utilise désormais le SNI
 `traefik.int.albandrieu.com` (certificat interne Traefik), et le
 Host de routage reste `fastapi-sample.albandrieu.com`.
-La variable `APP_DOMAIN` FastAPI dans le conteneur est indépendante
-du routeur privé retiré ; sa migration doit être vérifiée au niveau de
-l'application avant changement de l'environnement runtime.
+La variable `APP_DOMAIN` FastAPI vaut `fastapi-sample.albandrieu.com`, le
+domaine du déploiement, depuis le 22/11/2026, après vérification dans
+l'application : libellé, démo socket et clé Redis de l'historique des
+propriétaires (qui repart à vide s'il est activé).
 
 ## Public Traefik canary CODED (21/11/2026)
 

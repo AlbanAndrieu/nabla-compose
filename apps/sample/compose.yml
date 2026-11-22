@@ -139,7 +139,8 @@ services:
       PFSENSE_SECURITY_PATH_MODE: out_of_band
       PYROSCOPE_SERVER_ADDRESS: http://172.17.0.24:4040
       SICKZ_NETWORK_LABEL: nabla
-      APP_DOMAIN: sample.int.albandrieu.com
+      # The deployment's own domain (FastAPI Cloud: fastapi-sample.fastapicloud.dev); no .int name exists.
+      APP_DOMAIN: fastapi-sample.albandrieu.com
       SENTRY_ENABLED: "true"
       SENTRY_ENVIRONMENT: homelab
       SENTRY_AI_INTEGRATIONS_ENABLED: "true"
