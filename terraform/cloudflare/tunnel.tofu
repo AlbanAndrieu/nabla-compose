@@ -9,6 +9,7 @@ locals {
     {
       hostname = "heimdall.albandrieu.com"
       origin_request = {
+        access        = local.access_jwt["heimdall.albandrieu.com"]
         no_tls_verify = true
       }
       service = "https://172.17.0.24:30120"
@@ -18,33 +19,34 @@ locals {
     {
       hostname = "truenas.albandrieu.com"
       origin_request = {
+        access             = local.access_jwt["truenas.albandrieu.com"]
         origin_server_name = "truenas.albandrieu.com"
       }
       service = "https://172.17.0.24:7000"
     },
     {
       hostname       = "prometheus.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["prometheus.albandrieu.com"] }
       service        = "http://172.17.0.24:9090"
     },
     {
       hostname       = "scrutiny.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["scrutiny.albandrieu.com"] }
       service        = "http://172.17.0.24:31054"
     },
     {
       hostname       = "ittools.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["ittools.albandrieu.com"] }
       service        = "http://172.17.0.24:30063"
     },
     {
       hostname       = "uptime-kuma.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["uptime-kuma.albandrieu.com"] }
       service        = "http://172.17.0.24:31050"
     },
     {
       hostname       = "2fauth.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["2fauth.albandrieu.com"] }
       service        = "http://172.17.0.24:30081"
     },
     {
@@ -54,7 +56,7 @@ locals {
     },
     {
       hostname       = "grafana.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["grafana.albandrieu.com"] }
       service        = "http://172.17.0.24:30037"
     },
     # Keycloak: publish only the production endpoints recommended by
@@ -84,77 +86,77 @@ locals {
     },
     {
       hostname       = "homarr.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["homarr.albandrieu.com"] }
       service        = "http://172.17.0.24:30100"
     },
     {
       hostname       = "gatus.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["gatus.albandrieu.com"] }
       service        = "http://172.17.0.24:8085"
     },
     {
       hostname       = "affine.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["affine.albandrieu.com"] }
       service        = "http://172.17.0.24:30169"
     },
     {
       hostname       = "karakeep.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["karakeep.albandrieu.com"] }
       service        = "http://172.17.0.24:30147"
     },
     {
       hostname       = "immich.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["immich.albandrieu.com"] }
       service        = "http://172.17.0.24:30041"
     },
     {
       hostname       = "ha.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["ha.albandrieu.com"] }
       service        = "http://172.17.0.24:30103"
     },
     {
       hostname       = "searxng.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["searxng.albandrieu.com"] }
       service        = "http://172.17.0.24:30053"
     },
     {
       hostname       = "openwebui.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["openwebui.albandrieu.com"] }
       service        = "http://172.17.0.24:31028"
     },
     {
       hostname       = "freshrss.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["freshrss.albandrieu.com"] }
       service        = "http://172.17.0.24:30108"
     },
     {
       hostname       = "reactive.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["reactive.albandrieu.com"] }
       service        = "http://172.17.0.24:30393"
     },
     {
       hostname       = "plumber-api-albandrieu.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["plumber-api-albandrieu.albandrieu.com"] }
       service        = "http://172.17.0.24:31071"
     },
     {
       hostname       = "nginx.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["nginx.albandrieu.com"] }
       service        = "http://172.17.0.24:8099"
     },
     {
       hostname       = "code.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["code.albandrieu.com"] }
       service        = "http://172.17.0.24:8443"
     },
     {
       hostname       = "cadvisor.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["cadvisor.albandrieu.com"] }
       service        = "http://172.17.0.24:8089"
     },
     {
       hostname       = "npmplus.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["npmplus.albandrieu.com"] }
       service        = "https://172.17.0.24:30359"
     },
     {
@@ -162,6 +164,7 @@ locals {
       # Same canary pattern as fastapi-sample: SNI verifies the nexus.int certificate,
       # Host selects the nexus-public router (CrowdSec bouncer) in Traefik.
       origin_request = {
+        access             = local.access_jwt["nexus.albandrieu.com"]
         origin_server_name = var.nexus_tunnel_via_traefik ? "nexus.int.albandrieu.com" : null
         http_host_header   = var.nexus_tunnel_via_traefik ? "nexus.albandrieu.com" : null
       }
@@ -169,32 +172,32 @@ locals {
     },
     {
       hostname       = "npm.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["npm.albandrieu.com"] }
       service        = "http://172.17.0.24:30020"
     },
     {
       hostname       = "ddns-updater.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["ddns-updater.albandrieu.com"] }
       service        = "http://172.17.0.24:8000"
     },
     {
       hostname       = "minio.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["minio.albandrieu.com"] }
       service        = "http://172.17.0.24:9091"
     },
     {
       hostname       = "langfuse.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["langfuse.albandrieu.com"] }
       service        = "http://172.17.0.24:3000"
     },
     {
       hostname       = "clickhouse.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["clickhouse.albandrieu.com"] }
       service        = "http://172.17.0.24:8123"
     },
     {
       hostname       = "languagetool.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["languagetool.albandrieu.com"] }
       service        = "http://172.17.0.24:8010"
     },
     {
@@ -204,7 +207,7 @@ locals {
     },
     {
       hostname       = "open-webui.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["open-webui.albandrieu.com"] }
       service        = "http://172.17.0.24:31028"
     },
     {
@@ -221,13 +224,13 @@ locals {
     },
     {
       hostname       = "openrag.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["openrag.albandrieu.com"] }
       service        = "http://172.17.0.24:31060"
     },
     # Garage WebUI, not the S3 API (:3900), which must stay on s3.int (LAN).
     {
       hostname       = "garage.albandrieu.com"
-      origin_request = {}
+      origin_request = { access = local.access_jwt["garage.albandrieu.com"] }
       service        = "http://172.17.0.24:3909"
     },
     # Honeypot: direct :31090 remains the default, including the address

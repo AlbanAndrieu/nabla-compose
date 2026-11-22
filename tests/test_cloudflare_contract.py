@@ -54,7 +54,8 @@ class CloudflareContract(unittest.TestCase):
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf",
-                                    "cloudflare_dns_record.mail_dmarc"}:
+                                    "cloudflare_dns_record.mail_dmarc",
+                                    "cloudflare_zero_trust_access_application.route"}:
                 self.assertIn(f"to       = {kind}.{name}[each.key]", imports)
                 continue
             if f"{kind}.{name}" in created:

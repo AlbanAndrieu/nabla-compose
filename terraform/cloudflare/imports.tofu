@@ -82,3 +82,10 @@ import {
   to = cloudflare_managed_transforms.albandrieu
   id = var.zone_id
 }
+
+# Route Access applications created in the dashboard: adopt them (22/11/2026).
+import {
+  for_each = var.route_access_application_ids
+  to       = cloudflare_zero_trust_access_application.route[each.key]
+  id       = "accounts/${var.account_id}/${each.value}"
+}

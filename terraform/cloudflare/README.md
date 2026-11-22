@@ -62,6 +62,30 @@ partagé, apply contrôlé, réception `/healthz` depuis l'extérieur
 sans visiter `/`, puis déploiement et tests Traefik.
 [Runbook](../../apps/honeypot/README.md).
 
+## Access « Protect with Access » : JWT vérifié par cloudflared (22/11/2026)
+
+Access bloque à l'edge. En plus, chaque route du tunnel porte `origin_request.access`
+(`access-jwt.tofu`) : cloudflared vérifie la signature du JWT `Cf-Access-Jwt-Assertion`
+(clés de `albandrieu.cloudflareaccess.com`), son expiration et l'**AUD** de l'application
+de la route, sinon il répond 403 sans contacter l'origine. Une route dont l'application
+Access disparaît ou est mal configurée échoue donc fermée au lieu de devenir publique.
+
+- **Appliqué le 22/11** : 33 routes du tunnel TrueNAS + `famp-albandrieu` (tunnel workstation).
+  Contrôle : sans session → 302 login ; jeton de service `fastapi-sample-monitor` → réponse de l'application.
+- **Exceptions (bypass, aucun JWT émis)** : `keycloak`, `login`, `joplin`, `n8n` (callback OAuth Slack),
+  `vaultwarden`, `fastapi-sample` (webhook GitHub). Listées dans `tests/test_tunnel_access_jwt_contract.py`,
+  qui fait échouer toute nouvelle route sans AUD ni exception.
+- **Applications du tableau de bord adoptées** : 29 applications des routes, importées dans
+  `access-routes.tofu` (`for_each`, IDs dans `access-application-ids.auto.tfvars`), destinations
+  privées WARP conservées ; cookie `CF_Authorization` passé en HttpOnly comme les autres.
+- **Ce que l'AUD ne couvre pas** : l'accès direct aux ports LAN de TrueNAS (UFW, Freebox sans
+  redirection), l'authentification propre à chaque application, ni une session Access volée
+  (durée 24 h).
+- **Hors routes** : ~36 applications Access sans route (ollama, pfsense, traefik, doublons
+  `nexus`/`truenas`…) restent dans le tableau de bord, à supprimer par plan après import.
+- **Jeton** : `CLOUDFLARE_API_TOKEN` n'a pas les droits Access ; lancer le plan avec
+  `CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN_NABLA_OPENTOFU"`.
+
 ## Jeton API (hors dépôt)
 
 `CLOUDFLARE_API_TOKEN` vient de Vaultwarden, n'est jamais écrit dans un

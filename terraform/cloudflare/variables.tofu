@@ -129,3 +129,9 @@ variable "honeypot_tunnel_via_traefik" {
   type        = bool
   default     = false
 }
+
+variable "route_access_application_ids" {
+  description = "Dashboard IDs of the route Access applications to adopt (access-routes.tofu)."
+  type        = map(string)
+  default     = {}
+}
