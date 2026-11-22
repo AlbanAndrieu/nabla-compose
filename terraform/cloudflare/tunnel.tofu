@@ -205,11 +205,11 @@ locals {
     {
       hostname = "fastapi-sample.albandrieu.com"
       # Opt-in canary; unchanged direct origin by default. SNI verifies the
-      # existing internal certificate while Host selects the public router.
+      # verified private Traefik wildcard certificate while Host selects public router.
       # "traefik" resolves on cloudflared's own network (Traefik joins
       # ix-cloudflared_default), so Traefik sees cloudflared as the socket peer.
       origin_request = {
-        origin_server_name = var.fastapi_sample_tunnel_via_traefik ? "sample.int.albandrieu.com" : null
+        origin_server_name = var.fastapi_sample_tunnel_via_traefik ? "traefik.int.albandrieu.com" : null
         http_host_header   = var.fastapi_sample_tunnel_via_traefik ? "fastapi-sample.albandrieu.com" : null
       }
       service = var.fastapi_sample_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:8091"
@@ -225,14 +225,17 @@ locals {
       origin_request = {}
       service        = "http://172.17.0.24:3909"
     },
-    # Honeypot (owner decision, 20/11/2026): a public trap behind an "Everyone
-    # bypass" Access app, with no WAF challenge nor Bot Fight rule, which would
-    # hide it. The honeypot App runs on TrueNAS since 21/11 (published port
-    # 31090). honeypot-albandrieu.albandrieu.com stays retired.
+    # Honeypot: direct :31090 remains the default, including the address
+    # harvester on /. Switch to Traefik ONLY after peer-IP, TLS, AppSec, Docker
+    # and access-log acceptance (honeypot runbook). Access stays Everyone bypass.
+    # CNAME publishing is a separate import-first DNS plan, not a tunnel apply.
     {
-      hostname       = "login.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:31090"
+      hostname = "login.albandrieu.com"
+      origin_request = {
+        origin_server_name = var.honeypot_tunnel_via_traefik ? "traefik.int.albandrieu.com" : null
+        http_host_header   = var.honeypot_tunnel_via_traefik ? "login.albandrieu.com" : null
+      }
+      service = var.honeypot_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:31090"
     },
     # Joplin Server (10/11): sync clients cannot complete an interactive
     # Access login, so this route relies on Joplin's own authentication, behind

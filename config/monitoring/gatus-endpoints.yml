@@ -76,6 +76,16 @@ endpoints:
     url: http://172.17.0.24:8084/health
     conditions:
       - "[STATUS] == 200"
+  # Static path: no Project Honey Pot report, no false attack event.
+  - name: Honeypot LAN Health
+    group: security
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: honeypot
+      nabla_service_id: honeypot
+    url: http://172.17.0.24:31090/healthz
+    conditions:
+      - "[STATUS] == 200"
   - name: Cyberbro
     group: security
     interval: 60s
@@ -256,6 +266,16 @@ endpoints:
     url: tcp://172.17.0.24:8099
     conditions:
       - "[CONNECTED] == true"
+  # End-to-end TLS/Host routing, independent from the backend port probe.
+  - name: Hello Nginx via Traefik
+    group: network
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: hello-nginx-traefik
+      nabla_service_id: hello-nginx
+    url: https://hello.int.albandrieu.com/
+    conditions:
+      - "[STATUS] == 200"
   - name: Homarr
     group: operations
     interval: 60s
@@ -765,7 +785,7 @@ endpoints:
     extra-labels:
       nabla_monitor_id: traefik
       nabla_service_id: traefik
-    url: tcp://172.17.0.24:80
+    url: tcp://172.17.0.24:443
     conditions:
       - "[CONNECTED] == true"
   - name: TrueNAS

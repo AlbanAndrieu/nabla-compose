@@ -56,7 +56,7 @@ L2 convergence mise run agent-loop; then mise run agent-fix
 L3 publication commit; mise run agent-pre-push
 ```
 
-- **L0 · static** verifies branch/base/destructive-diff/exec-bit safety before
+- **L0 · static** verifies branch/base/exec-bit safety before
   dependency or build work.
 - **L1 · targeted** reproduces the named failure, including a negative case
   when the behavior is fail-closed.

@@ -122,12 +122,15 @@ class CloudflareContract(unittest.TestCase):
         # The route targets the published port of the honeypot App (running on
         # TrueNAS since 21/11/2026), nothing else.
         tunnel = (TF / "tunnel.tofu").read_text(encoding="utf-8")
-        route = re.search(
-            r'hostname\s*=\s*"login\.albandrieu\.com".*?service\s*=\s*"([^"]*)"',
-            tunnel, re.S,
+        route = tunnel.split('hostname = "login.albandrieu.com"', 1)[1].split("},", 1)[0]
+        self.assertIn(
+            'service = var.honeypot_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:31090"',
+            route,
         )
-        self.assertIsNotNone(route)
-        self.assertEqual(route.group(1), "http://172.17.0.24:31090")
+        self.assertNotIn("no_tls_verify", route)
+        opts = (TF / "variables.tofu").read_text(encoding="utf-8")
+        self.assertIn('variable "honeypot_tunnel_via_traefik"', opts)
+        self.assertIn("default     = false", opts.split('variable "honeypot_tunnel_via_traefik"', 1)[1])
         self.assertNotIn('"honeypot-albandrieu.albandrieu.com"', tunnel)
         access = (TF / "access.tofu").read_text(encoding="utf-8")
         block = access.split('"honeypot_login"', 1)[1].split("\nresource ", 1)[0]

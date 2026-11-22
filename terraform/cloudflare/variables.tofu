@@ -114,3 +114,12 @@ variable "fastapi_sample_tunnel_via_traefik" {
   type        = bool
   default     = false
 }
+
+# Honeypot staged cutover. Keep the legacy Project Honey Pot harvest script
+# directly behind the tunnel until Traefik+CrowdSec/real-IP/TLS tests pass.
+# The CNAME itself is managed separately through dns-policy.yaml.
+variable "honeypot_tunnel_via_traefik" {
+  description = "False keeps honeypot :31090; true routes login through Traefik AppSec after explicit acceptance."
+  type        = bool
+  default     = false
+}

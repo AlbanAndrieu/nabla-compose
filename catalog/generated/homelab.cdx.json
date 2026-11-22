@@ -999,7 +999,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:b9e6915e8eb6eca49cf925ca2908e33f538315a3a52f423d5203d2fcae34af23"
+        "value": "sha256:99551e175c705282256bea4dc35276727cecd7f02a78aa5d55cea54157387c5a"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1007,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:b9e6915e-8eb6-eca4-9cf9-25ca2908e33f",
+  "serialNumber": "urn:uuid:99551e17-5c70-5282-256b-ea4dc3527672",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -6403,7 +6403,7 @@
     },
     {
       "bom-ref": "resource:default/pfsense-haproxy",
-      "description": "pfSense HAProxy public TLS ingress and reverse-proxy edge.",
+      "description": "Retired pfSense HAProxy ingress (decommissioned 18 November 2026); retained for historical architecture references.",
       "name": "pfSense HAProxy",
       "properties": [
         {

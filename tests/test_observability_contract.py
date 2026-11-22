@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import stat
 import unittest
+
+import yaml
 from pathlib import Path
 
 
@@ -14,6 +16,46 @@ PFSENSE_DISABLED_RULES = ROOT / "apps" / "prometheus" / "rules" / "pfsense.rules
 
 
 class ObservabilityContractTests(unittest.TestCase):
+    def test_edge_gatus_probes_and_prometheus_alerts_are_distinct(self) -> None:
+        config = yaml.safe_load(
+            (ROOT / "config/monitoring/gatus-endpoints.yml").read_text(encoding="utf-8")
+        )
+        probes = {row["name"]: row for row in config["endpoints"]}
+        self.assertEqual(probes["Traefik"]["url"], "tcp://172.17.0.24:443")
+        self.assertEqual(
+            probes["Hello Nginx via Traefik"]["url"],
+            "https://hello.int.albandrieu.com/",
+        )
+        self.assertEqual(probes["Hello Nginx via Traefik"]["conditions"], ["[STATUS] == 200"])
+        self.assertEqual(probes["CrowdSec"]["url"], "http://172.17.0.24:8084/health")
+        self.assertEqual(probes["Honeypot LAN Health"]["url"], "http://172.17.0.24:31090/healthz")
+
+        jobs = {
+            job["job_name"]: job
+            for job in yaml.safe_load(
+                (ROOT / "apps/prometheus/prometheus.yml").read_text(encoding="utf-8")
+            )["scrape_configs"]
+        }
+        self.assertEqual(jobs["traefik"]["static_configs"][0]["targets"], ["172.17.0.24:8082"])
+        self.assertEqual(jobs["crowdsec"]["static_configs"][0]["targets"], ["172.17.0.24:6060"])
+
+        for service in ("traefik", "crowdsec"):
+            alert_rules = yaml.safe_load(
+                (ROOT / f"apps/prometheus/rules/{service}.rules.yml").read_text(encoding="utf-8")
+            )
+            alerts = {row["alert"]: row for group in alert_rules["groups"] for row in group["rules"]}
+            title = service.capitalize() if service != "crowdsec" else "CrowdSec"
+            self.assertEqual(alerts[f"{title}MetricsTargetDown"]["expr"], f'up{{job="{service}"}} == 0')
+            self.assertEqual(alerts[f"{title}MetricsTargetAbsent"]["expr"], f'absent(up{{job="{service}"}})')
+            self.assertTrue(all(alert["for"] for alert in alerts.values()))
+        traefik = yaml.safe_load(
+            (ROOT / "apps/prometheus/rules/traefik.rules.yml").read_text(encoding="utf-8")
+        )
+        alerts = {row["alert"]: row for group in traefik["groups"] for row in group["rules"]}
+        self.assertIn("sum by (service)", alerts["TraefikServiceDown"]["expr"])
+        self.assertNotIn("count(", alerts["TraefikServiceDown"]["expr"])
+
+
     def test_alloy_receives_pfsense_rfc5424_on_lan_udp(self) -> None:
         compose = (GRAFANA / "compose.yml").read_text(encoding="utf-8")
         alloy = (GRAFANA / "config" / "alloy.alloy").read_text(encoding="utf-8")

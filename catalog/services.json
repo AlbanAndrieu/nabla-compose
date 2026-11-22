@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:30ee567aa65f05d8e77ddd52446e14e58780c7b6bf8752d3cfd7e6202bfc77ab",
+  "catalogRevision": "sha256:8161bf5aaf8834d21a17f0d09af2f6fb7bef7b0c3a0547b3fddaf942044c50e1",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1158,7 +1158,11 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "honeypot"
+        "containerService": "honeypot",
+        "networks": [
+          "default",
+          "traefik_network"
+        ]
       }
     },
     {
