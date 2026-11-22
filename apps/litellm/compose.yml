@@ -66,10 +66,10 @@ services:
           description: The LiteLLM MCP gateway serves the read-only tools of the Homarr MCP endpoint.
           evidence:
             - scripts/litellm/mcp-gateway.sh:homarr
-        - target: mcpgrafana
+        - target: mcp-grafana
           type: routesTo
           strength: optional
-          description: The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcpgrafana App.
+          description: The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.
           evidence:
             - scripts/litellm/mcp-gateway.sh:grafana
       # LAN only: the public litellm.albandrieu.com route was retired on 05/11/2026.

@@ -101,11 +101,6 @@ apps:
     include:
       - apps/grafana/compose.yml
     state: running
-  - name: grafana-observability
-    include:
-      - apps/grafana-observability/compose.yml
-    state: running
-    note: read-only Grafana MCP behind the LiteLLM MCP gateway (scripts/truenas/deploy-grafana-observability.sh)
   - name: graylog
     include:
       - apps/graylog/compose.yml
@@ -148,6 +143,11 @@ apps:
     include:
       - apps/litellm/compose.yml
     state: running
+  - name: mcp-grafana
+    include:
+      - apps/mcp-grafana/compose.yml
+    state: running
+    note: read-only Grafana MCP behind the LiteLLM MCP gateway (scripts/truenas/deploy-mcp-grafana.sh)
   - name: minio
     include:
       - apps/minio/compose.yml

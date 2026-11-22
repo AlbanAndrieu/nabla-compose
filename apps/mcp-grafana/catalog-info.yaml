@@ -2,7 +2,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: mcpgrafana
+  name: mcp-grafana
   title: Grafana MCP
   description: Read-only MCP server over Grafana, served to the LiteLLM MCP gateway.
   labels:
@@ -13,7 +13,7 @@ metadata:
     - observability
     - mcp
   annotations:
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/grafana-observability/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-grafana/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
   type: service

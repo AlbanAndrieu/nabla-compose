@@ -6,8 +6,8 @@
 #   nabla/prod/grafana-observability  GRAFANA_SERVICE_ACCOUNT_TOKEN, MCP_GRAFANA_SERVER_TOKEN
 #   nabla/prod/litellm-mcp-client     LITELLM_MCP_CLIENT_KEY (the one client key)
 # apply:
-#   - fills MCP_GRAFANA_SERVER_TOKEN and installs the grafana-observability runtime
-#     file on TrueNAS (materialize_runtime.py --ssh) for apps/grafana-observability;
+#   - fills MCP_GRAFANA_SERVER_TOKEN and installs the mcp-grafana runtime file on
+#     TrueNAS (materialize_runtime.py --ssh) for apps/mcp-grafana;
 #   - upserts the homarr and grafana servers in the LiteLLM database through the
 #     admin API: their credentials are encrypted there with LITELLM_SALT_KEY, so
 #     LiteLLM needs no extra env file;
@@ -43,7 +43,7 @@ KEY_ALIAS=mcp-claude-code
 ACCESS_GROUP=nabla-mcp
 HEADERS_FILE="${MCP_KEY_DIR}/litellm-gateway.headers"
 IMPORT=("python3" "${ROOT}/scripts/secrets/import_env_to_bitwarden.py" --manifest "${ROOT}/config/secrets/manifest.json")
-MATERIALIZE=("python3" "${ROOT}/scripts/secrets/materialize_runtime.py" --app grafana-observability --ssh "${SSH_HOST}")
+MATERIALIZE=("python3" "${ROOT}/scripts/secrets/materialize_runtime.py" --app mcp-grafana --ssh "${SSH_HOST}")
 
 die() {
   echo "❌ $*" >&2
@@ -142,7 +142,7 @@ fi
 if [[ -z "${SERVER_TOKEN}" ]]; then
   SERVER_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
   GRAFANA_SERVICE_ACCOUNT_TOKEN="${SA_TOKEN}" MCP_GRAFANA_SERVER_TOKEN="${SERVER_TOKEN}" \
-    "${IMPORT[@]}" --app grafana-observability --apply --update-existing
+    "${IMPORT[@]}" --app mcp-grafana --apply --update-existing
 fi
 "${MATERIALIZE[@]}" --install
 

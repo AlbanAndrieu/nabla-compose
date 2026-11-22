@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:f35e41917e1f3393d0fd38a4f30e2657445c60dba04621190779b791de645b68",
+  "catalogRevision": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -230,12 +230,6 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/mcpgrafana",
-      "evidence": "apps/grafana-observability/compose.yml:services.mcpgrafana.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/grafana-observability/compose.yml#services/mcpgrafana",
-      "sourceType": "compose"
-    },
-    {
       "entityRef": "component:default/alloy",
       "evidence": "apps/grafana/compose.yml:services.alloy.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/grafana/compose.yml#services/alloy",
@@ -383,6 +377,12 @@
       "entityRef": "component:default/litellm",
       "evidence": "apps/litellm/compose.yml:services.litellm.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/litellm/compose.yml#services/litellm",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/mcp-grafana",
+      "evidence": "apps/mcp-grafana/compose.yml:services.mcp-grafana.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/mcp-grafana/compose.yml#services/mcp-grafana",
       "sourceType": "compose"
     },
     {

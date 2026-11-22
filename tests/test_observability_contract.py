@@ -838,7 +838,7 @@ class ObservabilityContractTests(unittest.TestCase):
         item = next(
             item
             for item in manifest["items"]
-            if item["app"] == "grafana-observability"
+            if item["app"] == "mcp-grafana"
         )
         self.assertEqual(item["item"], "nabla/prod/grafana-observability")
         secret = item["secrets"][0]

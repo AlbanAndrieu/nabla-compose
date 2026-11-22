@@ -72,15 +72,15 @@ def test_gateway_registers_upstream_credentials_in_the_litellm_database_only():
 
 def test_grafana_mcp_is_its_own_read_only_authenticated_app():
     assert "mcp-grafana" not in _compose("grafana")
-    sidecar = _compose("grafana-observability")["mcpgrafana"]
+    sidecar = _compose("mcp-grafana")["mcp-grafana"]
     assert "-disable-write" in sidecar["command"] and "streamable-http" in sidecar["command"]
     assert sidecar["read_only"] is True and sidecar["cap_drop"] == ["ALL"]
     assert sidecar["env_file"] == [
-        {"path": "/mnt/cpool/secrets/runtime/grafana-observability/.env.secrets", "required": True}
+        {"path": "/mnt/cpool/secrets/runtime/mcp-grafana/.env.secrets", "required": True}
     ]
     assert "@sha256:" in sidecar["image"]
     assert not any("TOKEN" in key for key in sidecar.get("environment", {}))
-    deploy = (ROOT / "scripts/truenas/deploy-grafana-observability.sh").read_text(encoding="utf-8")
+    deploy = (ROOT / "scripts/truenas/deploy-mcp-grafana.sh").read_text(encoding="utf-8")
     assert 'unauth}" == 401' in deploy and "grep -q '^MCP_GRAFANA_SERVER_TOKEN=.'" in deploy
 
 
@@ -160,7 +160,7 @@ def test_runtime_install_over_ssh_streams_the_file_and_always_cleans_up(tmp_path
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)
     with pytest.raises(subprocess.CalledProcessError):
-        module.install_over_ssh("truenas", "--install", "grafana-observability", rendered, {})
+        module.install_over_ssh("truenas", "--install", "mcp-grafana", rendered, {})
     assert calls[1] == "cat > /tmp/tmp.abc"
     assert calls[2].startswith("sudo -n bash /mnt/cpool/compose/nabla-compose/scripts/truenas/install-runtime-secret.sh")
     assert calls[-1] == "rm -f /tmp/tmp.abc"

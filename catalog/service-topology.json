@@ -1603,17 +1603,17 @@
       }
     },
     {
-      "id": "mcpgrafana",
+      "id": "mcp-grafana",
       "name": "Grafana MCP",
       "kind": "mcp-server",
       "category": "observability",
-      "sourcePath": "apps/grafana-observability/compose.yml",
+      "sourcePath": "apps/mcp-grafana/compose.yml",
       "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
       "presentationRole": "support",
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "mcpgrafana"
+        "containerService": "mcp-grafana"
       },
       "monitoring": {
         "type": "port",
@@ -4975,10 +4975,10 @@
     },
     {
       "source": "litellm",
-      "target": "mcpgrafana",
+      "target": "mcp-grafana",
       "type": "routesTo",
       "strength": "optional",
-      "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcpgrafana App.",
+      "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.",
       "evidence": [
         "scripts/litellm/mcp-gateway.sh:grafana"
       ]
@@ -5054,28 +5054,28 @@
       ]
     },
     {
-      "source": "mcpgrafana",
+      "source": "mcp-grafana",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/grafana-observability/compose.yml:mcpgrafana.x-nabla.runtime.containerService"
+        "apps/mcp-grafana/compose.yml:mcp-grafana.x-nabla.runtime.containerService"
       ]
     },
     {
-      "source": "mcpgrafana",
+      "source": "mcp-grafana",
       "target": "grafana",
       "type": "consumesApi",
       "strength": "required",
       "description": "Grafana MCP reads Grafana through the mcp-readonly Viewer service account.",
       "evidence": [
-        "apps/grafana-observability/compose.yml:GRAFANA_URL",
+        "apps/mcp-grafana/compose.yml:GRAFANA_URL",
         "terraform/grafana/main.tofu:grafana_service_account.mcp_readonly"
       ]
     },
     {
-      "source": "mcpgrafana",
+      "source": "mcp-grafana",
       "target": "litellm",
       "type": "providesApi",
       "strength": "optional",

@@ -1,6 +1,5 @@
 ---
-name: grafana-observability
-# TrueNAS App named after its Vaultwarden manifest app (grafana-observability).
+name: mcp-grafana
 # Read-only Grafana MCP served to the LiteLLM MCP gateway
 # (scripts/litellm/mcp-gateway.sh registers it). Its own TrueNAS App, so its
 # runtime secrets (Viewer token, bearer token) never share the Grafana App's.
@@ -12,10 +11,10 @@ x-logging: &nabla-logging
     max-file: "3"
 
 services:
-  mcpgrafana:
+  mcp-grafana:
     logging: *nabla-logging
     image: grafana/mcp-grafana:1.2.0-alpine@sha256:5ef5ed658b4b8d2f0754a24eea91e67563a321cfd65b1b7abd1038959f3523f2
-    container_name: mcpgrafana
+    container_name: mcp-grafana
     restart: unless-stopped
     mem_limit: 128m
     read_only: true
@@ -24,9 +23,9 @@ services:
     security_opt:
       - no-new-privileges:true
     labels:
-      com.albandrieu.nabla.entity-ref: component:default/mcpgrafana
+      com.albandrieu.nabla.entity-ref: component:default/mcp-grafana
     x-nabla:
-      id: mcpgrafana
+      id: mcp-grafana
       name: Grafana MCP
       kind: mcp-server
       category: observability
@@ -35,7 +34,7 @@ services:
       description: Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.
       runtime:
         provider: truenas-app
-        containerService: mcpgrafana
+        containerService: mcp-grafana
       monitoring:
         type: port
         host: 172.17.0.24
@@ -46,7 +45,7 @@ services:
           strength: required
           description: Grafana MCP reads Grafana through the mcp-readonly Viewer service account.
           evidence:
-            - apps/grafana-observability/compose.yml:GRAFANA_URL
+            - apps/mcp-grafana/compose.yml:GRAFANA_URL
             - terraform/grafana/main.tofu:grafana_service_account.mcp_readonly
         - target: litellm
           type: providesApi
@@ -65,7 +64,7 @@ services:
     env_file:
       # GRAFANA_SERVICE_ACCOUNT_TOKEN (Viewer) and MCP_GRAFANA_SERVER_TOKEN
       # (bearer the gateway presents), Vaultwarden nabla/prod/grafana-observability.
-      - path: /mnt/cpool/secrets/runtime/grafana-observability/.env.secrets
+      - path: /mnt/cpool/secrets/runtime/mcp-grafana/.env.secrets
         required: true
     environment:
       # Separate Compose project: Grafana through its LAN port.

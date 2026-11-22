@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:f35e41917e1f3393d0fd38a4f30e2657445c60dba04621190779b791de645b68",
+  "catalogRevision": "sha256:a37c53fd4cfbcb76133b1bf76c3c85ca2cc05a418e5e8ba47de60dbeda14290f",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4414,11 +4414,11 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/mcpgrafana",
+      "entityRef": "component:default/mcp-grafana",
       "kind": "Component",
       "metadata": {
         "annotations": {
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/grafana-observability/",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-grafana/",
           "github.com/project-slug": "AlbanAndrieu/nabla-compose"
         },
         "description": "Read-only MCP server over Grafana, served to the LiteLLM MCP gateway.",
@@ -4427,14 +4427,14 @@
           "albandrieu.com/operational-criticality": "low",
           "albandrieu.com/operational-state": "active"
         },
-        "name": "mcpgrafana",
+        "name": "mcp-grafana",
         "tags": [
           "observability",
           "mcp"
         ],
         "title": "Grafana MCP"
       },
-      "sourcePath": "apps/grafana-observability/catalog-info.yaml",
+      "sourcePath": "apps/mcp-grafana/catalog-info.yaml",
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
@@ -4444,9 +4444,9 @@
       },
       "x-nabla": {
         "runtime": {
-          "containerService": "mcpgrafana",
+          "containerService": "mcp-grafana",
           "provider": "truenas-app",
-          "source": "apps/grafana-observability/compose.yml#services/mcpgrafana"
+          "source": "apps/mcp-grafana/compose.yml#services/mcp-grafana"
         }
       }
     },

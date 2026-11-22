@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:2229a91c2186b5a802f176bf93466f70b56177b9637723cc619027c87d5ef568",
+  "catalogRevision": "sha256:cd11a5c2600c7d9e87bee25d6755a168f69364dbd79cc6dc0c32d2d61a1ab61e",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1511,12 +1511,12 @@
       }
     },
     {
-      "id": "mcpgrafana",
+      "id": "mcp-grafana",
       "name": "Grafana MCP",
       "kind": "mcp-server",
       "category": "observability",
-      "sourcePath": "apps/grafana-observability/compose.yml",
-      "composeService": "mcpgrafana",
+      "sourcePath": "apps/mcp-grafana/compose.yml",
+      "composeService": "mcp-grafana",
       "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
       "presentationRole": "support",
       "criticality": "low",
@@ -1527,7 +1527,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "mcpgrafana"
+        "containerService": "mcp-grafana"
       }
     },
     {

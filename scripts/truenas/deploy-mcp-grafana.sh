@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# TrueNAS App grafana-observability: the read-only Grafana MCP (mcpgrafana)
+# TrueNAS App mcp-grafana: the read-only Grafana MCP
 # behind the LiteLLM MCP gateway. check is read-only; apply creates or updates
 # the Custom App from the canonical checkout, then re-runs check.
 #
-#   sudo bash scripts/truenas/deploy-grafana-observability.sh --check|--apply
+#   sudo bash scripts/truenas/deploy-mcp-grafana.sh --check|--apply
 #
 # Its runtime secrets come first from the workstation:
 #   scripts/litellm/mcp-gateway.sh apply   (materialize_runtime.py --ssh truenas)
 set -euo pipefail
 
 MODE="${1:---check}"
-APP_ID=grafana-observability
-CANONICAL_ROOT="${GRAFANA_OBSERVABILITY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
+APP_ID=mcp-grafana
+CANONICAL_ROOT="${MCP_GRAFANA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRET_FILE="/mnt/cpool/secrets/runtime/${APP_ID}/.env.secrets"
 MCP_URL="${GRAFANA_MCP_URL:-http://172.17.0.24:8014/mcp}"
 
@@ -58,5 +58,5 @@ unauth="$(curl -sS --noproxy '*' -m 10 -o /dev/null -w '%{http_code}' -X POST \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "${MCP_URL}" 2>/dev/null || true)"
 status=DRIFT
 if [[ "${state}" == RUNNING && "${secret}" == present && "${unauth}" == 401 ]]; then status=CONVERGED; fi
-printf 'GRAFANA_OBSERVABILITY app=%s secret=%s unauthenticated=%s status=%s\n' "${state}" "${secret}" "${unauth:-none}" "${status}"
+printf 'MCP_GRAFANA app=%s secret=%s unauthenticated=%s status=%s\n' "${state}" "${secret}" "${unauth:-none}" "${status}"
 [[ "${status}" == CONVERGED ]]

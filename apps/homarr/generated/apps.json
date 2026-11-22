@@ -783,12 +783,12 @@
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients."
     },
     {
-      "id": "mcpgrafana",
-      "entityRef": "component:default/mcpgrafana",
+      "id": "mcp-grafana",
+      "entityRef": "component:default/mcp-grafana",
       "name": "Grafana MCP",
       "group": "observability",
-      "sourcePath": "apps/grafana-observability/compose.yml",
-      "composeService": "mcpgrafana",
+      "sourcePath": "apps/mcp-grafana/compose.yml",
+      "composeService": "mcp-grafana",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
