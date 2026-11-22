@@ -158,9 +158,14 @@ locals {
       service        = "https://172.17.0.24:30359"
     },
     {
-      hostname       = "nexus.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:8081"
+      hostname = "nexus.albandrieu.com"
+      # Same canary pattern as fastapi-sample: SNI verifies the nexus.int certificate,
+      # Host selects the nexus-public router (CrowdSec bouncer) in Traefik.
+      origin_request = {
+        origin_server_name = var.nexus_tunnel_via_traefik ? "nexus.int.albandrieu.com" : null
+        http_host_header   = var.nexus_tunnel_via_traefik ? "nexus.albandrieu.com" : null
+      }
+      service = var.nexus_tunnel_via_traefik ? "https://traefik:443" : "http://172.17.0.24:8081"
     },
     {
       hostname       = "npm.albandrieu.com"
