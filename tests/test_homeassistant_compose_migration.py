@@ -27,6 +27,13 @@ def test_custom_app_reuses_native_data_and_lan_port() -> None:
     assert app["x-nabla"]["runtime"]["appId"] == "homeassistant"
 
 
+def test_custom_app_keeps_the_zigbee_radio_by_stable_host_path() -> None:
+    # Without it the cutover silently drops ZHA's radio.
+    host, container = service()["devices"][0].rsplit(":", 1)
+    assert host.startswith("/dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_")
+    assert container == "/dev/ttyUSB0"
+
+
 def test_traefik_route_uses_existing_network_entrypoint_and_private_domain() -> None:
     app = service()
     labels = dict(item.split("=", 1) for item in app["labels"])
