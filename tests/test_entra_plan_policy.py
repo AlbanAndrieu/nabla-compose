@@ -19,7 +19,7 @@ class PlanPolicyTests(unittest.TestCase):
     def test_allows_disposable_app_create(self):
         a = 'azuread_application_registration.workload["reader"]'
         self.assertEqual(POLICY.evaluate({"resource_changes": [
-            change(a, ["create"], {"display_name": "nabla-iam-lab-workload-reader"})
+            change(a, ["create"], {"display_name": "nabla-iam-workload-reader"})
         ]}), (1, []))
 
     def test_blocks_modify_replace_delete(self):
@@ -33,11 +33,11 @@ class PlanPolicyTests(unittest.TestCase):
     def test_blocks_groups_and_implicit_graph_grants(self):
         app = 'azuread_application_registration.workload["reader"]'
         self.assertTrue(POLICY.evaluate({"resource_changes": [
-            change('azuread_group.lab["readers"]', ["create"])
+            change('azuread_group.nabla["readers"]', ["create"])
         ]})[1])
         self.assertTrue(POLICY.evaluate({"resource_changes": [
             change(app, ["create"], {
-                "display_name": "nabla-iam-lab-workload-reader",
+                "display_name": "nabla-iam-workload-reader",
                 "required_resource_access": [{"resource_app_id": "x"}]
             })
         ]})[1])
