@@ -41,6 +41,13 @@ class EntraNablaContract(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("ENTRA_NABLA_BLOCKED", result.stderr)
 
+    def test_ci_bootstrap_is_opt_in_and_hardware_only(self):
+        bootstrap = (MODULE / "bootstrap.tofu").read_text()
+        variables = (MODULE / "variables.tofu").read_text()
+        self.assertIn('variable "enable_ci_identity_bootstrap"', variables)
+        self.assertIn('resource "azuread_application_federated_identity_credential"', bootstrap)
+        self.assertIn("prevent_destroy = true", bootstrap)
+
     def test_private_backend_and_read_only_preflight(self):
         backend = (MODULE / "backend.tofu").read_text()
         self.assertIn('backend "remote"', backend)

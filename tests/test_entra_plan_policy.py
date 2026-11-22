@@ -47,6 +47,21 @@ class PlanPolicyTests(unittest.TestCase):
             change("azuread_user.test[0]", ["create"])
         ]})[1])
 
+    def test_bootstrap_identity_resources_denied_in_ci(self):
+        for address in (
+            'azuread_application.ci_identity["plan"]',
+            'azuread_application.ci_identity["apply"]',
+            'azuread_service_principal.ci_identity["plan"]',
+            'azuread_service_principal.ci_identity["apply"]',
+            'azuread_application_federated_identity_credential.ci_github["plan"]',
+            'azuread_application_federated_identity_credential.ci_github["apply"]',
+        ):
+            with self.subTest(address=address):
+                _, errors = POLICY.evaluate({"resource_changes": [
+                    change(address, ["create"], {"display_name": "entra-nabla-plan"})
+                ]})
+                self.assertTrue(errors, "CI must never bootstrap or change OIDC identities")
+
     def test_blocks_enabled_negative_principal(self):
         self.assertTrue(POLICY.evaluate({"resource_changes": [
             change('azuread_service_principal.workload["denied"]', ["create"],

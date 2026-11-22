@@ -23,6 +23,19 @@ variables {
   nabla_tenant_confirmed = true
 }
 
+run "bootstrap_explicit_opt_in_only" {
+  command = plan
+
+  assert {
+    condition = (
+      length(azuread_application.ci_identity) == 0 &&
+      length(azuread_service_principal.ci_identity) == 0 &&
+      length(azuread_application_federated_identity_credential.ci_github) == 0
+    )
+    error_message = "GitHub OIDC identity bootstrap must default to OFF."
+  }
+}
+
 run "ci_default_creates_no_user" {
   command = plan
 
