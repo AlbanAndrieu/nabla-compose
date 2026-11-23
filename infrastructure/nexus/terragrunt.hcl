@@ -6,5 +6,4 @@ inputs = {
   nexus_url      = get_env("NEXUS_URL", "https://nexus.int.albandrieu.com")
   nexus_username = get_env("NEXUS_USERNAME", "")
   nexus_password = get_env("NEXUS_PASSWORD", "")
-  op_vault_name  = "Automation"
 }

@@ -12,7 +12,7 @@ locals {
 }
 
 resource "sonatyperepo_repository_apt_proxy" "apt_proxy" {
-  for_each = { for repo in local.apt_repos : repo.name => repo }
+  for_each = contains(var.enabled_formats, "apt") ? { for repo in local.apt_repos : repo.name => repo } : {}
 
   name   = each.key
   online = true

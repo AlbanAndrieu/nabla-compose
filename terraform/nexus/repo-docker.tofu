@@ -11,7 +11,7 @@ locals {
 }
 
 resource "sonatyperepo_repository_docker_proxy" "docker_proxy" {
-  for_each = { for registry in local.registries : registry.name => registry }
+  for_each = contains(var.enabled_formats, "docker") ? { for registry in local.registries : registry.name => registry } : {}
   name     = each.key
   online   = true
 
@@ -53,6 +53,8 @@ resource "sonatyperepo_repository_docker_proxy" "docker_proxy" {
 }
 
 resource "sonatyperepo_repository_docker_hosted" "docker_hosted" {
+  count = contains(var.enabled_formats, "docker") ? 1 : 0
+
   name   = "docker-internal"
   online = true
 
@@ -69,6 +71,8 @@ resource "sonatyperepo_repository_docker_hosted" "docker_hosted" {
 }
 
 resource "sonatyperepo_repository_docker_group" "docker_group" {
+  count = contains(var.enabled_formats, "docker") ? 1 : 0
+
   name   = "docker-all"
   online = true
 
@@ -79,7 +83,7 @@ resource "sonatyperepo_repository_docker_group" "docker_group" {
 
   group = {
     member_names = concat(
-      [sonatyperepo_repository_docker_hosted.docker_hosted.name],
+      [sonatyperepo_repository_docker_hosted.docker_hosted[0].name],
       [for registry in local.registries : sonatyperepo_repository_docker_proxy.docker_proxy[registry.name].name]
     )
   }

@@ -1,4 +1,6 @@
 resource "sonatyperepo_repository_pypi_proxy" "pypi_proxy" {
+  count = contains(var.enabled_formats, "pypi") ? 1 : 0
+
   name   = "pypi-proxy"
   online = true
 
@@ -33,6 +35,8 @@ resource "sonatyperepo_repository_pypi_proxy" "pypi_proxy" {
 }
 
 resource "sonatyperepo_repository_pypi_hosted" "pypi_hosted" {
+  count = contains(var.enabled_formats, "pypi") ? 1 : 0
+
   name   = "pypi-local"
   online = true
 
@@ -44,6 +48,8 @@ resource "sonatyperepo_repository_pypi_hosted" "pypi_hosted" {
 }
 
 resource "sonatyperepo_repository_pypi_group" "pypi_group" {
+  count = contains(var.enabled_formats, "pypi") ? 1 : 0
+
   name   = "pypi-all"
   online = true
 
@@ -54,8 +60,8 @@ resource "sonatyperepo_repository_pypi_group" "pypi_group" {
 
   group = {
     member_names = [
-      sonatyperepo_repository_pypi_hosted.pypi_hosted.name,
-      sonatyperepo_repository_pypi_proxy.pypi_proxy.name,
+      sonatyperepo_repository_pypi_hosted.pypi_hosted[0].name,
+      sonatyperepo_repository_pypi_proxy.pypi_proxy[0].name,
     ]
   }
 }
