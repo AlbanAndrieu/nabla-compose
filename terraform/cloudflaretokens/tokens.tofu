@@ -17,8 +17,10 @@ locals {
   # MTA-STS Worker with its custom domains (mail.tofu).
   opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write", "Workers Scripts Write"]
   opentofu_zone_permissions    = ["DNS Write", "Workers Routes Write"]
-  # Managed Transforms of albandrieu.com only (managed-transforms.tofu).
-  opentofu_home_zone_permissions = ["Zone Transform Rules Write"]
+  # Managed Transforms of albandrieu.com only (managed-transforms.tofu). "Zone
+  # Transform Rules Write" is listed by the API spec yet GET managed_headers
+  # answers 403 with it (22/11/2026): the dedicated group is required.
+  opentofu_home_zone_permissions = ["Managed headers Write"]
   opentofu_missing_permissions = concat(
     [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
     [for name in concat(local.opentofu_zone_permissions, local.opentofu_home_zone_permissions) : name if !contains(keys(local.zone_group_ids), name)],
