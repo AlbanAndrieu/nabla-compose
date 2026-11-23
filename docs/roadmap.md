@@ -121,3 +121,9 @@ le garde `scripts/truenas/ipv6-guard.nft`, les tests de non-exposition depuis
 l'extérieur et le retour arrière. Conserver les détails techniques dans le
 [runbook Freebox/R7000](pfsense/runbooks/freebox-router-mode.md) ; ce report
 n'est ni une preuve de réception, ni une tâche à exécuter maintenant.
+
+## Recommandations de la passe du 2026-11-23
+- Prioriser H17 et H13, différer H08.
+- Garder contrôle de secrets dans Vaultwarden.
+- Ne pas activer IPv6 avant arbitrage final.
+
