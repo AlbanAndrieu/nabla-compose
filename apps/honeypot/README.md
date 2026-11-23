@@ -39,6 +39,8 @@ un plan qui supprime/modifie des routes sans revue**.
 | GET / HEAD | `/healthz` | 200 statique, **aucun événement Project Honey Pot** |
 | GET | `/` | script Project Honey Pot original, chaque GET signale une visite ; 403 avant PHP pour l'IP du domicile (`82.66.4.247`) et toute adresse privée |
 | GET | `/honeypot/keywaspish.php` | script d'origine, même exclusion ; éviter les probes |
+| POST | `/` | même script : il transmet le corps (`$_POST`) à Project Honey Pot, qui y repère les spammeurs de commentaires ; mêmes exclusions |
+| GET | `/robots.txt` | `Disallow: /` statique : un robot qui le lit puis charge `/` quand même est classé *Suspicious* |
 | GET | `/login` | formulaire de **simulation** statique, sans `name` sur les champs |
 | POST | `/login` | 403 Apache (pas de PHP, body max 1 KiB, sans authentification) |
 | Autres | `/wp-login.php`, etc. | 404 ; aucun fallback vers un vrai login |

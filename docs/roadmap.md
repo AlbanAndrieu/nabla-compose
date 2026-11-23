@@ -85,6 +85,15 @@ un nouvel arbitrage ; ne lancer aucun `init -migrate-state`.
 commandes expurgées, PASS/FAIL/BLOCKED par test et rollback.**
 Cette recette **ne modifie pas** la priorité opérateur H17 → H13 → H05.
 
+**Cloudflare / P1 — verrouiller `cloudflaretokens` après convergence (NOT_RUN, demande du propriétaire du 23/11)** :
+
+- Converger d'abord : `plan` de `infrastructure/cloudflaretokens` avec un jeton bootstrap « Account API Tokens Write ». Le jeton `nabla-opentofu` a été modifié par `PUT` d'API le 22/11 (« Managed headers Write », #447) : `0 to change` attendu, sinon `apply`.
+- Ensuite, ne plus pouvoir modifier ce root au quotidien : supprimer le jeton bootstrap, qui peut créer un jeton de n'importe quel droit et vaut donc un accès global au compte. Un changement futur passe par un bootstrap créé pour l'occasion par le propriétaire (expiration courte, IP de la workstation), supprimé juste après l'`apply`, et par une revue obligatoire (CODEOWNERS) de `terraform/cloudflaretokens/` et `infrastructure/cloudflaretokens/`.
+- Affiner les droits : `nabla-opentofu` porte « Access: Apps and Policies Write », « Cloudflare Tunnel Write » et « Workers Scripts Write » sur tout le compte, « DNS Write » et « Workers Routes Write » sur albandrieu.com, albanandrieu.com et les zones mail. Le découper par usage (DNS par zone, Access, Tunnel, Workers, Managed headers sur albandrieu.com seul), retirer les droits sans ressource gérée, et ajouter un test de contrat qui refuse tout groupe de niveau compte non listé.
+- Preuve attendue : plan à 0, liste des jetons du compte sans bootstrap actif, test de contrat vert.
+
+**Honeypot / P2** — `robots.txt` (`Disallow: /`) et `POST /` transmis au script couvrent les catégories Project Honey Pot *Suspicious* et *Comment Spammer* (23/11). Reste à lier `login.albandrieu.com` depuis les pages du site par un lien invisible aux humains, comme le recommande la FAQ Project Honey Pot : dépôt Site Alban, propriétaire de son UI.
+
 ## Frontières de responsabilité et validation
 
 | Dépôt | Responsabilité canonique |

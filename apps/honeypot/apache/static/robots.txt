@@ -1,0 +1,4 @@
+# Honey pot host: compliant crawlers stay out. A robot that still fetches the
+# trap ignores these rules, which Project Honey Pot rates as suspicious.
+User-agent: *
+Disallow: /
