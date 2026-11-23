@@ -14,9 +14,11 @@ on:
       - infrastructure/**
       - terraform/**
       - scripts/infra/**
+      - scripts/azure/**
       - docs/infrastructure-bootstrap.md
       - config/infrastructure.env.example
       - tests/test_infrastructure_state_contract.py
+      - tests/test_azure_defender_free_contract.py
       - .github/workflows/terragrunt-ci.yaml
   workflow_dispatch:
 
@@ -129,6 +131,11 @@ jobs:
         shell: bash
         run: python3 -m unittest tests.test_cloudflare_ops_contract tests.test_defectdojo_repo_scan -v
 
+      # Offline only: terraform/defender-free is never init/applied from CI.
+      - name: Validate Defender Free non-billing contract
+        shell: bash
+        run: python3 -m unittest tests.test_azure_defender_free_contract -v
+
       - name: Initialize Cloudflare ops provider without backend
         working-directory: terraform/cloudflare-ops
         shell: bash
@@ -158,5 +165,6 @@ jobs:
             echo "- TrueNAS provider: committed dependency lock enforced read-only"
             echo "- TrueNAS module: \`init -backend=false -lockfile=readonly\` + \`validate\`"
             echo "- GitHub governance module: backend disabled, provider schema initialized, \`validate\` only"
+            echo "- Defender Free: offline non-billing contract (no Azure credentials)"
             echo "- Real backend I/O and all GitHub mutations remain explicit workstation/operator actions."
           } >> "${GITHUB_STEP_SUMMARY}"
