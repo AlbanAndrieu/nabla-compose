@@ -508,7 +508,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("job_name: gatus", prometheus)
         self.assertIn("172.17.0.24:8085", prometheus)
         self.assertIn("metrics_path: /metrics", prometheus)
-        self.assertEqual(gatus.count("- name:"), gatus.count("nabla_monitor_id:"))
+        # Probes only: external-endpoints receive pushed results and Gatus gives them no labels.
+        probes = yaml.safe_load(gatus)["endpoints"]
+        self.assertEqual(len(probes), gatus.count("nabla_monitor_id:"))
+        self.assertTrue(all("nabla_monitor_id" in (p.get("extra-labels") or {}) for p in probes))
         self.assertEqual(
             gatus.count("nabla_monitor_id:"),
             gatus.count("nabla_service_id:"),
@@ -802,17 +805,30 @@ class ObservabilityContractTests(unittest.TestCase):
             (ROOT / ".cursor" / "mcp.json").read_text(encoding="utf-8")
         )
 
-        self.assertIn(
-            "http://172.17.0.24:8091/mcp",
-            root_config["mcpServers"]["fastapi-sample"]["args"],
-        )
+        # .mcp.json reaches Sample through the LiteLLM gateway, which targets TrueNAS.
+        self.assertNotIn("fastapi-sample", root_config["mcpServers"])
+        gateway = (ROOT / "scripts" / "litellm" / "mcp-gateway.sh").read_text(encoding="utf-8")
+        self.assertIn('"fastapisample|http://172.17.0.24:8091/mcp|', gateway)
         self.assertEqual(
             cursor_config["mcpServers"]["fastapi-sample"]["url"],
             "http://172.17.0.24:8091/mcp",
         )
 
     def test_sentry_mcp_is_self_hosted_inspect_only(self) -> None:
-        for relative in (".mcp.json", ".cursor/mcp.json"):
+        # .mcp.json reaches Sentry through the LiteLLM gateway: same flags in the App.
+        sidecar = yaml.safe_load(
+            (ROOT / "apps" / "mcp-sentry" / "compose.yml").read_text(encoding="utf-8")
+        )["services"]["mcp-sentry"]
+        server = sidecar["command"][sidecar["command"].index("--") + 1 :]
+        self.assertEqual(server[0], "sentry-mcp")
+        for flag in ("--host=172.17.0.24:9005", "--insecure-http", "--skills=inspect",
+                     "--disable-skills=seer", "--sentry-dsn="):
+            self.assertIn(flag, server)
+        self.assertNotIn("SENTRY_ACCESS_TOKEN", " ".join(sidecar["command"]))
+        self.assertNotIn("SENTRY_ACCESS_TOKEN", sidecar["environment"])
+        self.assertEqual(sidecar["environment"].get("SENTRY_URL"), "")
+        self.assertNotIn("sentry", json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
+        for relative in (".cursor/mcp.json",):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
             sentry = config["mcpServers"]["sentry"]
 
@@ -838,7 +854,7 @@ class ObservabilityContractTests(unittest.TestCase):
         item = next(
             item
             for item in manifest["items"]
-            if item["app"] == "grafana-observability"
+            if item["app"] == "mcp-grafana"
         )
         self.assertEqual(item["item"], "nabla/prod/grafana-observability")
         secret = item["secrets"][0]

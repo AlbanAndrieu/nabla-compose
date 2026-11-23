@@ -385,6 +385,22 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/mcp-defectdojo"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/mcp-gatus"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/mcp-grafana"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/mcp-sentry"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/memos"
     },
     {
@@ -999,7 +1015,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56"
+        "value": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1023,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:08fed09f-c6d3-bf76-950e-6e288c0cda5d",
+  "serialNumber": "urn:uuid:9d82ac03-074b-3990-9912-9235f8d34552",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3115,6 +3131,114 @@
         {
           "name": "nabla:source-path",
           "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-defectdojo",
+      "description": "Read-only DefectDojo MCP, served to the LiteLLM MCP gateway.",
+      "name": "DefectDojo MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-defectdojo"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-gatus",
+      "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway.",
+      "name": "Gatus MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-gatus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-gatus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-grafana",
+      "description": "Read-only MCP server over Grafana, served to the LiteLLM MCP gateway.",
+      "name": "Grafana MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-grafana"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-sentry",
+      "description": "Sentry MCP (inspect skills only), served to the LiteLLM MCP gateway.",
+      "name": "Sentry MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-sentry"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-sentry/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

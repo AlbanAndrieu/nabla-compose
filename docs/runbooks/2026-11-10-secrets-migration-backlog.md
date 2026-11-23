@@ -109,7 +109,7 @@ services gardent encore leurs secrets ailleurs (`SECRETS_LEGACY_PATH` de
 | `dependency-track` | `ALPINE_DATABASE_PASSWORD` |
 | `dsomm` | `GH_TOKEN` |
 | `grafana` | `GRAFANA_ADMIN_PASSWORD` |
-| `grafana-observability` | `GRAFANA_SERVICE_ACCOUNT_TOKEN` |
+| `mcp-grafana` | `GRAFANA_SERVICE_ACCOUNT_TOKEN` |
 | `infrastructure-bootstrap` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `GARAGE_ADMIN_TOKEN`, `TRUENAS_INFRA_API_KEY` |
 | `joplin` | `POSTGRES_PASSWORD` |
 | `karakeep` | `KARAKEEP_MEILISEARCH_MASTER_KEY`, `KARAKEEP_NEXTAUTH_SECRET`, `KARAKEEP_OPENAI_API_KEY` |

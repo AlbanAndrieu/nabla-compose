@@ -1,0 +1,81 @@
+---
+name: mcp-defectdojo
+# DefectDojo MCP (read-only user) served to the LiteLLM MCP gateway (scripts/litellm/mcp-gateway.sh
+# registers it with its bearer). It acts as the dedicated
+# non-superuser mcp-readonly (scripts/defectdojo/mcp-identity.sh), never as the admin.
+# mcp-proxy turns the stdio server into streamable HTTP and refuses any request
+# without MCP_PROXY_AUTH_TOKEN; it never passes that token to the stdio server.
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  mcp-defectdojo:
+    logging: *nabla-logging
+    build:
+      context: .
+    image: nabla/mcp-defectdojo:4d34d17f-2
+    container_name: mcp-defectdojo
+    restart: unless-stopped
+    mem_limit: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/mcp-defectdojo
+    x-nabla:
+      id: mcp-defectdojo
+      name: DefectDojo MCP
+      kind: mcp-server
+      category: security
+      presentationRole: support
+      criticality: low
+      description: Model Context Protocol server over DefectDojo findings, products, engagements and tests as a read-only user, served to the LiteLLM MCP gateway.
+      runtime:
+        provider: truenas-app
+        containerService: mcp-defectdojo
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8017
+      relations:
+        - target: defectdojo
+          type: consumesApi
+          strength: required
+          description: DefectDojo MCP reads the DefectDojo API as the mcp-readonly user.
+          evidence:
+            - apps/mcp-defectdojo/compose.yml:DEFECTDOJO_URL
+        - target: litellm
+          type: providesApi
+          strength: optional
+          description: LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:defectdojo
+    command:
+      - --host=0.0.0.0
+      - --port=8000
+      - --allowed-host=172.17.0.24:8017
+      - --pass-environment
+      - --
+      - defectdojo-mcp-server
+    env_file:
+      # DEFECTDOJO_API_KEY (mcp-readonly) and MCP_PROXY_AUTH_TOKEN (Vaultwarden nabla/prod/mcp-defectdojo).
+      - path: /mnt/cpool/secrets/runtime/mcp-defectdojo/.env.secrets
+        required: true
+    environment:
+      HOME: /tmp
+      DEFECTDOJO_URL: http://172.17.0.24:31085
+    ports:
+      - name: mcp
+        target: 8000
+        published: "${DEFECTDOJO_MCP_PORT:-8017}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http

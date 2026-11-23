@@ -10,7 +10,7 @@
 #   2. creates the Viewer service account mcp-readonly with OpenTofu
 #      (infrastructure/grafana);
 #   3. mints one token straight into Vaultwarden; scripts/litellm/mcp-gateway.sh
-#      installs it for the mcp-grafana sidecar on TrueNAS.
+#      installs it for the mcp-grafana App on TrueNAS.
 # No value is ever printed, and none reaches a command line.
 #
 # Usage (owner terminal: Vaultwarden unlocked, TrueNAS ControlMaster open):
@@ -30,7 +30,8 @@ esac
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/mcp/lib.sh
 source "${ROOT}/scripts/mcp/lib.sh"
-export GRAFANA_URL="${GRAFANA_URL:-http://172.17.0.24:30037}"
+# Fixed TrueNAS Grafana: an inherited GRAFANA_URL must not redirect the admin credential.
+export GRAFANA_URL=http://172.17.0.24:30037
 SSH_HOST="${TRUENAS_SSH_HOST:-truenas}"
 CONTAINER=grafana-stack
 SA_NAME=mcp-readonly
@@ -130,7 +131,7 @@ if [[ "${TOKENS}" != 1 || "${VAULT}" != present ]]; then
   # The gateway bearer token shares the item: keep it.
   server_token="$(bw_field nabla/prod/grafana-observability MCP_GRAFANA_SERVER_TOKEN 2>/dev/null)" || server_token=""
   GRAFANA_SERVICE_ACCOUNT_TOKEN="${token}" MCP_GRAFANA_SERVER_TOKEN="${server_token}" \
-    "${IMPORT[@]}" --app grafana-observability --apply --update-existing
+    "${IMPORT[@]}" --app mcp-grafana --apply --update-existing
   unset token server_token
   echo "✅ token ${SA_NAME}/mcp in nabla/prod/grafana-observability"
 fi
