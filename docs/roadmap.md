@@ -79,10 +79,17 @@ pas de swap. Mesuré le 23/11 sur 62 Gio : conteneurs ≈ 37,5 Gio (Sentry
 3 VM Talos ≈ 9,5 Gio (H01), noyau ≈ 3,4 Gio. **Reste ouvert** : entre 01h et 06h,
 l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit à 2,6 Gio),
 sans conteneur dominant (pics cgroup : ClickHouse +1 Gio, gateway +0,8, mongo +0,5,
-docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Pour libérer au moins
-4 Gio, il faut une décision du propriétaire : consolider OpenSearch et l'indexeur Wazuh,
-mettre en pause OpenRAG (Langflow, Docling, OpenSearch : ≈ 4 Gio), ou réduire les
-workers Talos hors des tests H01.
+docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions du
+24/11 :
+- **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`,
+  gain attendu ≈ 1 Gio) ; remonter à 4096 MiB pour H01. **CODED**, apply
+  `infrastructure/truenas` puis redémarrage des deux workers : NOT_RUN tant que le
+  coffre n'est pas déverrouillé dans le terminal du propriétaire.
+- **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
+  embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
+  4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir quand Wazuh publiera
+  un indexeur 3.x.
+- Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 

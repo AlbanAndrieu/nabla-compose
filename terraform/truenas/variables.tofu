@@ -102,6 +102,8 @@ variable "talos_vms" {
     mac           = string
   }))
 
+  # Workers idle at the 2048 MiB floor below (23/11/2026: TrueNAS RAM at 84-93 %);
+  # raise them to 4096 for the H01 multi-worker CSI tests, then lower them again.
   default = {
     taloscp01 = {
       role          = "controlplane"
@@ -112,14 +114,14 @@ variable "talos_vms" {
     }
     taloswk01 = {
       role          = "worker"
-      memory_mib    = 4096
+      memory_mib    = 2048
       cores         = 2
       disk_size_gib = 32
       mac           = "02:00:00:00:20:01"
     }
     taloswk02 = {
       role          = "worker"
-      memory_mib    = 4096
+      memory_mib    = 2048
       cores         = 2
       disk_size_gib = 32
       mac           = "02:00:00:00:20:02"
