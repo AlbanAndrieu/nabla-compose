@@ -27,17 +27,17 @@ def load(name: str, relative: str):
 drift = load("opentofu_drift_check", "scripts/infra/opentofu-drift-check.py")
 cron = load("opentofu_drift_cron", "scripts/truenas/reconcile-opentofu-drift-cron.py")
 
-SECRET = "s3cr3t-token-value-0123456789"
+CANARY = "s3cr3t-token-value-0123456789"
 PLAN_OUTPUT = f"""
 OpenTofu will perform the following actions:
   # cloudflare_api_token.opentofu will be updated in-place
   ~ resource "cloudflare_api_token" "opentofu" {{
-      ~ value = "{SECRET}" -> (known after apply)
+      ~ value = "{CANARY}" -> (known after apply)
         name  = "nabla-opentofu"
     }}
   # github_repository.nabla["x"] will be imported
 Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
-Error: GET https://api.example/{SECRET}: 403 Forbidden
+Error: GET https://api.example/{CANARY}: 403 Forbidden
 """
 
 
@@ -52,7 +52,7 @@ class SecretsDir:
             (self.path / name).chmod(mode)
 
     def __enter__(self):
-        self.patch = mock.patch.object(drift, "SECRETS", self.path)
+        self.patch = mock.patch.object(drift, "ENV_DIR", self.path)
         self.patch.start()
         return self.path
 
@@ -63,7 +63,7 @@ class SecretsDir:
 
 VALID = {
     "common.env": "GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID=GKread\nGARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY=garage-secret-value\n",
-    "cloudflaretokens.env": f"CLOUDFLARE_API_TOKEN='{SECRET}'\nTF_VAR_state_passphrase=passphrase-value-long\n",
+    "cloudflaretokens.env": f"CLOUDFLARE_API_TOKEN='{CANARY}'\nTF_VAR_state_passphrase=passphrase-value-long\n",
 }
 
 
@@ -111,7 +111,7 @@ class PlanContract(TestCase):
         ):
             drift.plan_root("/snapshot", "cloudflaretokens")
         env = run.call_args.kwargs["env"]
-        self.assertEqual(env["CLOUDFLARE_API_TOKEN"], SECRET)
+        self.assertEqual(env["CLOUDFLARE_API_TOKEN"], CANARY)
         self.assertNotIn("AWS_PROFILE", env)
         self.assertNotIn("GITHUB_TOKEN", env)
 
@@ -131,10 +131,10 @@ class CredentialFiles(TestCase):
         self.assertIn("mode 0600", lines[0])
 
     def test_unknown_key_is_rejected_without_echo(self):
-        with SecretsDir({**VALID, "github.env": f"{SECRET}\nTF_CLI_ARGS=-auto-approve\n"}):
+        with SecretsDir({**VALID, "github.env": f"{CANARY}\nTF_CLI_ARGS=-auto-approve\n"}):
             state, lines = drift.plan_root("/snapshot", "github")
         self.assertEqual(state, "NOT_RUN")
-        self.assertNotIn(SECRET, "".join(lines))
+        self.assertNotIn(CANARY, "".join(lines))
 
     def test_symlink_is_rejected(self):
         with SecretsDir(VALID) as path:
@@ -144,11 +144,11 @@ class CredentialFiles(TestCase):
 
 class Reporting(TestCase):
     def test_summary_keeps_addresses_and_drops_values(self):
-        lines = drift.summarize(PLAN_OUTPUT, {"CLOUDFLARE_API_TOKEN": SECRET})
+        lines = drift.summarize(PLAN_OUTPUT, {"CLOUDFLARE_API_TOKEN": CANARY})
         self.assertIn("cloudflare_api_token.opentofu will be updated in-place", lines)
         self.assertIn('github_repository.nabla["x"] will be imported', lines)
         self.assertIn("Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.", lines)
-        self.assertNotIn(SECRET, "\n".join(lines))
+        self.assertNotIn(CANARY, "\n".join(lines))
         self.assertFalse(any("nabla-opentofu" in line for line in lines))
 
     def test_alerts_fire_on_anomaly_and_resolve_when_in_sync(self):

@@ -25,7 +25,7 @@ import tempfile
 import urllib.request
 
 CHECKOUT = Path("/mnt/cpool/compose/nabla-compose")
-SECRETS = Path("/mnt/cpool/secrets/runtime/opentofu-drift")
+ENV_DIR = Path("/mnt/cpool/secrets/runtime/opentofu-drift")
 CACHE = Path.home() / ".cache/nabla-opentofu-drift"
 ROOTS = ("cloudflare", "cloudflaretokens", "nexus", "github")
 SNAPSHOT_PATHS = ("root.hcl", "infrastructure", "terraform", "scripts/infra")
@@ -104,8 +104,8 @@ def snapshot(ref: str) -> tuple[str, str]:
 
 def plan_root(workdir: str, root: str) -> tuple[str, list[str]]:
     try:
-        secrets = read_env_file(SECRETS / "common.env", COMMON_KEYS)
-        secrets |= read_env_file(SECRETS / f"{root}.env", ROOT_KEYS[root])
+        secrets = read_env_file(ENV_DIR / "common.env", COMMON_KEYS)
+        secrets |= read_env_file(ENV_DIR / f"{root}.env", ROOT_KEYS[root])
     except FileNotFoundError as exc:
         return "NOT_RUN", [f"credentials missing: {Path(str(exc.filename)).name}"]
     except (RuntimeError, OSError) as exc:
@@ -170,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--alertmanager-url must be http(s)")
     if args.check:
         print(f"CHECK: roots {', '.join(roots)}: terragrunt-safe.sh infrastructure/<root> {' '.join(PLAN)}")
-        print(f"CHECK: git archive of {CHECKOUT} {args.ref}; credentials {SECRETS}/common.env + <root>.env (0600)")
+        print(f"CHECK: git archive of {CHECKOUT} {args.ref}; credentials {ENV_DIR}/common.env + <root>.env (0600)")
         print("CHECK: exit 0 in sync, 2 drift, 1 error or credentials missing; never apply")
         return 0
     sha, workdir = snapshot(args.ref)
