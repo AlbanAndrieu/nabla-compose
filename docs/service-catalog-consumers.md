@@ -342,13 +342,27 @@ one endpoint, and upstream secrets stay on TrueNAS.
 | cyberbro | `apps/litellm/config.yaml` | `mcp-cyberbro` sidecar, 8013 | none | all |
 | homarr | LiteLLM database (`mcp-gateway.sh`) | `http://172.17.0.24:30100/api/mcp/mcp` | `nabla/prod/homarr` `HOMARR_API_KEY`, `api_key` auth sent as `ApiKey` (`upstream_token_header`) | 77 tools Homarr annotates `readOnlyHint` (`scripts/litellm/homarr-readonly-tools.json`) |
 | grafana | LiteLLM database (`mcp-gateway.sh`) | App `mcp-grafana`, 8014, `-disable-write` | bearer `MCP_GRAFANA_SERVER_TOKEN` (`nabla/prod/grafana-observability`) | Viewer role |
-| gatus | `apps/litellm/config.yaml` | App `mcp-gatus`, 8015, built from commit `4c7ed599` | none (no `GATUS_TOKEN`: read-only) | all |
+| gatus | `apps/litellm/config.yaml` | App `mcp-gatus`, 8015, built from commit `4c7ed599` | none upstream; `GATUS_TOKEN` (`nabla/prod/gatus`) lets `submit_external_result` reach the one external endpoint `agents/Agent acceptance` | all |
+| sentry | LiteLLM database (`mcp-gateway.sh`) | App `mcp-sentry`, 8016: `@sentry/mcp-server` 0.39.0 behind `mcp-proxy` | bearer `MCP_SENTRY_SERVER_TOKEN`; the App holds `SENTRY_ACCESS_TOKEN` (`nabla/prod/sentry`) | inspect skills only, no Seer |
+| defectdojo | LiteLLM database (`mcp-gateway.sh`) | App `mcp-defectdojo`, 8017: `defectdojo-mcp-server` (commit `4d34d17f`) behind `mcp-proxy` | bearer `MCP_DEFECTDOJO_SERVER_TOKEN`; the App acts as `mcp-readonly` (`nabla/prod/mcp-defectdojo`) | 34 `get_*`/`list_*` tools (`scripts/litellm/defectdojo-readonly-tools.json`) |
 
 Naming: the LiteLLM `server_name` is the catalog id of the target service, without a
 dash, because LiteLLM prefixes each tool with `<server_name>-`. The TrueNAS App and
 container that serve it are `mcp-<id>` (`mcp-cyberbro`, `mcp-grafana`, `mcp-gatus`).
 A server without an upstream credential is declared in `config.yaml`; one with a
 credential goes to the database through `mcp-gateway.sh`.
+
+Stdio-only servers (Sentry, DefectDojo) run behind `mcp-proxy` 0.15.0 in their own
+App: streamable HTTP, `--allowed-host` against DNS rebinding, and every request
+needs `MCP_PROXY_AUTH_TOKEN`, which mcp-proxy never passes to the stdio server.
+
+DefectDojo: the open-source edition dropped its roles (Reader is inert, RBAC moved
+to DefectDojo Pro). `scripts/defectdojo/mcp-identity.sh check|apply` creates the
+plain user `mcp-readonly` (Basic auth as the admin, so no admin token is reset)
+and lists it in the `authorized_users` of every product type: it sees every
+product, may not delete nor create a product type, but could edit findings. The
+gateway's tool list is therefore what keeps it read-only. The stored
+`DEFECTDOJO_APIKEY` of `nabla/prod/defectdojo` answered 403 on 23/11/2026.
 
 - The servers share the access group `nabla-mcp`. The client key
   `mcp-claude-code` (`nabla/prod/litellm-mcp-client`) grants that group and no
@@ -382,9 +396,7 @@ Other MCP servers of `.mcp.json`, reviewed on 22/11/2026:
 | Server | Gateway | Why |
 | --- | --- | --- |
 | `fastapi-sample` | next | Native HTTP with `X-MCP-Key`. Blocked: `nabla/prod/fastapisample` holds 3 of the 19 fields the manifest declares, so installing Sample's runtime from Vaultwarden would drop its other secrets. Migrate that item first, then add `MCP_OPS_KEY`. |
-| `uptime-kuma` | next | Official image `davidfuchs/mcp-uptime-kuma` (streamable HTTP, `MCP_AUTH_TOKEN`). Blocked: no Vaultwarden item holds the Uptime Kuma login. Write tools (delete monitors) need an `allowed_tools` read-only list. |
-| `sentry` | later | `@sentry/mcp-server` is stdio only: needs a stdio-to-HTTP bridge App and the `SENTRY_ACCESS_TOKEN` of `nabla/prod/sentry`. |
-| `defectdojo` | later | stdio only (FastMCP), 78 tools with deletes: bridge App plus a read-only `allowed_tools` list. |
+| `uptime-kuma` | when deployed | Uptime Kuma is `planned` and runs nowhere yet. Then: official image `davidfuchs/mcp-uptime-kuma` (streamable HTTP, `MCP_AUTH_TOKEN`), a Vaultwarden login, read tools only. |
 | `truenas-readonly` | no | Version 2 of the server wants the Docker socket; 1.0.6 stays a TLS-pinned local launcher with a read-only API key. |
 | `bitwarden-local` | never | It acts with the owner's unlocked vault (`BW_SESSION`); behind a shared key it would hand every secret to every gateway client. |
 | `freshrss-security-readonly` | later | Local script; it would need an HTTP transport and the Cloudflare Access service token on TrueNAS. |
