@@ -95,35 +95,22 @@ docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
-**Détection de dérive OpenTofu (23/11/2026) — CODED, NOT_RUN** : rien ne
-signalait qu'un `apply` manquait (`cloudflaretokens` modifié par `PUT` d'API,
-`nexus` #438 et `github` #424 jamais appliqués). `scripts/infra/opentofu-drift-check.py`
-planifie chaque jour `origin/master` contre la prod pour `cloudflare`,
-`cloudflaretokens`, `nexus` et `github` (`plan -detailed-exitcode`, jamais
-d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`). Hébergement
-TrueNAS et inclusion de `cloudflaretokens` validés par le propriétaire le 23/11.
-Depuis le 24/11, à sa demande, la vérification passe par le **cron horaire
-existant** (`scripts/cron.sh`, chaque jour à 09:00, sans second job) et utilise
-**en attendant la clé Garage actuelle `opentofu`** (RWO sur `opentofu-state`)
-copiée par `scripts/truenas/install-opentofu-drift-garage-key.sh` (appliqué le
-24/11 ; premier passage manuel : 4 racines `SKIPPED`, exit 0)
+**Détection de dérive OpenTofu (24/11/2026) — CODED, TrueNAS `SKIPPED`** :
+`scripts/infra/opentofu-drift-check.py` planifie `origin/master` contre la prod
+(`cloudflare`, `cloudflaretokens`, `nexus`, `github` ; `plan -detailed-exitcode`,
+jamais d'`apply`) et alerte Alertmanager (`OpenTofuDrift`). Il tourne dans le cron
+horaire existant (`scripts/cron.sh`, 09:00) avec, provisoirement, la clé Garage
+actuelle `opentofu` (RWO) copiée par `install-opentofu-drift-garage-key.sh`
+(appliqué le 24/11 ; passage manuel : 4 racines `SKIPPED`)
 ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
-`entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
+`entra` et `defender-free` : `NOT_APPLIED` volontaire.
 
-**Rappel au propriétaire — finir proprement la détection de dérive (TODO)** :
-le montage du 24/11 est provisoire. Restent à faire :
-
-1. remplacer la copie de la clé RWO `opentofu` par une clé Garage dédiée en
-   lecture seule (`garage key create opentofu-drift-read`, `bucket allow --read
-   opentofu-state`), puis supprimer `install-opentofu-drift-garage-key.sh` ;
-2. enrôler chaque racine avec un jeton en lecture seule dans
-   `/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env` (`cloudflare`,
-   `cloudflaretokens`, `nexus`, `github`) ; jusque-là elles sont `SKIPPED` et
-   aucune dérive n'est détectée ;
-3. matérialiser ces fichiers depuis Vaultwarden (`config/secrets/manifest.json`,
-   `materialize_runtime.py`) plutôt qu'à la main ;
-4. obtenir un premier verdict réel (`IN_SYNC` ou `DRIFT`) par racine et une
-   alerte `OpenTofuDrift` reçue, puis passer ce point en `ACCEPTED`.
+**Rappel au propriétaire — finir proprement la dérive (TODO)** : clé Garage
+dédiée en lecture seule à la place de la clé RWO (puis supprimer le script de
+copie) ; un jeton en lecture seule par racine dans
+`/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env`, matérialisé depuis
+Vaultwarden (sans lui, la racine reste `SKIPPED`) ; premier verdict
+`IN_SYNC`/`DRIFT` et alerte reçue, puis `ACCEPTED`.
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le
