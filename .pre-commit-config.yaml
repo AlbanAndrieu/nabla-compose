@@ -250,11 +250,11 @@ repos:
       - id: legacy-secret-import-contract
         name: "🔐 secrets · Validate bounded legacy dotenv migration"
         language: python
-        entry: python -m unittest tests.test_legacy_secret_import -v
+        entry: python -m unittest tests.test_legacy_secret_import tests.test_legacy_secret_import_remote -v
         additional_dependencies: ["python-dotenv==1.2.4", "jsonschema==4.22.0"]
         pass_filenames: false
         files: >-
-          ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest(?:[.]schema)?|debt-baseline)[.]json|tests/test_legacy_secret_import[.]py)$
+          ^(scripts/secrets/(?:audit_consumers|import_dotenv_to_bitwarden|import_env_to_bitwarden|render_from_bitwarden)[.]py|config/secrets/(?:manifest(?:[.]schema)?|debt-baseline)[.]json|tests/test_legacy_secret_import(?:_remote)?[.]py)$
 
       - id: dotenv-source-compare-contract
         name: "🔐 secrets · Validate dotenv alias comparison"

@@ -5,19 +5,14 @@
       "command": "bash",
       "args": ["scripts/mcp/truenas-readonly.sh"]
     },
-    "homarr": {
+    "nabla-mcp": {
       "type": "stdio",
       "command": "bash",
       "args": [
         "scripts/mcp/http-remote.sh",
-        "homarr",
-        "http://172.17.0.24:30100/api/mcp/mcp"
+        "litellm-gateway",
+        "http://172.17.0.24:4000/mcp/"
       ]
-    },
-    "gatus": {
-      "type": "stdio",
-      "command": "bash",
-      "args": ["scripts/mcp/gatus.sh"]
     },
     "uptime-kuma": {
       "type": "stdio",
@@ -39,53 +34,9 @@
         "BW_CLI_PATH": "${BW_CLI_PATH:-bw}"
       }
     },
-    "fastapi-sample": {
-      "type": "stdio",
-      "command": "bash",
-      "args": [
-        "scripts/mcp/http-remote.sh",
-        "fastapi-sample",
-        "http://172.17.0.24:8091/mcp"
-      ]
-    },
-    "grafana": {
-      "type": "stdio",
-      "command": "bash",
-      "args": ["scripts/mcp/grafana.sh"]
-    },
-    "sentry": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@sentry/mcp-server@0.39.0",
-        "--host=172.17.0.24:9005",
-        "--insecure-http",
-        "--skills=inspect",
-        "--disable-skills=seer",
-        "--sentry-dsn="
-      ],
-      "env": {
-        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}",
-        "SENTRY_URL": ""
-      }
-    },
     "context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp"
-    },
-    "defectdojo": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/dcianciulli/defectdojo-mcp-server@4d34d17f346dccab92e97e3d50e77b568689f283",
-        "defectdojo-mcp-server"
-      ],
-      "env": {
-        "DEFECTDOJO_URL": "${DEFECTDOJO_URL}",
-        "DEFECTDOJO_API_KEY": "${DEFECTDOJO_API_KEY}"
-      }
     },
     "freshrss-security-readonly": {
       "type": "stdio",

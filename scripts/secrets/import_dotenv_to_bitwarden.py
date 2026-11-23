@@ -5,6 +5,11 @@ The command runs as the unlocked operator. If the legacy file is root-only it
 uses sudo only to read that exact repository-discovered path. BW_SESSION is
 removed from the sudo child environment. Secret values are never placed in
 argv, logs, or the process environment.
+
+--input may repeat: a later file wins, as in a Compose env_file list. With
+--ssh HOST (an operator workstation, Vaultwarden unlocked there) each input is
+read on HOST through ``sudo -n cat``. --generate KEY creates a random value for
+a manifest key that no input supplies (a new secret declared with the migration).
 """
 
 from __future__ import annotations
@@ -14,6 +19,8 @@ from io import StringIO
 import importlib.util
 import os
 from pathlib import Path
+import secrets
+import shlex
 import subprocess
 import sys
 from typing import Any
@@ -75,7 +82,9 @@ MANIFEST = ROOT / "config" / "secrets" / "manifest.json"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", required=True)
-    parser.add_argument("--input", type=Path)
+    parser.add_argument("--input", type=Path, action="append")
+    parser.add_argument("--ssh", metavar="HOST")
+    parser.add_argument("--generate", action="append", default=[], metavar="KEY")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--update-existing", action="store_true")
     return parser.parse_args()
@@ -157,23 +166,28 @@ def choose_input(
     return allowed[0]
 
 
-def read_root_bounded(path: Path) -> str:
-    try:
-        directly_readable = path.is_file() and os.access(path, os.R_OK)
-    except OSError:
-        directly_readable = False
-    if directly_readable:
-        return path.read_text(encoding="utf-8")
+def read_root_bounded(path: Path, ssh: str | None = None) -> str:
+    if ssh is None:
+        try:
+            directly_readable = path.is_file() and os.access(path, os.R_OK)
+        except OSError:
+            directly_readable = False
+        if directly_readable:
+            return path.read_text(encoding="utf-8")
 
     child_env = os.environ.copy()
     child_env.pop("BW_SESSION", None)
+    command = ["sudo", "cat", "--", str(path)]
+    if ssh is not None:
+        command = ["ssh", "-o", "BatchMode=yes", ssh, shlex.join(["sudo", "-n", "cat", "--", str(path)])]
     try:
         result = subprocess.run(
-            ["sudo", "cat", "--", str(path)],
+            command,
             check=True,
             capture_output=True,
             text=True,
             env=child_env,
+            stdin=subprocess.DEVNULL,
         )
     except FileNotFoundError as exc:
         raise SecretsError("sudo is required to read the root-owned legacy file") from exc
@@ -207,6 +221,39 @@ def parse_dotenv(text: str) -> dict[str, str]:
             raise SecretsError(f"duplicate dotenv key with conflicting values: {key}")
         result[key] = value
     return result
+
+def read_sources(
+    manifest: dict[str, Any],
+    app: str,
+    inputs: list[Path] | None,
+    ssh: str | None,
+) -> tuple[list[Path], dict[str, str]]:
+    """Merge the selected dotenv files; a later file wins, as in Compose env_file."""
+    if ssh is not None and not inputs:
+        raise SecretsError("--ssh needs an explicit --input path")
+    sources = [choose_input(manifest, app, path) for path in (inputs or [None])]
+    parsed: dict[str, str] = {}
+    for source in sources:
+        parsed.update(parse_dotenv(read_root_bounded(source, ssh=ssh)))
+    return sources, parsed
+
+
+def generate_missing(
+    spec: dict[str, Any],
+    parsed: dict[str, str],
+    keys: list[str],
+) -> list[str]:
+    """Add a random value for each requested manifest key that no input supplies."""
+    declared = {secret["env"] for secret in spec["secrets"]}
+    generated = []
+    for key in keys:
+        if key not in declared:
+            raise SecretsError(f"{spec['app']}: --generate {key} is not a manifest key")
+        if key not in parsed:
+            parsed[key] = secrets.token_urlsafe(32)
+            generated.append(key)
+    return generated
+
 
 def collect_values(
     spec: dict[str, Any],
@@ -261,13 +308,14 @@ def main() -> int:
 
     manifest = load_manifest(MANIFEST)
     spec = app_spec(manifest, args.app)
-    source = choose_input(manifest, args.app, args.input)
-    parsed = parse_dotenv(read_root_bounded(source))
+    sources, parsed = read_sources(manifest, args.app, args.input, args.ssh)
+    generated = generate_missing(spec, parsed, args.generate)
     values, supplied_sources = collect_values(spec, parsed)
 
     print(
-        f"legacy import dry-run app={args.app} source={source} "
-        f"mapped={len(supplied_sources)}/{len(spec['secrets'])}; values suppressed"
+        f"legacy import dry-run app={args.app} source={','.join(map(str, sources))} "
+        f"mapped={len(supplied_sources)}/{len(spec['secrets'])} "
+        f"generated={','.join(generated) or '-'}; values suppressed"
     )
     if not args.apply:
         return 0

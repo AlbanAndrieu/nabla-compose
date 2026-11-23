@@ -41,7 +41,7 @@ class SecretsRendererTests(TestCase):
             "infrastructure-bootstrap",
             "truenas-csi",
             "nexus-infrastructure",
-            "grafana-observability",
+            "mcp-grafana",
             "pfsense-observability",
             "n8n",
             "2fauth",

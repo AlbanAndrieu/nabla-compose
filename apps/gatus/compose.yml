@@ -35,6 +35,11 @@ services:
             required: true
     restart: unless-stopped
     mem_limit: 128m
+    env_file:
+      # GATUS_EXTERNAL_TOKEN, referenced by external-endpoints in config.yml
+      # (Vaultwarden nabla/prod/gatus).
+      - path: /mnt/cpool/secrets/runtime/gatus/.env.secrets
+        required: true
     ports:
       - name: web
         target: 8080

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:08fed09fc6d3bf76950e6e288c0cda5d7cbb50d3f2dd09dae9368f9c4dd42c56",
+  "catalogRevision": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -65,6 +65,10 @@
     "litellm": "component:default/litellm",
     "loki": "resource:default/loki",
     "mcp-cyberbro": "component:default/mcp-cyberbro",
+    "mcp-defectdojo": "component:default/mcp-defectdojo",
+    "mcp-gatus": "component:default/mcp-gatus",
+    "mcp-grafana": "component:default/mcp-grafana",
+    "mcp-sentry": "component:default/mcp-sentry",
     "mimir": "resource:default/mimir",
     "minio": "resource:default/minio",
     "mongo": "resource:default/mongo",
@@ -1741,6 +1745,82 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "security",
+      "criticality": "low",
+      "description": "Model Context Protocol server over DefectDojo findings, products, engagements and tests as a read-only user, served to the LiteLLM MCP gateway.",
+      "id": "mcp-defectdojo",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8017,
+        "type": "port"
+      },
+      "name": "DefectDojo MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-defectdojo",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-defectdojo/compose.yml"
+    },
+    {
+      "category": "observability",
+      "criticality": "low",
+      "description": "Model Context Protocol server over Gatus endpoint statuses that can also push external endpoint results, served to the LiteLLM MCP gateway.",
+      "id": "mcp-gatus",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8015,
+        "type": "port"
+      },
+      "name": "Gatus MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-gatus",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-gatus/compose.yml"
+    },
+    {
+      "category": "observability",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
+      "id": "mcp-grafana",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8014,
+        "type": "port"
+      },
+      "name": "Grafana MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-grafana",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-grafana/compose.yml"
+    },
+    {
+      "category": "observability",
+      "criticality": "low",
+      "description": "Model Context Protocol server over self-hosted Sentry issues, events and traces (inspect skills only), served to the LiteLLM MCP gateway.",
+      "id": "mcp-sentry",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8016,
+        "type": "port"
+      },
+      "name": "Sentry MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-sentry",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-sentry/compose.yml"
     },
     {
       "category": "observability",
@@ -3519,7 +3599,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:2390a6750b8b83435c75c9d516f27a1dfc789855bd6cf143abb01dac53a1ee2b",
+  "operatorRevision": "sha256:91e64fc10ebf30d7cfd1478e66d15bc8cd780d8be82cc555fed5a95538dcecac",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -5096,6 +5176,16 @@
       "type": "hostedBy"
     },
     {
+      "description": "The LiteLLM MCP gateway serves the read-only tools of the Homarr MCP endpoint.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:homarr"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "homarr",
+      "type": "consumesApi"
+    },
+    {
       "description": "LiteLLM exports LLM telemetry to Langfuse through its OpenTelemetry callback.",
       "evidence": [
         "apps/litellm/compose.yml:LANGFUSE_OTEL_HOST",
@@ -5114,6 +5204,46 @@
       "source": "litellm",
       "strength": "optional",
       "target": "mcp-cyberbro",
+      "type": "routesTo"
+    },
+    {
+      "description": "The LiteLLM MCP gateway routes DefectDojo MCP tool calls to the mcp-defectdojo App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:defectdojo"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcp-defectdojo",
+      "type": "routesTo"
+    },
+    {
+      "description": "The LiteLLM MCP gateway routes Gatus MCP tool calls to the mcp-gatus App.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcp-gatus",
+      "type": "routesTo"
+    },
+    {
+      "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:grafana"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcp-grafana",
+      "type": "routesTo"
+    },
+    {
+      "description": "The LiteLLM MCP gateway routes Sentry MCP tool calls to the mcp-sentry App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:sentry"
+      ],
+      "source": "litellm",
+      "strength": "optional",
+      "target": "mcp-sentry",
       "type": "routesTo"
     },
     {
@@ -5185,6 +5315,127 @@
       "strength": "optional",
       "target": "litellm",
       "type": "providesApi"
+    },
+    {
+      "description": "DefectDojo MCP reads the DefectDojo API as the mcp-readonly user.",
+      "evidence": [
+        "apps/mcp-defectdojo/compose.yml:DEFECTDOJO_URL"
+      ],
+      "source": "mcp-defectdojo",
+      "strength": "required",
+      "target": "defectdojo",
+      "type": "consumesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-defectdojo/compose.yml:mcp-defectdojo.x-nabla.runtime.containerService"
+      ],
+      "source": "mcp-defectdojo",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:defectdojo"
+      ],
+      "source": "mcp-defectdojo",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:mcp-gatus.x-nabla.runtime.containerService"
+      ],
+      "source": "mcp-gatus",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "Gatus MCP reads the Gatus status API on its LAN port.",
+      "evidence": [
+        "apps/mcp-gatus/compose.yml:GATUS_URL"
+      ],
+      "source": "mcp-gatus",
+      "strength": "required",
+      "target": "gatus",
+      "type": "consumesApi"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint.",
+      "evidence": [
+        "apps/litellm/config.yaml:mcp_servers.gatus"
+      ],
+      "source": "mcp-gatus",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-grafana/compose.yml:mcp-grafana.x-nabla.runtime.containerService"
+      ],
+      "source": "mcp-grafana",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "Grafana MCP reads Grafana through the mcp-readonly Viewer service account.",
+      "evidence": [
+        "apps/mcp-grafana/compose.yml:GRAFANA_URL",
+        "terraform/grafana/main.tofu:grafana_service_account.mcp_readonly"
+      ],
+      "source": "mcp-grafana",
+      "strength": "required",
+      "target": "grafana",
+      "type": "consumesApi"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:grafana"
+      ],
+      "source": "mcp-grafana",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-sentry/compose.yml:mcp-sentry.x-nabla.runtime.containerService"
+      ],
+      "source": "mcp-sentry",
+      "strength": "required",
+      "target": "docker",
+      "type": "hostedBy"
+    },
+    {
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:sentry"
+      ],
+      "source": "mcp-sentry",
+      "strength": "optional",
+      "target": "litellm",
+      "type": "providesApi"
+    },
+    {
+      "description": "Sentry MCP reads the self-hosted Sentry API with the owner's access token.",
+      "evidence": [
+        "apps/mcp-sentry/compose.yml:SENTRY_HOST"
+      ],
+      "source": "mcp-sentry",
+      "strength": "required",
+      "target": "sentry",
+      "type": "consumesApi"
     },
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -8510,6 +8761,86 @@
         "detect"
       ],
       "sourcePath": "apps/cyberbro/compose.yml"
+    },
+    {
+      "category": "security",
+      "composeService": "mcp-defectdojo",
+      "criticality": "low",
+      "description": "Model Context Protocol server over DefectDojo findings, products, engagements and tests as a read-only user, served to the LiteLLM MCP gateway.",
+      "id": "mcp-defectdojo",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8017,
+        "type": "port"
+      },
+      "name": "DefectDojo MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-defectdojo",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-defectdojo/compose.yml"
+    },
+    {
+      "category": "observability",
+      "composeService": "mcp-gatus",
+      "criticality": "low",
+      "description": "Model Context Protocol server over Gatus endpoint statuses that can also push external endpoint results, served to the LiteLLM MCP gateway.",
+      "id": "mcp-gatus",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8015,
+        "type": "port"
+      },
+      "name": "Gatus MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-gatus",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-gatus/compose.yml"
+    },
+    {
+      "category": "observability",
+      "composeService": "mcp-grafana",
+      "criticality": "low",
+      "description": "Read-only Model Context Protocol server over Grafana dashboards, Prometheus, Loki and alerts, served to the LiteLLM MCP gateway.",
+      "id": "mcp-grafana",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8014,
+        "type": "port"
+      },
+      "name": "Grafana MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-grafana",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-grafana/compose.yml"
+    },
+    {
+      "category": "observability",
+      "composeService": "mcp-sentry",
+      "criticality": "low",
+      "description": "Model Context Protocol server over self-hosted Sentry issues, events and traces (inspect skills only), served to the LiteLLM MCP gateway.",
+      "id": "mcp-sentry",
+      "kind": "mcp-server",
+      "monitoring": {
+        "host": "172.17.0.24",
+        "port": 8016,
+        "type": "port"
+      },
+      "name": "Sentry MCP",
+      "presentationRole": "support",
+      "runtime": {
+        "containerService": "mcp-sentry",
+        "provider": "truenas-app"
+      },
+      "sourcePath": "apps/mcp-sentry/compose.yml"
     },
     {
       "category": "observability",

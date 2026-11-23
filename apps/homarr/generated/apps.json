@@ -783,6 +783,54 @@
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients."
     },
     {
+      "id": "mcp-defectdojo",
+      "entityRef": "component:default/mcp-defectdojo",
+      "name": "DefectDojo MCP",
+      "group": "security",
+      "sourcePath": "apps/mcp-defectdojo/compose.yml",
+      "composeService": "mcp-defectdojo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Read-only DefectDojo MCP, served to the LiteLLM MCP gateway."
+    },
+    {
+      "id": "mcp-gatus",
+      "entityRef": "component:default/mcp-gatus",
+      "name": "Gatus MCP",
+      "group": "observability",
+      "sourcePath": "apps/mcp-gatus/compose.yml",
+      "composeService": "mcp-gatus",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway."
+    },
+    {
+      "id": "mcp-grafana",
+      "entityRef": "component:default/mcp-grafana",
+      "name": "Grafana MCP",
+      "group": "observability",
+      "sourcePath": "apps/mcp-grafana/compose.yml",
+      "composeService": "mcp-grafana",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Read-only MCP server over Grafana, served to the LiteLLM MCP gateway."
+    },
+    {
+      "id": "mcp-sentry",
+      "entityRef": "component:default/mcp-sentry",
+      "name": "Sentry MCP",
+      "group": "observability",
+      "sourcePath": "apps/mcp-sentry/compose.yml",
+      "composeService": "mcp-sentry",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Sentry MCP (inspect skills only), served to the LiteLLM MCP gateway."
+    },
+    {
       "id": "mimir",
       "entityRef": "resource:default/mimir",
       "name": "Mimir",

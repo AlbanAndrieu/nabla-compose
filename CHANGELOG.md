@@ -1,3 +1,10 @@
+# [0.117.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.116.0...0.117.0) (2026-11-23)
+
+
+### Features
+
+* **litellm:** passerelle MCP Homarr et Grafana, App grafana-observability ([#444](https://github.com/AlbanAndrieu/nabla-compose/issues/444)) ([05c4c3a](https://github.com/AlbanAndrieu/nabla-compose/commit/05c4c3a037368e17cdd14a2665feb667d621140b))
+
 # [0.116.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.2...0.116.0) (2026-11-23)
 
 

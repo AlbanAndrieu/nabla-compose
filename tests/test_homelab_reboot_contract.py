@@ -208,8 +208,10 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         waves = json.loads(result.stdout)["start_waves"]
         wave_of = {app: index for index, wave in enumerate(waves) for app in wave}
-        # Display and build-only Apps start once everything they show is up.
-        self.assertEqual(set(waves[-1]), {"defectdojo", "dsomm", "homarr", "nexus", "sample"})
+        # Display and build-only Apps start once everything they show is up;
+        # only the DefectDojo MCP, which requires DefectDojo, starts after them.
+        self.assertEqual(set(waves[-2]), {"defectdojo", "dsomm", "homarr", "nexus", "sample"})
+        self.assertEqual(waves[-1], ["mcp-defectdojo"])
         # pfSense uses the CrowdSec LAPI: it starts with Wazuh, after Loki (grafana App).
         self.assertEqual(wave_of["crowdsec"], wave_of["wazuh"])
         self.assertLess(wave_of["grafana"], wave_of["crowdsec"])

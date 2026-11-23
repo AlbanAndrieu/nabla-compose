@@ -1,0 +1,75 @@
+---
+name: mcp-gatus
+# Gatus MCP served to the LiteLLM MCP gateway (apps/litellm/config.yaml).
+# Built on TrueNAS from a pinned commit: upstream publishes no image. It reads
+# what Gatus already shows the LAN (8085); its only write, submit_external_result,
+# needs GATUS_TOKEN and reaches only the external endpoints that token guards.
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  mcp-gatus:
+    logging: *nabla-logging
+    build:
+      context: .
+      args:
+        GATUS_MCP_COMMIT: 4c7ed599114d920437bd37f6590744573e361e46
+    image: nabla/mcp-gatus:4c7ed599-2
+    container_name: mcp-gatus
+    restart: unless-stopped
+    mem_limit: 64m
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/mcp-gatus
+    x-nabla:
+      id: mcp-gatus
+      name: Gatus MCP
+      kind: mcp-server
+      category: observability
+      presentationRole: support
+      criticality: low
+      description: Model Context Protocol server over Gatus endpoint statuses that can also push external endpoint results, served to the LiteLLM MCP gateway.
+      runtime:
+        provider: truenas-app
+        containerService: mcp-gatus
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8015
+      relations:
+        - target: gatus
+          type: consumesApi
+          strength: required
+          description: Gatus MCP reads the Gatus status API on its LAN port.
+          evidence:
+            - apps/mcp-gatus/compose.yml:GATUS_URL
+        - target: litellm
+          type: providesApi
+          strength: optional
+          description: LiteLLM consumes this streamable HTTP MCP endpoint.
+          evidence:
+            - apps/litellm/config.yaml:mcp_servers.gatus
+    env_file:
+      # GATUS_TOKEN (Vaultwarden nabla/prod/gatus GATUS_EXTERNAL_TOKEN).
+      - path: /mnt/cpool/secrets/runtime/mcp-gatus/.env.secrets
+        required: true
+    environment:
+      # Separate Compose project: Gatus through its LAN port.
+      GATUS_URL: http://172.17.0.24:8085
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "3000"
+    ports:
+      - name: mcp
+        target: 3000
+        published: "${GATUS_MCP_PORT:-8015}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
