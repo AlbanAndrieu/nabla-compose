@@ -30,6 +30,10 @@ mail_zone_ids = {
   "papoyou.net"  = "29119681fa1071f1271bd4974f02baae" # gitleaks:allow
 }
 
+mail_dkim_record_ids = {
+  "dr-alban.com" = "537f6363dcd617e9ff1f80b9705ce1d0" # gitleaks:allow
+}
+
 mail_dmarc_record_ids = {
   "albandrieu.com"   = "b5577d304e3b9372255f1ce91298ab5f" # gitleaks:allow
   "albanandrieu.com" = "1e3d3d57b8a30e0c4c749a7c058ae39e" # gitleaks:allow

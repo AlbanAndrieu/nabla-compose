@@ -304,7 +304,7 @@ OpenTofu. Google Workspace est le seul fournisseur autorisé à envoyer et à
 recevoir pour `albandrieu.com` et `albanandrieu.com`. Les rapports DMARC et
 TLS-RPT de toutes les zones vont à `openclaw@albandrieu.com` : cette boîte ou
 cet alias doit exister dans Google Workspace. Les MX et les DKIM restent gérés
-dans le dashboard. [`mail.tofu`](mail.tofu) gère, avec les identifiants de
+dans le dashboard, sauf les deux clés DKIM Google de `mail_dkim` (23/11). [`mail.tofu`](mail.tofu) gère, avec les identifiants de
 `mail-record-ids.auto.tfvars` (zones et enregistrements, lus en `GET` le
 20/11) :
 
@@ -317,6 +317,7 @@ dans le dashboard. [`mail.tofu`](mail.tofu) gère, avec les identifiants de
 | `<domaine>._report._dmarc.albandrieu.com` (`v=DMARC1`, RFC 7489 §7.1) | les 19 autres zones | 19 créations dans `albandrieu.com` |
 | TLS-RPT `_smtp._tls` ; MTA-STS `testing` : domaine personnalisé `mta-sts.<domaine>` et TXT `_mta-sts` | les 6 zones qui reçoivent par Google (`mta_sts_mx`) | 18 créations |
 | Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)) | compte | 1 création |
+| DKIM `google._domainkey` (`v=DKIM1; k=rsa; p=…`, clé publique copiée du dashboard) | `dr-alban.com` (import, saut de ligne retiré), `bababou.com` (création au bon nom) | 1 import, 1 mise à jour, 1 création |
 
 Une précondition refuse de créer un second `_dmarc` sur une zone qui en publie
 déjà un : deux enregistrements annuleraient la politique. Pour le SPF, rien
@@ -325,10 +326,11 @@ de l'ajouter à `mail_domains` sans identifiant d'import.
 
 Décision du propriétaire (23/11/2026) : aucune zone ne reste en `p=none`. La
 quarantaine précède `reject`, qui viendra après des rapports propres. La clé
-DKIM de `bababou.com`, gérée dans le dashboard, est publiée sous
-`google._domainkey._domainkey.bababou.com` (un `_domainkey` de trop) : le
-sélecteur `google` ne se résout pas. Tant que ce nom n'est pas corrigé, DMARC ne
-passe sur ce domaine que par l'alignement SPF.
+DKIM de `bababou.com` était publiée sous
+`google._domainkey._domainkey.bababou.com` (un `_domainkey` de trop), si bien que
+le sélecteur `google` ne se résolvait pas. Elle est republiée au bon nom par
+`mail_dkim`. L'ancien enregistrement reste dans le dashboard, sans effet, jusqu'à
+ce qu'un en-tête `DKIM-Signature` reçu confirme `s=google`. Ensuite, le supprimer.
 
 Le Worker est statique, sans origine ni binding. Il sert
 `https://mta-sts.<domaine>/.well-known/mta-sts.txt` et répond 404 ailleurs.

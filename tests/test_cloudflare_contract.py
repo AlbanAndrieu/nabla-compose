@@ -75,7 +75,7 @@ class CloudflareContract(unittest.TestCase):
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in {"cloudflare_dns_record.home", "cloudflare_dns_record.mail_spf",
-                                    "cloudflare_dns_record.mail_dmarc",
+                                    "cloudflare_dns_record.mail_dmarc", "cloudflare_dns_record.mail_dkim",
                                     "cloudflare_zero_trust_access_application.route"}:
                 self.assertIn(f"to       = {kind}.{name}[each.key]", imports)
                 continue
@@ -139,6 +139,9 @@ class CloudflareContract(unittest.TestCase):
         self.assertIn('content = "\\"v=spf1 -all\\""', mail)
         # Owner decision (23/11/2026): quarantine at least, every Google zone hard-fails SPF.
         self.assertFalse([record for record in dmarc if "p=none" in record])
+        # Google DKIM: selector google, no line feed inside the tag list.
+        self.assertIn('name    = "google._domainkey.${each.key}"', mail)
+        self.assertEqual(len(re.findall(r'"\\"v=DKIM1; k=rsa; p=[A-Za-z0-9+/]+\\" \\"[A-Za-z0-9+/=]+\\""', mail)), 2)
         self.assertEqual(set(re.findall(r'^\s*"([a-z0-9.-]+)"\s*= { spf_ttl', mail, re.M)), names - no_mail)
 
     def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
