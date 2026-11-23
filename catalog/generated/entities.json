@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49",
+  "catalogRevision": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4414,6 +4414,44 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/mcp-defectdojo",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-defectdojo/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Read-only DefectDojo MCP, served to the LiteLLM MCP gateway.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mcp-defectdojo",
+        "tags": [
+          "security",
+          "mcp"
+        ],
+        "title": "DefectDojo MCP"
+      },
+      "sourcePath": "apps/mcp-defectdojo/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/defectdojo",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mcp-defectdojo",
+          "provider": "truenas-app",
+          "source": "apps/mcp-defectdojo/compose.yml#services/mcp-defectdojo"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/mcp-gatus",
       "kind": "Component",
       "metadata": {
@@ -4485,6 +4523,44 @@
           "containerService": "mcp-grafana",
           "provider": "truenas-app",
           "source": "apps/mcp-grafana/compose.yml#services/mcp-grafana"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/mcp-sentry",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/mcp-sentry/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Sentry MCP (inspect skills only), served to the LiteLLM MCP gateway.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mcp-sentry",
+        "tags": [
+          "observability",
+          "mcp"
+        ],
+        "title": "Sentry MCP"
+      },
+      "sourcePath": "apps/mcp-sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mcp-sentry",
+          "provider": "truenas-app",
+          "source": "apps/mcp-sentry/compose.yml#services/mcp-sentry"
         }
       }
     },

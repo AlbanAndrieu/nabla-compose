@@ -78,6 +78,18 @@ services:
           description: The LiteLLM MCP gateway routes Gatus MCP tool calls to the mcp-gatus App.
           evidence:
             - apps/litellm/config.yaml:mcp_servers.gatus
+        - target: mcp-sentry
+          type: routesTo
+          strength: optional
+          description: The LiteLLM MCP gateway routes Sentry MCP tool calls to the mcp-sentry App.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:sentry
+        - target: mcp-defectdojo
+          type: routesTo
+          strength: optional
+          description: The LiteLLM MCP gateway routes DefectDojo MCP tool calls to the mcp-defectdojo App.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:defectdojo
       # LAN only: the public litellm.albandrieu.com route was retired on 05/11/2026.
       exposure:
         - name: lan

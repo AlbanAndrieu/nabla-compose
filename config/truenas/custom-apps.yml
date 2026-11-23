@@ -143,6 +143,11 @@ apps:
     include:
       - apps/litellm/compose.yml
     state: running
+  - name: mcp-defectdojo
+    include:
+      - apps/mcp-defectdojo/compose.yml
+    state: running
+    note: DefectDojo MCP as the read-only user mcp-readonly, behind the LiteLLM MCP gateway (mcp-proxy, bearer)
   - name: mcp-gatus
     include:
       - apps/mcp-gatus/compose.yml
@@ -153,6 +158,11 @@ apps:
       - apps/mcp-grafana/compose.yml
     state: running
     note: read-only Grafana MCP behind the LiteLLM MCP gateway (scripts/truenas/deploy-mcp-grafana.sh)
+  - name: mcp-sentry
+    include:
+      - apps/mcp-sentry/compose.yml
+    state: running
+    note: Sentry MCP (inspect skills) behind the LiteLLM MCP gateway (mcp-proxy, bearer)
   - name: minio
     include:
       - apps/minio/compose.yml

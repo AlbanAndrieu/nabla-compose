@@ -1603,6 +1603,25 @@
       }
     },
     {
+      "id": "mcp-defectdojo",
+      "name": "DefectDojo MCP",
+      "kind": "mcp-server",
+      "category": "security",
+      "sourcePath": "apps/mcp-defectdojo/compose.yml",
+      "description": "Model Context Protocol server over DefectDojo findings, products, engagements and tests as a read-only user, served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-defectdojo"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8017
+      }
+    },
+    {
       "id": "mcp-gatus",
       "name": "Gatus MCP",
       "kind": "mcp-server",
@@ -1638,6 +1657,25 @@
         "type": "port",
         "host": "172.17.0.24",
         "port": 8014
+      }
+    },
+    {
+      "id": "mcp-sentry",
+      "name": "Sentry MCP",
+      "kind": "mcp-server",
+      "category": "observability",
+      "sourcePath": "apps/mcp-sentry/compose.yml",
+      "description": "Model Context Protocol server over self-hosted Sentry issues, events and traces (inspect skills only), served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-sentry"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8016
       }
     },
     {
@@ -4994,6 +5032,16 @@
     },
     {
       "source": "litellm",
+      "target": "mcp-defectdojo",
+      "type": "routesTo",
+      "strength": "optional",
+      "description": "The LiteLLM MCP gateway routes DefectDojo MCP tool calls to the mcp-defectdojo App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:defectdojo"
+      ]
+    },
+    {
+      "source": "litellm",
       "target": "mcp-gatus",
       "type": "routesTo",
       "strength": "optional",
@@ -5010,6 +5058,16 @@
       "description": "The LiteLLM MCP gateway routes Grafana MCP tool calls to the mcp-grafana App.",
       "evidence": [
         "scripts/litellm/mcp-gateway.sh:grafana"
+      ]
+    },
+    {
+      "source": "litellm",
+      "target": "mcp-sentry",
+      "type": "routesTo",
+      "strength": "optional",
+      "description": "The LiteLLM MCP gateway routes Sentry MCP tool calls to the mcp-sentry App.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:sentry"
       ]
     },
     {
@@ -5083,6 +5141,36 @@
       ]
     },
     {
+      "source": "mcp-defectdojo",
+      "target": "defectdojo",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "DefectDojo MCP reads the DefectDojo API as the mcp-readonly user.",
+      "evidence": [
+        "apps/mcp-defectdojo/compose.yml:DEFECTDOJO_URL"
+      ]
+    },
+    {
+      "source": "mcp-defectdojo",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-defectdojo/compose.yml:mcp-defectdojo.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "mcp-defectdojo",
+      "target": "litellm",
+      "type": "providesApi",
+      "strength": "optional",
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:defectdojo"
+      ]
+    },
+    {
       "source": "mcp-gatus",
       "target": "docker",
       "type": "hostedBy",
@@ -5141,6 +5229,36 @@
       "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
       "evidence": [
         "scripts/litellm/mcp-gateway.sh:grafana"
+      ]
+    },
+    {
+      "source": "mcp-sentry",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/mcp-sentry/compose.yml:mcp-sentry.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "mcp-sentry",
+      "target": "litellm",
+      "type": "providesApi",
+      "strength": "optional",
+      "description": "LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.",
+      "evidence": [
+        "scripts/litellm/mcp-gateway.sh:sentry"
+      ]
+    },
+    {
+      "source": "mcp-sentry",
+      "target": "sentry",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Sentry MCP reads the self-hosted Sentry API with the owner's access token.",
+      "evidence": [
+        "apps/mcp-sentry/compose.yml:SENTRY_HOST"
       ]
     },
     {

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49",
+  "catalogRevision": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -380,6 +380,12 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/mcp-defectdojo",
+      "evidence": "apps/mcp-defectdojo/compose.yml:services.mcp-defectdojo.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/mcp-defectdojo/compose.yml#services/mcp-defectdojo",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/mcp-gatus",
       "evidence": "apps/mcp-gatus/compose.yml:services.mcp-gatus.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/mcp-gatus/compose.yml#services/mcp-gatus",
@@ -389,6 +395,12 @@
       "entityRef": "component:default/mcp-grafana",
       "evidence": "apps/mcp-grafana/compose.yml:services.mcp-grafana.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/mcp-grafana/compose.yml#services/mcp-grafana",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/mcp-sentry",
+      "evidence": "apps/mcp-sentry/compose.yml:services.mcp-sentry.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/mcp-sentry/compose.yml#services/mcp-sentry",
       "sourceType": "compose"
     },
     {

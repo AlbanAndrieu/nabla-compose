@@ -1,0 +1,89 @@
+---
+name: mcp-sentry
+# Sentry MCP (inspect skills only) served to the LiteLLM MCP gateway (scripts/litellm/mcp-gateway.sh
+# registers it with its bearer). Its own TrueNAS App: its runtime
+# file holds only the Sentry token and the bearer, never Sentry's own secrets.
+# mcp-proxy turns the stdio server into streamable HTTP and refuses any request
+# without MCP_PROXY_AUTH_TOKEN; it never passes that token to the stdio server.
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  mcp-sentry:
+    logging: *nabla-logging
+    build:
+      context: .
+    image: nabla/mcp-sentry:0.39.0
+    container_name: mcp-sentry
+    restart: unless-stopped
+    mem_limit: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/mcp-sentry
+    x-nabla:
+      id: mcp-sentry
+      name: Sentry MCP
+      kind: mcp-server
+      category: observability
+      presentationRole: support
+      criticality: low
+      description: Model Context Protocol server over self-hosted Sentry issues, events and traces (inspect skills only), served to the LiteLLM MCP gateway.
+      runtime:
+        provider: truenas-app
+        containerService: mcp-sentry
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 8016
+      relations:
+        - target: sentry
+          type: consumesApi
+          strength: required
+          description: Sentry MCP reads the self-hosted Sentry API with the owner's access token.
+          evidence:
+            - apps/mcp-sentry/compose.yml:SENTRY_HOST
+        - target: litellm
+          type: providesApi
+          strength: optional
+          description: LiteLLM consumes this streamable HTTP MCP endpoint with its bearer token.
+          evidence:
+            - scripts/litellm/mcp-gateway.sh:sentry
+    command:
+      - --host=0.0.0.0
+      - --port=8000
+      - --allowed-host=172.17.0.24:8016
+      - --pass-environment
+      - --
+      - sentry-mcp
+      # Self-hosted over the LAN: inspect skills only, no Seer, no telemetry DSN.
+      - --host=172.17.0.24:9005
+      - --insecure-http
+      - --skills=inspect
+      - --disable-skills=seer
+      - --sentry-dsn=
+    env_file:
+      # SENTRY_ACCESS_TOKEN and MCP_PROXY_AUTH_TOKEN (Vaultwarden nabla/prod/sentry).
+      - path: /mnt/cpool/secrets/runtime/mcp-sentry/.env.secrets
+        required: true
+    environment:
+      HOME: /tmp
+      # An inherited SENTRY_URL makes the server refuse --insecure-http and exit.
+      SENTRY_URL: ""
+      SENTRY_HOST: 172.17.0.24:9005
+    ports:
+      - name: mcp
+        target: 8000
+        published: "${SENTRY_MCP_PORT:-8016}"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http

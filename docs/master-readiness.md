@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 92 ; actives : 63 ; planifiées : 24.
+Apps : 94 ; actives : 65 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -15,7 +15,7 @@ Apps : 92 ; actives : 63 ; planifiées : 24.
 | `NO_AVAILABILITY_PROBE` | 26 |
 | `NO_DEPLOY_PATH` | 17 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -64,8 +64,10 @@ Apps : 92 ; actives : 63 ; planifiées : 24.
 | `languagetool` | active | custom-apps.yml | `cpool/languagetool` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | ✅ |
 | `lidarr` | planned | deploy-media-stack.sh | `cpool/lidarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | lidarr-exporter | — | générique | config/media/settings.yml | ✅ |
 | `litellm` | active | custom-apps.yml | — | manifest | ❌ | litellm | — | diagnose-litellm-dashboard-auth.py<br>diagnose-workstation-litellm-upstream-auth.py | provision-openclaw-litellm-keys.py | `NO_AVAILABILITY_PROBE` |
+| `mcp-defectdojo` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `mcp-gatus` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `mcp-grafana` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `mcp-sentry` | active | custom-apps.yml | — | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `media-acquisition` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/qbittorrent` (app-state) | manifest | ✅ | qbittorrent | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `minio` | active | custom-apps.yml | `cpool/minio` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `mongo` | active | custom-apps.yml | `cpool/mongo` (databases) | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |

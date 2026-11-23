@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:ef678abfb5307f2bd837e6961217640228d7bc3f9271be56ae93e465fd0a0f84",
+  "catalogRevision": "sha256:91e64fc10ebf30d7cfd1478e66d15bc8cd780d8be82cc555fed5a95538dcecac",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1511,6 +1511,26 @@
       }
     },
     {
+      "id": "mcp-defectdojo",
+      "name": "DefectDojo MCP",
+      "kind": "mcp-server",
+      "category": "security",
+      "sourcePath": "apps/mcp-defectdojo/compose.yml",
+      "composeService": "mcp-defectdojo",
+      "description": "Model Context Protocol server over DefectDojo findings, products, engagements and tests as a read-only user, served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8017
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-defectdojo"
+      }
+    },
+    {
       "id": "mcp-gatus",
       "name": "Gatus MCP",
       "kind": "mcp-server",
@@ -1548,6 +1568,26 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "mcp-grafana"
+      }
+    },
+    {
+      "id": "mcp-sentry",
+      "name": "Sentry MCP",
+      "kind": "mcp-server",
+      "category": "observability",
+      "sourcePath": "apps/mcp-sentry/compose.yml",
+      "composeService": "mcp-sentry",
+      "description": "Model Context Protocol server over self-hosted Sentry issues, events and traces (inspect skills only), served to the LiteLLM MCP gateway.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 8016
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "mcp-sentry"
       }
     },
     {

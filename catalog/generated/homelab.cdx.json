@@ -385,11 +385,19 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/mcp-defectdojo"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/mcp-gatus"
     },
     {
       "dependsOn": [],
       "ref": "component:default/mcp-grafana"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/mcp-sentry"
     },
     {
       "dependsOn": [],
@@ -1007,7 +1015,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:ff830766b1ff75c261707cb003b1af90725b226d137ef4a9b8d3002cfe19fb49"
+        "value": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1015,7 +1023,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:ff830766-b1ff-75c2-6170-7cb003b1af90",
+  "serialNumber": "urn:uuid:9d82ac03-074b-3990-9912-9235f8d34552",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3135,6 +3143,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/mcp-defectdojo",
+      "description": "Read-only DefectDojo MCP, served to the LiteLLM MCP gateway.",
+      "name": "DefectDojo MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-defectdojo"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/mcp-gatus",
       "description": "Read-only MCP server over Gatus, served to the LiteLLM MCP gateway.",
       "name": "Gatus MCP",
@@ -3177,6 +3212,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/mcp-grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-sentry",
+      "description": "Sentry MCP (inspect skills only), served to the LiteLLM MCP gateway.",
+      "name": "Sentry MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-sentry"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mcp-sentry/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
