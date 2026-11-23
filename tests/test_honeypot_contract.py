@@ -33,6 +33,19 @@ class HoneypotContract(unittest.TestCase):
         targets = (ROOT / "config/security/external-attack-surface.txt").read_text(encoding="utf-8")
         self.assertNotIn("login.albandrieu.com", targets)
 
+    def test_suspicious_and_comment_spam_signals_stay_wired(self):
+        conf = (APP / "apache/honeypot.conf").read_text(encoding="utf-8")
+        # Suspicious: a robot that reads robots.txt and still fetches the trap.
+        self.assertIn("Alias /robots.txt /opt/honeypot/static/robots.txt", conf)
+        robots = (APP / "apache/static/robots.txt").read_text(encoding="utf-8")
+        self.assertRegex(robots, r"(?m)^User-agent: \*\nDisallow: /$")
+        # Comment spammers: POST on the trap reaches the script, which forwards $_POST.
+        block = conf.split('<Files "keywaspish.php">', 1)[1].split("</Files>", 1)[0]
+        self.assertNotRegex(block, r"<Limit|Require method")
+        self.assertEqual(conf.count("<LimitExcept GET HEAD>"), 1)
+        login = conf.split('<Location "/login">', 1)[1].split("</Location>", 1)[0]
+        self.assertIn("<LimitExcept GET HEAD>", login)
+
     def test_public_route_stays_isolated_and_hardened(self):
         service = yaml.safe_load((APP / "compose.yml").read_text(encoding="utf-8"))["services"]["honeypot"]
         public = [r for r in service["x-nabla"]["exposure"] if r["visibility"] == "public"]
