@@ -213,7 +213,7 @@ repos:
         entry: python3 -m unittest tests.test_opentofu_drift_check -v
         pass_filenames: false
         files: >-
-          ^(scripts/infra/(?:opentofu-drift-check[.]py|terragrunt-safe[.]sh)|scripts/truenas/reconcile-opentofu-drift-cron[.]py|[.]github/workflows/terragrunt-ci[.]yaml|tests/test_opentofu_drift_check[.]py)$
+          ^(scripts/infra/(?:opentofu-drift-check[.]py|terragrunt-safe[.]sh)|scripts/truenas/install-opentofu-drift-garage-key[.]sh|scripts/cron[.]sh|[.]github/workflows/terragrunt-ci[.]yaml|tests/test_opentofu_drift_check[.]py)$
 
       - id: secret-manifest
         name: "🔐 secrets · Validate metadata-only manifest"

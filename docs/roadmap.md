@@ -100,13 +100,29 @@ signalait qu'un `apply` manquait (`cloudflaretokens` modifié par `PUT` d'API,
 `nexus` #438 et `github` #424 jamais appliqués). `scripts/infra/opentofu-drift-check.py`
 planifie chaque jour `origin/master` contre la prod pour `cloudflare`,
 `cloudflaretokens`, `nexus` et `github` (`plan -detailed-exitcode`, jamais
-d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`) et par courriel
-du cron. Hébergement TrueNAS et inclusion de `cloudflaretokens` validés par le
-propriétaire le 23/11. **À faire par le propriétaire** : clé Garage en lecture,
-jetons en lecture seule dans `/mnt/cpool/secrets/runtime/opentofu-drift/`, premier
-passage manuel puis `--enable` du cron
+d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`). Hébergement
+TrueNAS et inclusion de `cloudflaretokens` validés par le propriétaire le 23/11.
+Depuis le 24/11, à sa demande, la vérification passe par le **cron horaire
+existant** (`scripts/cron.sh`, chaque jour à 09:00, sans second job) et utilise
+**en attendant la clé Garage actuelle `opentofu`** (RWO sur `opentofu-state`)
+copiée par `scripts/truenas/install-opentofu-drift-garage-key.sh`
 ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
 `entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
+
+**Rappel au propriétaire — finir proprement la détection de dérive (TODO)** :
+le montage du 24/11 est provisoire. Restent à faire :
+
+1. remplacer la copie de la clé RWO `opentofu` par une clé Garage dédiée en
+   lecture seule (`garage key create opentofu-drift-read`, `bucket allow --read
+   opentofu-state`), puis supprimer `install-opentofu-drift-garage-key.sh` ;
+2. enrôler chaque racine avec un jeton en lecture seule dans
+   `/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env` (`cloudflare`,
+   `cloudflaretokens`, `nexus`, `github`) ; jusque-là elles sont `SKIPPED` et
+   aucune dérive n'est détectée ;
+3. matérialiser ces fichiers depuis Vaultwarden (`config/secrets/manifest.json`,
+   `materialize_runtime.py`) plutôt qu'à la main ;
+4. obtenir un premier verdict réel (`IN_SYNC` ou `DRIFT`) par racine et une
+   alerte `OpenTofuDrift` reçue, puis passer ce point en `ACCEPTED`.
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le

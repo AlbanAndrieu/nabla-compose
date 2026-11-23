@@ -21,6 +21,8 @@ CTEM_WEB_ENABLED="${NABLA_CRON_CTEM_WEB_ENABLED:-false}"
 CTEM_MAIL_ENABLED="${NABLA_CRON_CTEM_MAIL_ENABLED:-false}"
 ZAP_PRIVATE_ENABLED="${NABLA_CRON_ZAP_PRIVATE_ENABLED:-false}"
 ZAP_PRIVATE_ENGAGEMENT="${NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID:-}"
+OPENTOFU_DRIFT_ENABLED="${NABLA_CRON_OPENTOFU_DRIFT_ENABLED:-true}"
+OPENTOFU_DRIFT_ALERTMANAGER_URL="${NABLA_CRON_OPENTOFU_DRIFT_ALERTMANAGER_URL:-http://172.17.0.24:9093}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
 FASTAPI_SUBMODULE="${FASTAPI_SAMPLE_SUBMODULE:-apps/fastapi-sample}"
@@ -322,26 +324,52 @@ run_weekly_ctem_mail() {
 # Preserve raw XML/JSON/HTML/Markdown regardless of import result.
 run_weekly_private_zap() {
   local weekday hour rc=0
-  [[ "$ZAP_PRIVATE_ENABLED" == true ]] || return 0
+  [[ "${ZAP_PRIVATE_ENABLED}" == true ]] || return 0
   weekday="$(date +%u)"
   hour="$(date +%H)"
-  [[ "$weekday" == 6 && "$hour" == 06 ]] || return 0
-  if [[ ! "$ZAP_PRIVATE_ENGAGEMENT" =~ ^[1-9][0-9]*$ ]]; then
+  [[ "${weekday}" == 6 && "${hour}" == 06 ]] || return 0
+  if [[ ! "${ZAP_PRIVATE_ENGAGEMENT}" =~ ^[1-9][0-9]*$ ]]; then
     log_error "Site Alban ZAP: set NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID to an existing DefectDojo engagement"
     return 1
   fi
   log_info "Site Alban ZAP: full private scan, archive and DefectDojo native XML import."
   sudo -n env NABLA_ZAP_PRIVATE_SCAN_APPROVED=YES \
     NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES \
-    DEFECTDOJO_ENGAGEMENT_ID="$ZAP_PRIVATE_ENGAGEMENT" \
+    DEFECTDOJO_ENGAGEMENT_ID="${ZAP_PRIVATE_ENGAGEMENT}" \
     NABLA_ZAP_VERCEL_BYPASS_FILE="${NABLA_ZAP_VERCEL_BYPASS_FILE:-}" \
     python3 "${SCRIPT_DIR}/security/run-site-alban-zap-private.py" --run || rc=$?
   if ((rc != 0)); then
-    log_error "Site Alban ZAP: scan/import incomplete (exit $rc); full archive retained on TrueNAS"
+    log_error "Site Alban ZAP: scan/import incomplete (exit ${rc}); full archive retained on TrueNAS"
   else
     log_info "Site Alban ZAP: completed; inspect private manifest and DefectDojo receipt"
   fi
-  return "$rc"
+  return "${rc}"
+}
+
+# Daily 09:00 (after the 01-07 night window) read-only OpenTofu plan of
+# origin/master against production; never apply. Roots without their
+# credentials file are SKIPPED. See docs/infrastructure-bootstrap.md.
+run_daily_opentofu_drift() {
+  local tools rc=0
+  if [[ "${OPENTOFU_DRIFT_ENABLED}" != true || "$(date +%H)" != 09 ]]; then
+    return 0
+  fi
+  # Same pins as .github/workflows/terragrunt-ci.yaml, resolved by this user's
+  # mise; the plan runs as root to read the root-only 0600 credentials.
+  # shellcheck disable=SC2016 # expanded by the inner sh, inside mise's PATH
+  tools="$("${HOME}/.local/bin/mise" exec opentofu@1.12.5 terragrunt@0.97.0 -- \
+    sh -c 'echo "$(dirname "$(command -v tofu)"):$(dirname "$(command -v terragrunt)")"')" || {
+    log_error "OpenTofu drift: mise cannot provide opentofu@1.12.5 and terragrunt@0.97.0"
+    return 1
+  }
+  sudo -n env PATH="${tools}:/usr/bin:/bin" python3 "${SCRIPT_DIR}/infra/opentofu-drift-check.py" \
+    --run --alertmanager-url "${OPENTOFU_DRIFT_ALERTMANAGER_URL}" || rc=$?
+  case "${rc}" in
+    0) log_info "OpenTofu drift: in sync (or roots not enrolled yet)." ;;
+    2) log_error "OpenTofu drift: master differs from production; OpenTofuDrift alert raised." ;;
+    *) log_error "OpenTofu drift: check incomplete, exit=${rc}." ;;
+  esac
+  return "${rc}"
 }
 
 status=0
@@ -356,6 +384,7 @@ if [[ "${synced}" == true ]]; then
   run_weekly_ctem_amass || status=1
   run_weekly_ctem_mail || status=1
   run_weekly_private_zap || status=1
+  run_daily_opentofu_drift || status=1
   update_fastapi_sample || status=1
 fi
 exit "${status}"

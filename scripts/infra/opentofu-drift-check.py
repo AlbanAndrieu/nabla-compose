@@ -45,7 +45,7 @@ COMMON_KEYS = frozenset({
 ROOT_KEYS = {
     "cloudflare": frozenset({"CLOUDFLARE_API_TOKEN"}),
     "cloudflaretokens": frozenset({"CLOUDFLARE_API_TOKEN"}),
-    "nexus": frozenset({"NEXUS_URL", "NEXUS_USERNAME", "NEXUS_PASSWORD", "OP_SERVICE_ACCOUNT_TOKEN"}),
+    "nexus": frozenset({"NEXUS_URL", "NEXUS_USERNAME", "NEXUS_PASSWORD"}),
     "github": frozenset({"GITHUB_TOKEN"}),
 }
 PASSTHROUGH = ("PATH", "HOME", "LANG", "TZ", "TMPDIR", "XDG_RUNTIME_DIR")
@@ -107,7 +107,9 @@ def plan_root(workdir: str, root: str) -> tuple[str, list[str]]:
         secrets = read_env_file(ENV_DIR / "common.env", COMMON_KEYS)
         secrets |= read_env_file(ENV_DIR / f"{root}.env", ROOT_KEYS[root])
     except FileNotFoundError as exc:
-        return "NOT_RUN", [f"credentials missing: {Path(str(exc.filename)).name}"]
+        name = Path(str(exc.filename)).name
+        # common.env is mandatory; a root is enrolled by dropping its <root>.env.
+        return ("SKIPPED" if name == f"{root}.env" else "NOT_RUN"), [f"credentials missing: {name}"]
     except (RuntimeError, OSError) as exc:
         return "NOT_RUN", [str(exc)]
     plugins = CACHE / "plugins"
@@ -133,6 +135,8 @@ def plan_root(workdir: str, root: str) -> tuple[str, list[str]]:
 def alerts(results: dict[str, tuple[str, list[str]]], sha: str, now: dt.datetime) -> list[dict]:
     payload = []
     for root, (state, lines) in results.items():
+        if state == "SKIPPED":
+            continue
         # Same labels every run: an IN_SYNC run resolves (endsAt = now) the previous alert.
         ends = now + ALERT_TTL if state != "IN_SYNC" else now
         payload.append({
@@ -171,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         print(f"CHECK: roots {', '.join(roots)}: terragrunt-safe.sh infrastructure/<root> {' '.join(PLAN)}")
         print(f"CHECK: git archive of {CHECKOUT} {args.ref}; credentials {ENV_DIR}/common.env + <root>.env (0600)")
-        print("CHECK: exit 0 in sync, 2 drift, 1 error or credentials missing; never apply")
+        print("CHECK: exit 0 in sync or root not enrolled (no <root>.env), 2 drift, 1 error; never apply")
         return 0
     sha, workdir = snapshot(args.ref)
     try:
@@ -183,8 +187,8 @@ def main(argv: list[str] | None = None) -> int:
     for root, (state, lines) in results.items():
         report.append(f"{state:8} {root}")
         report.extend(f"  {line}" for line in lines)
-    # TrueNAS cron hides stdout and mails stderr: only anomalies send a mail.
-    print("\n".join(report), file=sys.stdout if states == {"IN_SYNC"} else sys.stderr)
+    # stderr carries anomalies only (the hourly cron flags them as ERROR lines).
+    print("\n".join(report), file=sys.stdout if states <= {"IN_SYNC", "SKIPPED"} else sys.stderr)
     failed = bool(states & {"ERROR", "NOT_RUN"})
     if args.alertmanager_url:
         try:
