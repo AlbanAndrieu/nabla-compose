@@ -33,8 +33,7 @@ def _compose(app: str) -> dict:
 def test_mcp_json_reaches_homarr_grafana_and_gatus_through_the_gateway():
     servers = _servers()
     assert servers["nabla-mcp"] == _stdio("scripts/mcp/http-remote.sh", "litellm-gateway", "http://172.17.0.24:4000/mcp/")
-    assert servers["fastapi-sample"] == _stdio("scripts/mcp/http-remote.sh", "fastapi-sample", "http://172.17.0.24:8091/mcp")
-    assert not {"homarr", "grafana", "gatus", "sentry", "defectdojo"} & set(servers)
+    assert not {"homarr", "grafana", "gatus", "sentry", "defectdojo", "fastapi-sample"} & set(servers)
 
 
 def _payload(server: str, key: str) -> dict:
@@ -71,6 +70,12 @@ def test_gateway_registers_upstream_credentials_in_the_litellm_database_only():
     writes = ("delete", "create", "update", "save", "set", "rename", "reset", "add", "remove", "duplicate", "change")
     assert len(homarr["allowed_tools"]) == 77
     assert not [t for t in homarr["allowed_tools"] if t.split("_", 1)[-1].lower().startswith(writes)]
+    # Sample's own X-MCP-Key, from its Vaultwarden-materialized runtime (MCP_OPS_KEY).
+    sample = _payload("fastapisample", "not-a-real-key")
+    assert sample["url"] == "http://172.17.0.24:8091/mcp" and sample["credentials"] == {
+        "auth_value": "not-a-real-key",
+        "upstream_token_header": "X-MCP-Key",
+    }
 
 
 def test_grafana_mcp_is_its_own_read_only_authenticated_app():

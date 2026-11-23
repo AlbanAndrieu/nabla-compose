@@ -221,7 +221,7 @@ Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 
 `AlbanAndrieu/fastapi-sample` exposes FastMCP Streamable HTTP on `/mcp` from the same FastAPI process. Its local project configuration uses `http://127.0.0.1:8080/mcp`.
 
-The TrueNAS runtime serves it at `http://172.17.0.24:8091/mcp` behind the internal `X-MCP-Key` credential: without `MCP_OPS_KEY` in Sample's runtime it answers 503 `Operational access unavailable`. `.mcp.json` starts a launcher that sends that header (see [LiteLLM MCP gateway](#litellm-mcp-gateway)).
+The TrueNAS runtime serves it at `http://172.17.0.24:8091/mcp` behind the internal `X-MCP-Key` credential: without `MCP_OPS_KEY` in Sample's runtime it answers 503 `Operational access unavailable`. Clients reach it through the [LiteLLM MCP gateway](#litellm-mcp-gateway) as `fastapisample`.
 
 Cursor points directly to the production URL.
 
@@ -348,6 +348,7 @@ one endpoint, and upstream secrets stay on TrueNAS.
 | grafana | LiteLLM database (`mcp-gateway.sh`) | App `mcp-grafana`, 8014, `-disable-write` | bearer `MCP_GRAFANA_SERVER_TOKEN` (`nabla/prod/grafana-observability`) | Viewer role |
 | gatus | `apps/litellm/config.yaml` | App `mcp-gatus`, 8015, built from commit `4c7ed599` | none upstream; `GATUS_TOKEN` (`nabla/prod/gatus`) lets `submit_external_result` reach the one external endpoint `agents/Agent acceptance` | all |
 | sentry | LiteLLM database (`mcp-gateway.sh`) | App `mcp-sentry`, 8016: `@sentry/mcp-server` 0.39.0 behind `mcp-proxy` | bearer `MCP_SENTRY_SERVER_TOKEN`; the App holds `SENTRY_ACCESS_TOKEN` (`nabla/prod/sentry`) | inspect skills only, no Seer |
+| fastapisample | LiteLLM database (`mcp-gateway.sh`) | Sample itself, 8091 (FastMCP on `/mcp`) | `X-MCP-Key` = `MCP_OPS_KEY` (`nabla/prod/fastapisample`) | all 17 tools; the `/api/homelab/*` ones answer 401 until Sample forwards its separate operational key |
 | defectdojo | LiteLLM database (`mcp-gateway.sh`) | App `mcp-defectdojo`, 8017: `defectdojo-mcp-server` (commit `4d34d17f`) behind `mcp-proxy` | bearer `MCP_DEFECTDOJO_SERVER_TOKEN`; the App acts as `mcp-readonly` (`nabla/prod/mcp-defectdojo`) | 34 `get_*`/`list_*` tools (`scripts/litellm/defectdojo-readonly-tools.json`) |
 
 Naming: the LiteLLM `server_name` is the catalog id of the target service, without a
@@ -399,7 +400,6 @@ Other MCP servers of `.mcp.json`, reviewed on 22/11/2026:
 
 | Server | Gateway | Why |
 | --- | --- | --- |
-| `fastapi-sample` | next | Native HTTP with `X-MCP-Key`. Blocked: `nabla/prod/fastapisample` holds 3 of the 19 fields the manifest declares, so installing Sample's runtime from Vaultwarden would drop its other secrets. Migrate that item first, then add `MCP_OPS_KEY`. |
 | `uptime-kuma` | when deployed | Uptime Kuma is `planned` and runs nowhere yet. Then: official image `davidfuchs/mcp-uptime-kuma` (streamable HTTP, `MCP_AUTH_TOKEN`), a Vaultwarden login, read tools only. |
 | `truenas-readonly` | no | Version 2 of the server wants the Docker socket; 1.0.6 stays a TLS-pinned local launcher with a read-only API key. |
 | `bitwarden-local` | never | It acts with the owner's unlocked vault (`BW_SESSION`); behind a shared key it would hand every secret to every gateway client. |

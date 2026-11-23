@@ -805,10 +805,10 @@ class ObservabilityContractTests(unittest.TestCase):
             (ROOT / ".cursor" / "mcp.json").read_text(encoding="utf-8")
         )
 
-        self.assertIn(
-            "http://172.17.0.24:8091/mcp",
-            root_config["mcpServers"]["fastapi-sample"]["args"],
-        )
+        # .mcp.json reaches Sample through the LiteLLM gateway, which targets TrueNAS.
+        self.assertNotIn("fastapi-sample", root_config["mcpServers"])
+        gateway = (ROOT / "scripts" / "litellm" / "mcp-gateway.sh").read_text(encoding="utf-8")
+        self.assertIn('"fastapisample|http://172.17.0.24:8091/mcp|', gateway)
         self.assertEqual(
             cursor_config["mcpServers"]["fastapi-sample"]["url"],
             "http://172.17.0.24:8091/mcp",

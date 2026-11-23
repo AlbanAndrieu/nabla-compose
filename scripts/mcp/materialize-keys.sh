@@ -14,7 +14,6 @@ source "${HERE}/lib.sh"
 # file|Vaultwarden item|field|line written (printf format)
 TARGETS=(
   "litellm-gateway.headers|nabla/prod/litellm-mcp-client|LITELLM_MCP_CLIENT_KEY|x-litellm-api-key: Bearer %s"
-  "fastapi-sample.headers|nabla/prod/fastapisample|MCP_OPS_KEY|X-MCP-Key: %s"
 )
 
 [[ -n "${BW_SESSION:-}" ]] || {

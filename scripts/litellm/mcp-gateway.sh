@@ -50,13 +50,14 @@ GENERATED=(
   "mcp-sentry|MCP_SENTRY_SERVER_TOKEN"
   "mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN"
 )
-RUNTIME_APPS=(mcp-grafana gatus mcp-gatus mcp-sentry mcp-defectdojo)
+RUNTIME_APPS=(mcp-grafana gatus mcp-gatus mcp-sentry mcp-defectdojo fastapisample)
 # name|url|auth[:header]|item|field|allowed tools file|description
 DB_SERVERS=(
   "homarr|http://172.17.0.24:30100/api/mcp/mcp|api_key:ApiKey|nabla/prod/homarr|HOMARR_API_KEY|homarr-readonly-tools.json|Homarr dashboard, read-only tools"
   "grafana|http://172.17.0.24:8014/mcp|bearer_token|nabla/prod/grafana-observability|MCP_GRAFANA_SERVER_TOKEN||Grafana dashboards, Prometheus, Loki and alerts (read-only Viewer)"
   "sentry|http://172.17.0.24:8016/mcp|bearer_token|nabla/prod/sentry|MCP_SENTRY_SERVER_TOKEN||Self-hosted Sentry issues, events and traces (inspect skills only)"
   "defectdojo|http://172.17.0.24:8017/mcp|bearer_token|nabla/prod/mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN|defectdojo-readonly-tools.json|DefectDojo findings, products and engagements (read-only user and tools)"
+  "fastapisample|http://172.17.0.24:8091/mcp|api_key:X-MCP-Key|nabla/prod/fastapisample|MCP_OPS_KEY||FastAPI Sample homelab status, health and diagnostics on TrueNAS"
 )
 
 die() {
