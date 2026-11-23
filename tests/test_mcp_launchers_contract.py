@@ -34,7 +34,7 @@ def test_mcp_json_reaches_homarr_grafana_and_gatus_through_the_gateway():
     servers = _servers()
     assert servers["nabla-mcp"] == _stdio("scripts/mcp/http-remote.sh", "litellm-gateway", "http://172.17.0.24:4000/mcp/")
     assert servers["fastapi-sample"] == _stdio("scripts/mcp/http-remote.sh", "fastapi-sample", "http://172.17.0.24:8091/mcp")
-    assert not {"homarr", "grafana", "gatus"} & set(servers)
+    assert not {"homarr", "grafana", "gatus", "sentry", "defectdojo"} & set(servers)
 
 
 def _payload(server: str, key: str) -> dict:
@@ -178,3 +178,32 @@ def test_runtime_install_over_ssh_streams_the_file_and_always_cleans_up(tmp_path
     assert calls[2].startswith("sudo -n bash /mnt/cpool/compose/nabla-compose/scripts/truenas/install-runtime-secret.sh")
     assert calls[-1] == "rm -f /tmp/tmp.abc"
     assert not any("not-a-real-value" in c for c in calls)
+
+
+@pytest.mark.parametrize("app", ["mcp-sentry", "mcp-defectdojo"])
+def test_stdio_bridges_need_a_bearer_and_keep_secrets_in_their_runtime_file(app):
+    sidecar = _compose(app)[app]
+    assert sidecar["read_only"] is True and sidecar["cap_drop"] == ["ALL"]
+    assert sidecar["env_file"] == [{"path": f"/mnt/cpool/secrets/runtime/{app}/.env.secrets", "required": True}]
+    assert not any(k.endswith(("TOKEN", "KEY")) for k in sidecar["environment"])
+    port = sidecar["ports"][0]
+    assert port["host_ip"] == "172.17.0.24" and f"--allowed-host=172.17.0.24:{port['published'].split(':-')[1].rstrip('}')}" in sidecar["command"]
+    # mcp-proxy refuses calls without MCP_PROXY_AUTH_TOKEN, which the manifest renders.
+    manifest = json.loads((ROOT / "config/secrets/manifest.json").read_text(encoding="utf-8"))
+    envs = {s["env"] for i in manifest["items"] if i["app"] == app for s in i["secrets"]}
+    assert "MCP_PROXY_AUTH_TOKEN" in envs
+    dockerfile = (ROOT / f"apps/{app}/Dockerfile").read_text(encoding="utf-8")
+    assert "@sha256:" in dockerfile and "mcp-proxy==0.15.0" in dockerfile
+
+
+def test_defectdojo_mcp_is_a_read_only_user_with_read_tools():
+    tools = json.loads((ROOT / "scripts/litellm/defectdojo-readonly-tools.json").read_text(encoding="utf-8"))
+    assert tools and all(t.startswith(("get_", "list_")) for t in tools)
+    defectdojo = _payload("defectdojo", "not-a-real-token")
+    assert defectdojo["auth_type"] == "bearer_token" and defectdojo["allowed_tools"] == tools
+    identity = (ROOT / "scripts/defectdojo/mcp-identity.sh").read_text(encoding="utf-8")
+    assert "is_superuser: false" in identity and 'WRITE=denied' in identity
+    # Open-source DefectDojo has no read-only role: visibility comes from authorized_users,
+    # and read-only from the gateway tool list.
+    assert "product_type.authorized_users.add(user)" in identity and '"${READ}" == "${ALL}"' in identity
+    assert "--arg p " not in identity and "$ENV.PW" in identity

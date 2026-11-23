@@ -11,7 +11,8 @@
 #     Servers without a credential live in apps/litellm/config.yaml;
 #   - the client virtual key (nabla/prod/litellm-mcp-client): no LLM model, MCP
 #     access group nabla-mcp only, also in ~/.config/nabla/mcp/litellm-gateway.headers (600).
-# Upstream identities come first: scripts/grafana/mcp-identity.sh apply.
+# Upstream identities come first: scripts/grafana/mcp-identity.sh apply and
+# scripts/defectdojo/mcp-identity.sh apply (Sentry reuses SENTRY_ACCESS_TOKEN).
 # No value is ever printed, and none reaches a command line.
 #
 # Usage (owner terminal: Vaultwarden unlocked, TrueNAS ControlMaster open):
@@ -46,12 +47,16 @@ MATERIALIZE=("python3" "${ROOT}/scripts/secrets/materialize_runtime.py" --ssh "$
 GENERATED=(
   "mcp-grafana|MCP_GRAFANA_SERVER_TOKEN"
   "gatus|GATUS_EXTERNAL_TOKEN"
+  "mcp-sentry|MCP_SENTRY_SERVER_TOKEN"
+  "mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN"
 )
-RUNTIME_APPS=(mcp-grafana gatus mcp-gatus)
+RUNTIME_APPS=(mcp-grafana gatus mcp-gatus mcp-sentry mcp-defectdojo)
 # name|url|auth[:header]|item|field|allowed tools file|description
 DB_SERVERS=(
   "homarr|http://172.17.0.24:30100/api/mcp/mcp|api_key:ApiKey|nabla/prod/homarr|HOMARR_API_KEY|homarr-readonly-tools.json|Homarr dashboard, read-only tools"
   "grafana|http://172.17.0.24:8014/mcp|bearer_token|nabla/prod/grafana-observability|MCP_GRAFANA_SERVER_TOKEN||Grafana dashboards, Prometheus, Loki and alerts (read-only Viewer)"
+  "sentry|http://172.17.0.24:8016/mcp|bearer_token|nabla/prod/sentry|MCP_SENTRY_SERVER_TOKEN||Self-hosted Sentry issues, events and traces (inspect skills only)"
+  "defectdojo|http://172.17.0.24:8017/mcp|bearer_token|nabla/prod/mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN|defectdojo-readonly-tools.json|DefectDojo findings, products and engagements (read-only user and tools)"
 )
 
 die() {

@@ -815,7 +815,20 @@ class ObservabilityContractTests(unittest.TestCase):
         )
 
     def test_sentry_mcp_is_self_hosted_inspect_only(self) -> None:
-        for relative in (".mcp.json", ".cursor/mcp.json"):
+        # .mcp.json reaches Sentry through the LiteLLM gateway: same flags in the App.
+        sidecar = yaml.safe_load(
+            (ROOT / "apps" / "mcp-sentry" / "compose.yml").read_text(encoding="utf-8")
+        )["services"]["mcp-sentry"]
+        server = sidecar["command"][sidecar["command"].index("--") + 1 :]
+        self.assertEqual(server[0], "sentry-mcp")
+        for flag in ("--host=172.17.0.24:9005", "--insecure-http", "--skills=inspect",
+                     "--disable-skills=seer", "--sentry-dsn="):
+            self.assertIn(flag, server)
+        self.assertNotIn("SENTRY_ACCESS_TOKEN", " ".join(sidecar["command"]))
+        self.assertNotIn("SENTRY_ACCESS_TOKEN", sidecar["environment"])
+        self.assertEqual(sidecar["environment"].get("SENTRY_URL"), "")
+        self.assertNotIn("sentry", json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
+        for relative in (".cursor/mcp.json",):
             config = json.loads((ROOT / relative).read_text(encoding="utf-8"))
             sentry = config["mcpServers"]["sentry"]
 
