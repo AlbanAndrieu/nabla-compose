@@ -98,6 +98,11 @@ variable "mail_zone_ids" {
   type        = map(string)
 }
 
+variable "mail_dkim_record_ids" {
+  description = "Live id of each existing google._domainkey TXT record of mail.tofu, keyed by domain (import-first)."
+  type        = map(string)
+}
+
 variable "mail_dmarc_record_ids" {
   description = "Live id of each existing _dmarc TXT record of mail.tofu, keyed by domain (import-first)."
   type        = map(string)

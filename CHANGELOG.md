@@ -1,3 +1,10 @@
+## [0.115.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.1...0.115.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **cloudflare:** Managed headers Write, DMARC en quarantaine, SPF -all et DKIM de bababou.com ([#447](https://github.com/AlbanAndrieu/nabla-compose/issues/447)) ([6f0c2bf](https://github.com/AlbanAndrieu/nabla-compose/commit/6f0c2bfa47a5fa41a94ac0b70d5313b0b5cfdfb2))
+
 ## [0.115.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.0...0.115.1) (2026-11-22)
 
 
