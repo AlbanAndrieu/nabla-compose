@@ -138,7 +138,11 @@ The TrueNAS App `mcp-gatus` builds it from a pinned commit on digest-pinned
 bases (`apps/mcp-gatus/Dockerfile`) and serves `http://172.17.0.24:8015/mcp`;
 clients reach it through the [LiteLLM MCP gateway](#litellm-mcp-gateway).
 
-Do not provide `GATUS_TOKEN` to that MCP deployment unless external-result submission is intentionally required.
+`mcp-gatus` holds `GATUS_TOKEN` on purpose: its only write, `submit_external_result`,
+reaches the one external endpoint that token guards (`agents/Agent acceptance`).
+Gatus reloads its config when the checkout moves, so run `mcp-gateway.sh apply`
+(which installs `runtime/gatus`) before you fast-forward the TrueNAS checkout:
+a config that names `${GATUS_EXTERNAL_TOKEN}` without its runtime file stops Gatus.
 
 ## Uptime Kuma
 
