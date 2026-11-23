@@ -10,4 +10,7 @@ RUN apk add --no-cache nodejs npm \
 
 LABEL name="mcp-sentry" version="0.39.0"
 USER 65532:65532
+# The bearer guards /mcp, so the probe only checks that mcp-proxy accepts connections (--port=8000).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 3).close()"]
 ENTRYPOINT ["mcp-proxy"]

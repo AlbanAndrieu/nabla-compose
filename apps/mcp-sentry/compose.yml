@@ -17,7 +17,7 @@ services:
     logging: *nabla-logging
     build:
       context: .
-    image: nabla/mcp-sentry:0.39.0
+    image: nabla/mcp-sentry:0.39.0-2
     container_name: mcp-sentry
     restart: unless-stopped
     mem_limit: 256m

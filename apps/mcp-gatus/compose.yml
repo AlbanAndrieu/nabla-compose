@@ -18,7 +18,7 @@ services:
       context: .
       args:
         GATUS_MCP_COMMIT: 4c7ed599114d920437bd37f6590744573e361e46
-    image: nabla/mcp-gatus:4c7ed599
+    image: nabla/mcp-gatus:4c7ed599-2
     container_name: mcp-gatus
     restart: unless-stopped
     mem_limit: 64m

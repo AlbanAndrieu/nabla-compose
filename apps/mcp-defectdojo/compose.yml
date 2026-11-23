@@ -17,7 +17,7 @@ services:
     logging: *nabla-logging
     build:
       context: .
-    image: nabla/mcp-defectdojo:4d34d17f
+    image: nabla/mcp-defectdojo:4d34d17f-2
     container_name: mcp-defectdojo
     restart: unless-stopped
     mem_limit: 256m
