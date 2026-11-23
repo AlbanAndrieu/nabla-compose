@@ -126,4 +126,3 @@ n'est ni une preuve de réception, ni une tâche à exécuter maintenant.
 - Prioriser H17 et H13, différer H08.
 - Garder contrôle de secrets dans Vaultwarden.
 - Ne pas activer IPv6 avant arbitrage final.
-
