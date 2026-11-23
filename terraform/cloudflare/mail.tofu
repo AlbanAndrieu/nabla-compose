@@ -2,11 +2,14 @@
 # - Google Workspace alone sends and receives for albandrieu.com and
 #   albanandrieu.com: apex SPF hard-failed (mail2's Project Honey Pot MX is
 #   the one declared exception of the scan);
+# - 23/11/2026: the four other Google zones get SPF -all too, and every DMARC
+#   still at p=none moves to p=quarantine (reject stays reject);
 # - every zone reports DMARC to one mailbox, authorized by albandrieu.com;
 # - zones without mail get a null MX, SPF -all and DMARC reject;
 # - zones receiving mail through Google get TLS-RPT and MTA-STS in testing
 #   mode, the policy served by a Cloudflare Worker, not the homelab.
-# MX and DKIM stay dashboard-owned. The external scan
+# MX and DKIM stay dashboard-owned, except the two Google DKIM keys of
+# mail_dkim (23/11/2026). The external scan
 # (scripts/security/check-public-mail-auth.py) enforces the same policy over
 # config/security/public-mail-domains.json. CAA is proposed only (README).
 
@@ -16,10 +19,15 @@ locals {
     "albandrieu.com"   = var.zone_id
     "albanandrieu.com" = var.albanandrieu_zone_id
   })
-  # Google-only domains: their apex SPF is imported, then hard-failed.
+  # Google-only domains: an existing apex SPF is imported (~all on 23/11),
+  # then hard-failed; heoko.com and papapou.com published none.
   mail_domains = {
     "albandrieu.com"   = { spf_ttl = 1 }
     "albanandrieu.com" = { spf_ttl = 3600 }
+    "bababou.com"      = { spf_ttl = 3600 }
+    "dr-alban.com"     = { spf_ttl = 3600 }
+    "heoko.com"        = { spf_ttl = 1 }
+    "papapou.com"      = { spf_ttl = 1 }
   }
   # Zones receiving mail through Google, with exactly their published MX: the
   # scan compares the served MTA-STS policy with them.
@@ -46,13 +54,22 @@ locals {
       "albandrieu.com"   = "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s;rua=mailto:${local.report_mailbox};ruf=mailto:${local.report_mailbox};fo=1;ri=86400"
       "albanandrieu.com" = "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s;rua=mailto:${local.report_mailbox};ruf=mailto:${local.report_mailbox};fo=1;ri=86400"
       # Cloudflare DMARC Management keeps its reports next to the mailbox.
-      "bababou.com"  = "v=DMARC1; p=none; rua=mailto:6bb8350e45534cc29163df40b1955713@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
-      "dr-alban.com" = "v=DMARC1; p=none; rua=mailto:b7741e45cb634c37bdad842ebb976523@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
-      # Mail in use (Google MX and DKIM, no SPF): observe alignment first.
-      "heoko.com"   = "v=DMARC1; p=none; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
-      "papapou.com" = "v=DMARC1; p=none; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
+      "bababou.com"  = "v=DMARC1; p=quarantine; rua=mailto:6bb8350e45534cc29163df40b1955713@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
+      "dr-alban.com" = "v=DMARC1; p=quarantine; rua=mailto:b7741e45cb634c37bdad842ebb976523@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
+      # Mail in use (Google MX and DKIM): quarantine, reject after clean reports.
+      "heoko.com"   = "v=DMARC1; p=quarantine; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
+      "papapou.com" = "v=DMARC1; p=quarantine; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
     },
   )
+  # Google DKIM keys (selector google) copied from the dashboard on 23/11/2026:
+  # a line feed sat in "k=rsa;\010 p=" (RFC 6376 tag lists allow CRLF folding
+  # only), and bababou.com's key was named google._domainkey._domainkey, so its
+  # selector did not resolve. That stray record stays in the dashboard until a
+  # DKIM-Signature confirms s=google. Public keys, not secrets.
+  google_dkim = {
+    "bababou.com"  = "\"v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7oaPI5FPi4DIKq6kz9W5kM/p5oRS5UXl08QkcUg70izubMm25fpJl3RQStiVXkwTx5VH7yTBP/lGZjkIv8IZ7Khbep1SZeEDvGMjgy9LhDSpSDLc58tTvZCvGa3S/ObHHluyWa1SAdelbxJ1cEMIIveRNfmf+C3lcFCxpmTcG4LizdDcDDGFLiyn839U1l6E\" \"+m7JSMZOZy+Ey4pP3ZpKkBNqK84einZ5lMTpN+WFnEMgj0XWfiqv+1mPg5BpcwKSP511lJSEFCTz8RzDjvxpsUDzSnOl9TCokxpAxJWTtFGXkA+MXnXKxeFYtmzoG+VRXK+EwQi68bopxUVNdt6CSQIDAQAB\"" # gitleaks:allow
+    "dr-alban.com" = "\"v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAl89VyscaNAHFypNLskwJlpHMieNTQnOqBt7it+2lXMimSSuVXx5+YjZ96UlxrmWAeP/FvFtTbgHczqoJ7YugnK1qMxiXc8gx1CFER7Q1LOBX7hOPu3W/Xd9yVO9Eg6W+ts2shnNxWOSeGvCIL55zWASFRVAkB6CXalPvMvlWbrzbdbAAftNjrcHrA2/X4W7p\" \"o79df2mDOuZwfuDjePb9OqLcDS5Xs9/W45FrbSSnZlymKOfwkKBkECztSezgzKoDU/qj/9csgHJrLsRDxGDren28mnpewTz+0N5T7nz/ym4ENpJ2KTWx3nvGc38o3NhJJ24yus9Cb9kCcEklEFYN1QIDAQAB\"" # gitleaks:allow
+  }
   # RFC 7489 7.1: albandrieu.com accepts the reports of every other zone.
   dmarc_reported_domains = toset([for domain in keys(local.dmarc_records) : domain if domain != "albandrieu.com"])
   # RFC 8461: a new id with every policy change. enforce comes after weeks of
@@ -67,7 +84,7 @@ locals {
   }
 }
 
-# Imported (imports.tofu): the plan must show only ~all becoming -all.
+# Imported where published (imports.tofu: only ~all becomes -all), else created.
 resource "cloudflare_dns_record" "mail_spf" {
   for_each = local.mail_domains
 
@@ -103,6 +120,23 @@ resource "cloudflare_dns_record" "mail_dmarc" {
       condition     = !contains(local.dmarc_existing, each.key) || contains(keys(var.mail_dmarc_record_ids), each.key)
       error_message = "${each.key} already publishes DMARC: set its record id in mail_dmarc_record_ids."
     }
+  }
+}
+
+# dr-alban.com imported (only the line feed goes), bababou.com created.
+resource "cloudflare_dns_record" "mail_dkim" {
+  for_each = local.google_dkim
+
+  zone_id = local.mail_zone_ids[each.key]
+  name    = "google._domainkey.${each.key}"
+  type    = "TXT"
+  content = each.value
+  proxied = false
+  ttl     = 1
+  tags    = []
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

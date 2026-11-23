@@ -1,6 +1,11 @@
 # Cloudflare — jetons d'API gérés par OpenTofu
 
-**État : code prêt, rien n'est appliqué.** Cette unité crée le jeton de compte
+**État (22/11/2026) :** `nabla-opentofu` existe depuis le 10/11. Ses politiques
+ont été alignées sur ce code le 22/11 par `PUT` d'API (OAuth du propriétaire,
+pas de jeton d'amorçage) : la convergence de l'état Garage reste à prouver par
+un `plan` ciblé (`NOT_RUN`). `nabla-crowdsec-cloudflare-bouncer` n'est pas créé.
+
+Cette unité crée le jeton de compte
 `nabla-opentofu` (`CLOUDFLARE_API_TOKEN_NABLA_OPENTOFU`) utilisé par
 [`terraform/cloudflare`](../cloudflare/README.md) pour `plan`/`apply`. Ses droits
 sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
@@ -9,7 +14,7 @@ sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
 | --- | --- |
 | Compte `bdfe00ee…` | Access: Apps and Policies Write, Cloudflare Tunnel Write, Workers Scripts Write (Worker `mta-sts`) |
 | Les 20 zones du compte, listées par identifiant (hors `albandrieu.com` : enregistrements mail de [`mail.tofu`](../cloudflare/mail.tofu) seulement) | DNS Write, Workers Routes Write (domaines `mta-sts.*`) |
-| Zone `albandrieu.com` seulement | Zone Transform Rules Write (Managed Transforms de [`managed-transforms.tofu`](../cloudflare/managed-transforms.tofu), 22/11) |
+| Zone `albandrieu.com` seulement | Managed headers Write (Managed Transforms de [`managed-transforms.tofu`](../cloudflare/managed-transforms.tofu), 22/11 ; « Zone Transform Rules Write » reçoit un 403 sur `managed_headers`) |
 | Condition | adresses clientes de `TF_VAR_opentofu_token_client_ips` |
 | Expiration | `opentofu_token_expires_on` (rotation : avancer la date) |
 
