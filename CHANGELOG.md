@@ -1,3 +1,10 @@
+# [0.118.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.117.0...0.118.0) (2026-11-23)
+
+
+### Features
+
+* **honeypot:** robots.txt for the Suspicious signal, plan the cloudflaretokens lockdown ([#448](https://github.com/AlbanAndrieu/nabla-compose/issues/448)) ([1ee5926](https://github.com/AlbanAndrieu/nabla-compose/commit/1ee592691d2c4a71844504b63231be4a3f3920f1))
+
 # [0.117.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.116.0...0.117.0) (2026-11-23)
 
 
