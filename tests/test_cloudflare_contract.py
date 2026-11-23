@@ -137,6 +137,9 @@ class CloudflareContract(unittest.TestCase):
         self.assertIn('content = "\\"v=TLSRPTv1; rua=mailto:${local.report_mailbox}\\""', mail)
         self.assertIn('content  = "."\n  priority = 0', mail)  # RFC 7505 null MX
         self.assertIn('content = "\\"v=spf1 -all\\""', mail)
+        # Owner decision (23/11/2026): quarantine at least, every Google zone hard-fails SPF.
+        self.assertFalse([record for record in dmarc if "p=none" in record])
+        self.assertEqual(set(re.findall(r'^\s*"([a-z0-9.-]+)"\s*= { spf_ttl', mail, re.M)), names - no_mail)
 
     def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
         # The joplin Access app is "Everyone bypass"; with no Joplin App behind

@@ -2,6 +2,8 @@
 # - Google Workspace alone sends and receives for albandrieu.com and
 #   albanandrieu.com: apex SPF hard-failed (mail2's Project Honey Pot MX is
 #   the one declared exception of the scan);
+# - 23/11/2026: the four other Google zones get SPF -all too, and every DMARC
+#   still at p=none moves to p=quarantine (reject stays reject);
 # - every zone reports DMARC to one mailbox, authorized by albandrieu.com;
 # - zones without mail get a null MX, SPF -all and DMARC reject;
 # - zones receiving mail through Google get TLS-RPT and MTA-STS in testing
@@ -16,10 +18,15 @@ locals {
     "albandrieu.com"   = var.zone_id
     "albanandrieu.com" = var.albanandrieu_zone_id
   })
-  # Google-only domains: their apex SPF is imported, then hard-failed.
+  # Google-only domains: an existing apex SPF is imported (~all on 23/11),
+  # then hard-failed; heoko.com and papapou.com published none.
   mail_domains = {
     "albandrieu.com"   = { spf_ttl = 1 }
     "albanandrieu.com" = { spf_ttl = 3600 }
+    "bababou.com"      = { spf_ttl = 3600 }
+    "dr-alban.com"     = { spf_ttl = 3600 }
+    "heoko.com"        = { spf_ttl = 1 }
+    "papapou.com"      = { spf_ttl = 1 }
   }
   # Zones receiving mail through Google, with exactly their published MX: the
   # scan compares the served MTA-STS policy with them.
@@ -46,11 +53,11 @@ locals {
       "albandrieu.com"   = "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s;rua=mailto:${local.report_mailbox};ruf=mailto:${local.report_mailbox};fo=1;ri=86400"
       "albanandrieu.com" = "v=DMARC1;p=reject;sp=reject;pct=100;adkim=s;aspf=s;rua=mailto:${local.report_mailbox};ruf=mailto:${local.report_mailbox};fo=1;ri=86400"
       # Cloudflare DMARC Management keeps its reports next to the mailbox.
-      "bababou.com"  = "v=DMARC1; p=none; rua=mailto:6bb8350e45534cc29163df40b1955713@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
-      "dr-alban.com" = "v=DMARC1; p=none; rua=mailto:b7741e45cb634c37bdad842ebb976523@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
-      # Mail in use (Google MX and DKIM, no SPF): observe alignment first.
-      "heoko.com"   = "v=DMARC1; p=none; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
-      "papapou.com" = "v=DMARC1; p=none; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
+      "bababou.com"  = "v=DMARC1; p=quarantine; rua=mailto:6bb8350e45534cc29163df40b1955713@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
+      "dr-alban.com" = "v=DMARC1; p=quarantine; rua=mailto:b7741e45cb634c37bdad842ebb976523@dmarc-reports.cloudflare.net,mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}" # gitleaks:allow
+      # Mail in use (Google MX and DKIM): quarantine, reject after clean reports.
+      "heoko.com"   = "v=DMARC1; p=quarantine; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
+      "papapou.com" = "v=DMARC1; p=quarantine; rua=mailto:${local.report_mailbox}; ruf=mailto:${local.report_mailbox}; fo=1"
     },
   )
   # RFC 7489 7.1: albandrieu.com accepts the reports of every other zone.
@@ -67,7 +74,7 @@ locals {
   }
 }
 
-# Imported (imports.tofu): the plan must show only ~all becoming -all.
+# Imported where published (imports.tofu: only ~all becomes -all), else created.
 resource "cloudflare_dns_record" "mail_spf" {
   for_each = local.mail_domains
 

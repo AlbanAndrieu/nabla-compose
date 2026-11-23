@@ -5,6 +5,8 @@ albanandrieu_zone_id = "227e423f0194d42016dd753d4a23437f" # gitleaks:allow
 mail_spf_record_ids = {
   "albandrieu.com"   = "62df67144fc68601714221ea9052563c" # gitleaks:allow
   "albanandrieu.com" = "c1311131de9a7769f01a05d0d858e09c" # gitleaks:allow
+  "bababou.com"      = "e4d03ddcd7e4e7930a9be2ca8b631bf1" # gitleaks:allow
+  "dr-alban.com"     = "feb12ccc2c702849a83f127e05eab811" # gitleaks:allow
 }
 
 mail_zone_ids = {

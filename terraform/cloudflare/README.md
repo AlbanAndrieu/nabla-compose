@@ -310,16 +310,25 @@ dans le dashboard. [`mail.tofu`](mail.tofu) gère, avec les identifiants de
 
 | Enregistrements | Zones | Action |
 | --- | --- | --- |
-| SPF de l'apex `~all` → `-all` | `albandrieu.com`, `albanandrieu.com` | 2 imports, 2 mises à jour du seul `content` |
-| `_dmarc` : seuls `rua`/`ruf` passent à `openclaw@albandrieu.com`, la politique ne bouge pas | `albandrieu.com`, `albanandrieu.com` (`p=reject` strict) ; `bababou.com`, `dr-alban.com` (`p=none`, l'adresse DMARC Management de Cloudflare reste à côté) | 4 imports, 4 mises à jour |
-| `_dmarc` `p=none` avec `rua`/`ruf` | `heoko.com`, `papapou.com` (MX et DKIM Google, sans SPF) | 2 créations |
+| SPF de l'apex `~all` → `-all` (`include:_spf.google.com`) | `albandrieu.com`, `albanandrieu.com`, `bababou.com`, `dr-alban.com` ; créé sur `heoko.com`, `papapou.com` (23/11) | 4 imports et mises à jour du seul `content`, 2 créations |
+| `_dmarc` : `rua`/`ruf` vers `openclaw@albandrieu.com` | `albandrieu.com`, `albanandrieu.com` (`p=reject` strict) ; `bababou.com`, `dr-alban.com` (`p=quarantine` depuis le 23/11, l'adresse DMARC Management de Cloudflare reste à côté) | 4 imports, 4 mises à jour |
+| `_dmarc` `p=quarantine` avec `rua`/`ruf` (`p=none` du 22/11 au 23/11) | `heoko.com`, `papapou.com` (MX et DKIM Google) | 2 créations |
 | `_dmarc` `p=reject`, `sp=reject`, alignement strict ; MX nul `0 .` (RFC 7505) ; SPF `v=spf1 -all` | les 14 zones sans mail (`no_mail_domains`) | 42 créations |
 | `<domaine>._report._dmarc.albandrieu.com` (`v=DMARC1`, RFC 7489 §7.1) | les 19 autres zones | 19 créations dans `albandrieu.com` |
 | TLS-RPT `_smtp._tls` ; MTA-STS `testing` : domaine personnalisé `mta-sts.<domaine>` et TXT `_mta-sts` | les 6 zones qui reçoivent par Google (`mta_sts_mx`) | 18 créations |
 | Worker `mta-sts` ([`mta-sts-worker.js.tftpl`](mta-sts-worker.js.tftpl)) | compte | 1 création |
 
 Une précondition refuse de créer un second `_dmarc` sur une zone qui en publie
-déjà un : deux enregistrements annuleraient la politique.
+déjà un : deux enregistrements annuleraient la politique. Pour le SPF, rien
+n'automatise ce contrôle : vérifier en `GET` qu'une zone n'en publie aucun avant
+de l'ajouter à `mail_domains` sans identifiant d'import.
+
+Décision du propriétaire (23/11/2026) : aucune zone ne reste en `p=none`. La
+quarantaine précède `reject`, qui viendra après des rapports propres. La clé
+DKIM de `bababou.com`, gérée dans le dashboard, est publiée sous
+`google._domainkey._domainkey.bababou.com` (un `_domainkey` de trop) : le
+sélecteur `google` ne se résout pas. Tant que ce nom n'est pas corrigé, DMARC ne
+passe sur ce domaine que par l'alignement SPF.
 
 Le Worker est statique, sans origine ni binding. Il sert
 `https://mta-sts.<domaine>/.well-known/mta-sts.txt` et répond 404 ailleurs.
