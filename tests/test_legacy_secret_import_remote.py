@@ -7,7 +7,6 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,10 +20,10 @@ SPEC.loader.exec_module(legacy)
 
 
 class RemoteLegacyImportTests(unittest.TestCase):
-    @mock.patch.object(legacy.subprocess, "run")
-    def test_ssh_read_uses_non_interactive_sudo_without_bw_session(self, run: mock.Mock) -> None:
+    @unittest.mock.patch.object(legacy.subprocess, "run")
+    def test_ssh_read_uses_non_interactive_sudo_without_bw_session(self, run: unittest.mock.Mock) -> None:
         run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="A=1\n", stderr="")
-        with mock.patch.dict(legacy.os.environ, {"BW_SESSION": "x", "PATH": "/usr/bin"}, clear=True):
+        with unittest.mock.patch.dict(legacy.os.environ, {"BW_SESSION": "x", "PATH": "/usr/bin"}, clear=True):
             text = legacy.read_root_bounded(Path("/mnt/cpool/secrets/runtime/demo/.env"), ssh="truenas")
         self.assertEqual(text, "A=1\n")
         argv = run.call_args.args[0]
@@ -35,7 +34,7 @@ class RemoteLegacyImportTests(unittest.TestCase):
     def test_later_input_wins_like_compose_env_file(self) -> None:
         files = {"/mnt/cpool/secrets/runtime/demo/.env": "A=env\nB=env\n",
                  "/mnt/cpool/secrets/runtime/demo/.env.secrets": "A=secrets\n"}
-        with mock.patch.object(legacy, "read_root_bounded", side_effect=lambda p, ssh=None: files[str(p)]):
+        with unittest.mock.patch.object(legacy, "read_root_bounded", side_effect=lambda p, ssh=None: files[str(p)]):
             sources, parsed = legacy.read_sources({}, "demo", [Path(p) for p in files], "truenas")
         self.assertEqual(len(sources), 2)
         self.assertEqual(parsed, {"A": "secrets", "B": "env"})
