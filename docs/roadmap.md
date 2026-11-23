@@ -72,6 +72,19 @@ Ce travail ne modifie pas l'ordre H17 → H13 → H05.
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
+**Détection de dérive OpenTofu (23/11/2026) — CODED, NOT_RUN** : rien ne
+signalait qu'un `apply` manquait (`cloudflaretokens` modifié par `PUT` d'API,
+`nexus` #438 et `github` #424 jamais appliqués). `scripts/infra/opentofu-drift-check.py`
+planifie chaque jour `origin/master` contre la prod pour `cloudflare`,
+`cloudflaretokens`, `nexus` et `github` (`plan -detailed-exitcode`, jamais
+d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`) et par courriel
+du cron. Hébergement TrueNAS et inclusion de `cloudflaretokens` validés par le
+propriétaire le 23/11. **À faire par le propriétaire** : clé Garage en lecture,
+jetons en lecture seule dans `/mnt/cpool/secrets/runtime/opentofu-drift/`, premier
+passage manuel puis `--enable` du cron
+([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
+`entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
+
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le
 [mandat de test isolé](security/opentofu-postgresql-private-locking-poc.md#mandat-pour-un-autre-agent--recette-exécutable)
