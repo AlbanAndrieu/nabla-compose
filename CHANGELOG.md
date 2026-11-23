@@ -1,3 +1,10 @@
+# [0.116.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.2...0.116.0) (2026-11-23)
+
+
+### Features
+
+* **azure:** Defender Foundational CSPM Free guard and subscription audit ([#445](https://github.com/AlbanAndrieu/nabla-compose/issues/445)) ([69eddf2](https://github.com/AlbanAndrieu/nabla-compose/commit/69eddf203a8c6ace3bcb44b806fe93c8e8c1c41f))
+
 ## [0.115.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.115.1...0.115.2) (2026-11-23)
 
 
