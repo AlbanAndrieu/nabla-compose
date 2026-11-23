@@ -222,7 +222,7 @@ The normal bootstrap must never require restoring state. If a restore becomes ne
 
 Manual run on TrueNAS, report only (no alert): `sudo -n env PATH="$(mise exec opentofu@1.12.5 terragrunt@0.97.0 -- sh -c 'echo $PATH')" python3 scripts/infra/opentofu-drift-check.py --run`. Whether Account API Tokens Read suffices for the `cloudflaretokens` plan is proven on its first enrolled run.
 
-**Status (24/11/2026):** CODED, offline tests (`tests/test_opentofu_drift_check.py`); runs once the change reaches TrueNAS `master`; every root `SKIPPED` until its credentials file exists.
+**Status (24/11/2026):** CODED, offline tests (`tests/test_opentofu_drift_check.py`). On TrueNAS, `install-opentofu-drift-garage-key.sh --apply` then `--check` converged, and a manual run of the committed check against `origin/master` `1f50bb07` returned exit `0` with the four roots `SKIPPED` (`common.env` accepted, OpenTofu 1.12.5 / Terragrunt 0.97.0 from mise). No plan, Garage backend read or alert has run yet; the daily 09:00 run starts once this change reaches TrueNAS `master`.
 
 ## What should remain outside Vaultwarden
 

@@ -105,7 +105,8 @@ TrueNAS et inclusion de `cloudflaretokens` validés par le propriétaire le 23/1
 Depuis le 24/11, à sa demande, la vérification passe par le **cron horaire
 existant** (`scripts/cron.sh`, chaque jour à 09:00, sans second job) et utilise
 **en attendant la clé Garage actuelle `opentofu`** (RWO sur `opentofu-state`)
-copiée par `scripts/truenas/install-opentofu-drift-garage-key.sh`
+copiée par `scripts/truenas/install-opentofu-drift-garage-key.sh` (appliqué le
+24/11 ; premier passage manuel : 4 racines `SKIPPED`, exit 0)
 ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
 `entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
 
