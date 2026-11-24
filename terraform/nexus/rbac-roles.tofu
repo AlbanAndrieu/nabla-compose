@@ -1,4 +1,6 @@
 resource "sonatyperepo_role" "global_readonly" {
+  count = var.manage_rbac ? 1 : 0
+
   id          = "global-readonly"
   name        = "Global Read-Only"
   description = "Read and browse access to all repositories"
@@ -9,6 +11,8 @@ resource "sonatyperepo_role" "global_readonly" {
 }
 
 resource "sonatyperepo_role" "global_readwrite" {
+  count = var.manage_rbac ? 1 : 0
+
   id          = "global-readwrite"
   name        = "Global Read-Write"
   description = "Full read and write access to all repositories"
@@ -22,6 +26,8 @@ resource "sonatyperepo_role" "global_readwrite" {
 }
 
 resource "sonatyperepo_role" "docker_readonly" {
+  count = var.manage_rbac ? 1 : 0
+
   id          = "docker-readonly"
   name        = "Docker Read-Only"
   description = "Read and browse access to all Docker repositories"
@@ -32,6 +38,8 @@ resource "sonatyperepo_role" "docker_readonly" {
 }
 
 resource "sonatyperepo_role" "docker_readwrite" {
+  count = var.manage_rbac ? 1 : 0
+
   id          = "docker-readwrite"
   name        = "Docker Read-Write"
   description = "Full read and write access to all Docker repositories"
