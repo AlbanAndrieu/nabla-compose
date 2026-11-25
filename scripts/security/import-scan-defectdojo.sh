@@ -6,6 +6,7 @@ set +x
 MODE="${1:---check}"
 REPORT="${2:-}"
 SCAN_TYPE="${DEFECTDOJO_SCAN_TYPE:-Trivy Scan}"
+ZAP_IMPORT_PROFILE="${DEFECTDOJO_ZAP_IMPORT_PROFILE:-minimal}"
 SERVICE_ID="${DEFECTDOJO_SERVICE_ID:-}"
 ENGAGEMENT="${DEFECTDOJO_ENGAGEMENT_ID:-}"
 TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdojo/import-token}"
@@ -24,12 +25,28 @@ size="$(stat -c %s "${REPORT}")"
 (( size > 0 && size <= 10000000 )) || fail "size must be within 1..10000000 bytes"
 [[ "${SERVICE_ID}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || fail "DEFECTDOJO_SERVICE_ID required"
 [[ "${ENGAGEMENT}" =~ ^[1-9][0-9]*$ ]] || fail "existing DEFECTDOJO_ENGAGEMENT_ID required (no auto-create)"
+case "${ZAP_IMPORT_PROFILE}" in minimal|private-native) ;; *) fail "unsupported ZAP evidence profile" ;; esac
 case "${SCAN_TYPE}" in
   "Trivy Scan"|"CodeQL Scan"|"Semgrep JSON Report"|"Nuclei Scan"|"ZAP Scan"|"Generic Findings Import") ;;
   *) fail "unsupported parser; verify in the installed edition" ;;
 esac
+VALIDATE_OPTIONS=()
+if [[ "${ZAP_IMPORT_PROFILE}" == private-native ]]; then
+  [[ "${SCAN_TYPE}" == "ZAP Scan" && "${SERVICE_ID}" == nabla-site-alban ]] ||
+    fail "private native ZAP is restricted to nabla-site-alban/ZAP Scan"
+  PRIVATE_ZAP_DIR=/mnt/cpool/defectdojo/private-zap/site-alban
+  [[ "${REPORT}" == "${PRIVATE_ZAP_DIR}/"*".xml" ]] ||
+    fail "private native ZAP XML must be staged in the dedicated TrueNAS inbox"
+  [[ "$(realpath -e -- "${REPORT}")" == "${REPORT}" ]] || fail "native ZAP path must be canonical"
+  [[ -d "${PRIVATE_ZAP_DIR}" && ! -L "${PRIVATE_ZAP_DIR}" ]] || fail "private ZAP inbox missing"
+  [[ "$(stat -c %u:%g "${PRIVATE_ZAP_DIR}")" == 0:0 && "$(stat -c %a "${PRIVATE_ZAP_DIR}")" == 700 ]] ||
+    fail "private ZAP inbox must be root:root 0700"
+  [[ "$(stat -c %u:%g "${REPORT}")" == 0:0 && "$(stat -c %a "${REPORT}")" == 600 ]] ||
+    fail "native ZAP report must be root:root 0600"
+  VALIDATE_OPTIONS+=(--private-zap-native)
+fi
 python3 "$(dirname -- "${BASH_SOURCE[0]}")/validate-defectdojo-report.py" \
-  --service "${SERVICE_ID}" --scan-type "${SCAN_TYPE}" --report "${REPORT}"
+  --service "${SERVICE_ID}" --scan-type "${SCAN_TYPE}" --report "${REPORT}" "${VALIDATE_OPTIONS[@]}"
 REPORT_MIME="application/json"
 if [[ "${SCAN_TYPE}" == "ZAP Scan" ]]; then
   [[ "${REPORT}" == *.xml ]] || fail "ZAP report must use .xml extension"
@@ -42,6 +59,10 @@ if [[ "${MODE}" == --check ]]; then
   exit 0
 fi
 [[ "${EUID}" == 0 && "${DEFECTDOJO_IMPORT_APPROVED:-}" == YES ]] || fail "root and DEFECTDOJO_IMPORT_APPROVED=YES required"
+if [[ "${ZAP_IMPORT_PROFILE}" == private-native ]]; then
+  [[ "${DEFECTDOJO_PRIVATE_ZAP_APPROVED:-}" == YES ]] ||
+    fail "private native ZAP evidence requires DEFECTDOJO_PRIVATE_ZAP_APPROVED=YES"
+fi
 command -v curl >/dev/null || fail "curl required"
 # Fail closed outside the canonical TrueNAS host: the API is bound to its LAN
 # address, not to loopback. Dataset presence alone does not prove host identity.

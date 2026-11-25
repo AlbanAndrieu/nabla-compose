@@ -68,6 +68,62 @@ puis seulement planification éventuelle sous contrôle et alertes.
 > à l'import ; vérifier son ACL réelle. Aucun tunnel, DNS ou API publique
 > n'est créé par ce runbook.
 
+
+## Site Alban — import optionnel du XML ZAP natif depuis TrueNAS (26/11/2026)
+
+**Pourquoi :** le rapport GitHub expurgé ne fournit que les IDs de règles HIGH et
+l'origine publique. Il ne contient ni URL/paramètre affecté, ni preuve HTTP,
+ni alertes LOW/MEDIUM. DefectDojo OSS sait importer un **XML ZAP natif**
+via le parseur `ZAP Scan` ; ces champs permettent de localiser et qualifier
+les vulnérabilités. Le circuit natif est **distinct** du collecteur GitHub et
+ne l'autorise pas à télécharger des artefacts bruts.
+
+**Contrat du profil `private-native` :** entrée exclusivement dans
+`/mnt/cpool/defectdojo/private-zap/site-alban/*.xml`, répertoire
+`root:root 0700`, fichier `root:root 0600`, chemin canonique sans lien
+symbolique, XML sans DTD/entités, borné à 10 Mo, hôtes HTTPS Site Alban,
+identifiants de règles numériques et niveaux de risque 0–3. Les URL et
+requêtes/réponses **peuvent contenir des cookies, jetons ou données
+personnelles** : une revue et une suppression des secrets sont requises
+avant import. Ne jamais les téléverser dans GitHub, PR, SARIF ou logs.
+
+Préparation sur TrueNAS (aucun scan exécuté par ce changement) :
+
+```bash
+sudo install -d -m 0700 -o root -g root /mnt/cpool/defectdojo/private-zap/site-alban
+# Produire séparément un rapport XML natif avec OWASP ZAP -x report.xml,
+# en réutilisant le hook 1 req/s et le périmètre HTTPS Site Alban ;
+# installer ensuite le rapport vérifié sous root:root 0600 dans cette inbox.
+export DEFECTDOJO_SERVICE_ID=nabla-site-alban
+export DEFECTDOJO_SCAN_TYPE='ZAP Scan'
+export DEFECTDOJO_ENGAGEMENT_ID=<ENGAGEMENT_EXISTANT>
+export DEFECTDOJO_ZAP_IMPORT_PROFILE=private-native
+
+bash scripts/security/import-scan-defectdojo.sh --check \
+  /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
+```
+
+**Import explicitement approuvé**, uniquement sur TrueNAS après revue du
+rapport, de la portée et des champs sensibles :
+
+```bash
+sudo -E env DEFECTDOJO_IMPORT_APPROVED=YES \
+  DEFECTDOJO_PRIVATE_ZAP_APPROVED=YES \
+  DEFECTDOJO_SERVICE_ID=nabla-site-alban \
+  DEFECTDOJO_SCAN_TYPE='ZAP Scan' \
+  DEFECTDOJO_ZAP_IMPORT_PROFILE=private-native \
+  DEFECTDOJO_ENGAGEMENT_ID=<ENGAGEMENT_EXISTANT> \
+  bash scripts/security/import-scan-defectdojo.sh --apply \
+  /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
+```
+
+Le mode normal `minimal` reste le défaut et refuse toujours les requêtes
+HTTP brutes. Le profil natif n'importe **pas** automatiquement et ne change
+ni le réseau ni les permissions DefectDojo. La réponse HTTP de l'API
+n'atteste pas la création des findings : vérifier le résultat du parseur,
+les endpoints, la déduplication et la fermeture des findings dans l'UI
+privée. **État : CODED / NOT_RUN / NOT_IMPORTED.**
+
 ## CTEM — checkdmarc JSON normalisé et import contrôlé (21/11/2026)
 
 Le workflow GitHub `external-attack-surface.yml` exécute
