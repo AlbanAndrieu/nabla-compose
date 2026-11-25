@@ -130,8 +130,8 @@ class ProvisionerStatusTests(unittest.TestCase):
                        for who in ("main", "cron", "coder")}
         self.models_by_hash = {self.hashes["main"]: self.main_models, self.hashes["cron"]: self.cron_models,
                                self.hashes["coder"]: self.coder_models}
-        # main/cron: 2 USD lifetime; coder: 11 USD per 7 days (10 EUR per week).
-        self.budget_by_hash = {self.hashes["main"]: (2, None), self.hashes["cron"]: (2, None),
+        # main/cron: 2 USD per 7 days; coder: 11 USD per 7 days (10 EUR per week).
+        self.budget_by_hash = {self.hashes["main"]: (2, "7d"), self.hashes["cron"]: (2, "7d"),
                                self.hashes["coder"]: (11, "7d")}
         runtime_file = patch.object(self.provisioner, "runtime_file_values", return_value={})
         self.runtime_file = runtime_file.start()
@@ -361,6 +361,47 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("openclaw_main_scope_update=blocked_unverified_key", output.getvalue())
 
+
+    def update_budget_run(self):
+        posts = []
+
+        def fake(path, master, body=None):
+            if path == "/v1/models":
+                return 200, self.served
+            if path == "/key/list":
+                return 200, {"keys": ["hashed-main", "hashed-cron", "hashed-coder"]}
+            if path.startswith("/key/info?key="):
+                return self.info_for(path, spend=1.79)
+            if path == "/key/update":
+                posts.append(body)
+                self.budget_by_hash[body["key"]] = (body["max_budget"], body["budget_duration"])
+                return 200, {}
+            raise AssertionError("Unexpected call: " + path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--update-budget"])
+        for value in self.env.values():
+            self.assertNotIn(value, output.getvalue())
+        return code, posts, output.getvalue()
+
+    def test_update_budget_moves_lifetime_cap_to_weekly_window_without_touching_models(self):
+        self.budget_by_hash[self.hashes["main"]] = (2, None)
+        self.budget_by_hash[self.hashes["cron"]] = (2, None)
+        code, posts, output = self.update_budget_run()
+        self.assertEqual(code, 0)
+        self.assertEqual(posts, [
+            {"key": self.hashes["main"], "max_budget": 2, "budget_duration": "7d", "spend": 0.0},
+            {"key": self.hashes["cron"], "max_budget": 2, "budget_duration": "7d", "spend": 0.0},
+        ])
+        self.assertIn("openclaw_coder_budget_update=already_aligned", output)
+        self.assertIn("openclaw_main_budget_duration=7d", output)
+
+    def test_update_budget_cap_change_keeps_the_current_window_spend(self):
+        self.budget_by_hash[self.hashes["main"]] = (1, "7d")
+        code, posts, output = self.update_budget_run()
+        self.assertEqual(posts, [{"key": self.hashes["main"], "max_budget": 2, "budget_duration": "7d"}])
 
     def add_missing_run(self, coder_info_status):
         posts = []

@@ -11,7 +11,7 @@ import subprocess
 TRUENAS_ROOT = Path("/mnt/cpool/compose/nabla-compose")
 ROOT = Path(__file__).resolve().parents[2]
 PROVISIONER = ROOT / "scripts/truenas/provision-openclaw-litellm-keys.py"
-MODES = ("plan", "apply", "status", "quota-audit", "update-scope", "add-missing")
+MODES = ("plan", "apply", "status", "quota-audit", "update-scope", "update-budget", "add-missing")
 SSH = ("ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "truenas")
 
 
@@ -25,7 +25,7 @@ def build_command(mode, target):
         raise ValueError("unsupported_mode")
     arguments = {"plan": (), "apply": ("--apply",), "status": ("--status",),
                  "quota-audit": ("--quota-audit",), "update-scope": ("--update-scope",),
-                 "add-missing": ("--add-missing",)}[mode]
+                 "update-budget": ("--update-budget",), "add-missing": ("--add-missing",)}[mode]
     if target == "truenas_local":
         return ["sudo", "-n", "python3", str(PROVISIONER), *arguments]
     if target == "workstation_ssh":

@@ -21,9 +21,11 @@ BASE = "http://172.17.0.24:4000"
 RUNTIME_ENV = Path("/mnt/cpool/secrets/runtime/litellm/.env.secrets")
 # (variable, alias, models, max_budget USD, budget_duration or None for lifetime)
 KEYS = (
+    # main/cron: 2 USD per 7 days (owner, 25/11/2026). The former lifetime cap was
+    # hit on 24/11 and blocked the heartbeat and the digest until a manual reset.
     ("LITELLM_OPENCLAW_MAIN_API_KEY", "openclaw-main",
-     ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"], 2, None),
-    ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen", "gpt-4.1-mini"], 2, None),
+     ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"], 2, "7d"),
+    ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen", "gpt-4.1-mini"], 2, "7d"),
     # Agent `coder` (nabla-openclaw docs/coder-agent.md): 10 EUR per week. LiteLLM
     # budgets are USD: 11 USD stays <= 10 EUR while EUR/USD >= 1.10 (1.1221 on 2026-11-10).
     ("LITELLM_OPENCLAW_CODER_API_KEY", "openclaw-coder", ["gpt-4.1"], 11, "7d"),
@@ -210,6 +212,29 @@ def update_scope(master, env):
     return quota_audit(master, env)
 
 
+def update_budget(master, env):
+    """Align only max_budget and budget_duration of existing keys, addressed by hash."""
+    for variable, alias, _, max_budget, duration in KEYS:
+        key_id = hashlib.sha256(env[variable].encode("utf-8")).hexdigest()
+        label = alias.replace("-", "_")
+        status, payload = request("/key/info?key=" + key_id, master)
+        info = payload.get("info") if isinstance(payload, dict) else None
+        if status != 200 or not isinstance(info, dict):
+            print(label + "_budget_update=blocked_unverified_key")
+            return 2
+        if info.get("max_budget") == max_budget and info.get("budget_duration") == duration:
+            print(label + "_budget_update=already_aligned")
+            continue
+        body = {"key": key_id, "max_budget": max_budget, "budget_duration": duration}
+        if info.get("budget_duration") != duration:
+            body["spend"] = 0.0  # a new budget window starts empty; spend logs keep the history
+        code, _ = request("/key/update", master, body)
+        print(label + "_budget_update_http=" + str(code or "unavailable"))
+        if code != 200:
+            return 2
+    return quota_audit(master, env)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     options = parser.add_mutually_exclusive_group()
@@ -218,6 +243,8 @@ def main(argv=None):
     options.add_argument("--quota-audit", action="store_true")
     options.add_argument("--update-scope", action="store_true",
                          help="explicit: align model grants of existing keys only")
+    options.add_argument("--update-budget", action="store_true",
+                         help="explicit: align budget cap and period of existing keys only")
     options.add_argument("--add-missing", action="store_true",
                          help="explicit: register keys LiteLLM does not know yet (404), never regenerate")
     args = parser.parse_args(argv)
@@ -281,6 +308,8 @@ def main(argv=None):
             print("scope_update=blocked_no_existing_keys")
             return 2
         return update_scope(master, env)
+    if args.update_budget:
+        return update_budget(master, env)
     if args.add_missing:
         return add_missing(master, env)
     if existing["keys"]:

@@ -1037,6 +1037,10 @@ litellm-metrics-key-apply:
 openclaw-truenas-virtual-keys-add-missing:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode add-missing
 
+# Explicit: align the budget cap and period of existing keys (a new period starts at 0 spend).
+openclaw-truenas-virtual-keys-update-budget:
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode update-budget
+
 # Works from either canonical TrueNAS checkout or Workstation; no tunnel required.
 openclaw-truenas-virtual-keys-status:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
