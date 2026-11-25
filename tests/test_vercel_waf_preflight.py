@@ -117,6 +117,11 @@ class WafPreflightTests(unittest.TestCase):
         data["rules"][0]["action"]["mitigate"]["actionDuration"] = "1m"
         self.fails(data, "enforced")
 
+    def test_malformed_mitigation(self):
+        data = enforced()
+        data["rules"][0]["action"]["mitigate"] = None
+        self.fails(data, "rate-only")
+
     def test_extra_condition_drift(self):
         data = enforced()
         data["rules"][0]["conditionGroup"][0]["conditions"].append({"type": "path", "op": "eq", "value": "/api"})
