@@ -1,4 +1,6 @@
 resource "sonatyperepo_repository_terraform_proxy" "terraform_proxy" {
+  count = contains(var.enabled_formats, "terraform") ? 1 : 0
+
   name   = "terraform-proxy"
   online = true
 

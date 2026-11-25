@@ -1,4 +1,6 @@
 resource "sonatyperepo_repository_npm_proxy" "npm_proxy" {
+  count = contains(var.enabled_formats, "npm") ? 1 : 0
+
   name   = "npm-proxy"
   online = true
 
@@ -33,6 +35,8 @@ resource "sonatyperepo_repository_npm_proxy" "npm_proxy" {
 }
 
 resource "sonatyperepo_repository_npm_hosted" "npm_hosted" {
+  count = contains(var.enabled_formats, "npm") ? 1 : 0
+
   name   = "npm-local"
   online = true
 
@@ -44,6 +48,8 @@ resource "sonatyperepo_repository_npm_hosted" "npm_hosted" {
 }
 
 resource "sonatyperepo_repository_npm_group" "npm_group" {
+  count = contains(var.enabled_formats, "npm") ? 1 : 0
+
   name   = "npm-all"
   online = true
 
@@ -54,8 +60,8 @@ resource "sonatyperepo_repository_npm_group" "npm_group" {
 
   group = {
     member_names = [
-      sonatyperepo_repository_npm_hosted.npm_hosted.name,
-      sonatyperepo_repository_npm_proxy.npm_proxy.name,
+      sonatyperepo_repository_npm_hosted.npm_hosted[0].name,
+      sonatyperepo_repository_npm_proxy.npm_proxy[0].name,
     ]
   }
 }

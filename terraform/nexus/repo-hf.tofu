@@ -1,4 +1,6 @@
 resource "sonatyperepo_repository_huggingface_proxy" "huggingface_proxy" {
+  count = contains(var.enabled_formats, "huggingface") ? 1 : 0
+
   name   = "huggingface-proxy-repo"
   online = true
 

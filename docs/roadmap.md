@@ -70,7 +70,41 @@ puis configurer les applications OIDC `entra-nabla-plan` /
 avant tout plan/apply. Bootstrap OpenTofu de deux applications OIDC + Service Principals et FIC **CODED / NOT_APPLIED** (HCP Free non configuré, Graph consent en attente). [Skills Azure et Defender Free](security/entra-nabla-agent-skills-and-defender-free.md). Voir le [runbook](runbooks/entra-tenant-and-test-user.md).
 Ce travail ne modifie pas l'ordre H17 → H13 → H05.
 
+**H10 — RAM TrueNAS (23/11/2026)** — le message Slack « TrueNAS : RAM 9x % » venait du
+heartbeat OpenClaw, qui ignorait l'ARC ZFS récupérable : corrigé et déployé
+([nabla-openclaw#34](https://github.com/AlbanAndrieu/nabla-openclaw/pull/34), même
+expression que `TrueNASHostOutOfMemory`). En régime normal : 84 %, PSI mémoire ≈ 0,
+pas de swap. Mesuré le 23/11 sur 62 Gio : conteneurs ≈ 37,5 Gio (Sentry
+`errors-only` 6,2, gateway OpenClaw 2,5, Wazuh 2,4, Nexus 2,1, OpenSearch 2,1),
+3 VM Talos ≈ 9,5 Gio (H01), noyau ≈ 3,4 Gio. **Reste ouvert** : entre 01h et 06h,
+l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit à 2,6 Gio),
+sans conteneur dominant (pics cgroup : ClickHouse +1 Gio, gateway +0,8, mongo +0,5,
+docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions du
+24/11 :
+- **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`,
+  gain attendu ≈ 1 Gio) ; remonter à 4096 MiB pour H01. **CODED**, apply
+  `infrastructure/truenas` puis redémarrage des deux workers : NOT_RUN tant que le
+  coffre n'est pas déverrouillé dans le terminal du propriétaire.
+- **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
+  embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
+  4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir quand Wazuh publiera
+  un indexeur 3.x.
+- Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
+
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
+
+**Détection de dérive OpenTofu (23/11/2026) — CODED, NOT_RUN** : rien ne
+signalait qu'un `apply` manquait (`cloudflaretokens` modifié par `PUT` d'API,
+`nexus` #438 et `github` #424 jamais appliqués). `scripts/infra/opentofu-drift-check.py`
+planifie chaque jour `origin/master` contre la prod pour `cloudflare`,
+`cloudflaretokens`, `nexus` et `github` (`plan -detailed-exitcode`, jamais
+d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`) et par courriel
+du cron. Hébergement TrueNAS et inclusion de `cloudflaretokens` validés par le
+propriétaire le 23/11. **À faire par le propriétaire** : clé Garage en lecture,
+jetons en lecture seule dans `/mnt/cpool/secrets/runtime/opentofu-drift/`, premier
+passage manuel puis `--enable` du cron
+([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
+`entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le
@@ -130,3 +164,8 @@ le garde `scripts/truenas/ipv6-guard.nft`, les tests de non-exposition depuis
 l'extérieur et le retour arrière. Conserver les détails techniques dans le
 [runbook Freebox/R7000](pfsense/runbooks/freebox-router-mode.md) ; ce report
 n'est ni une preuve de réception, ni une tâche à exécuter maintenant.
+
+## Recommandations de la passe du 2026-11-23
+- Prioriser H17 et H13, différer H08.
+- Garder contrôle de secrets dans Vaultwarden.
+- Ne pas activer IPv6 avant arbitrage final.
