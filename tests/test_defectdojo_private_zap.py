@@ -69,6 +69,8 @@ class PrivateZapImportContract(TestCase):
             self.assertIn(required, importer)
         self.assertIn("DEFECTDOJO_IMPORT_APPROVED", importer)
         self.assertIn("close_old_findings=false", importer)
+        self.assertIn('"${ZAP_IMPORT_PROFILE}" == private-native', importer)
+        self.assertIn('https://defectdojo.int.albandrieu.com/api/v2/reimport-scan/', importer)
 
 
 if __name__ == "__main__":

@@ -117,6 +117,12 @@ sudo -E env DEFECTDOJO_IMPORT_APPROVED=YES \
   /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
 ```
 
+Pour ce profil natif, l'import utilise le point d'entrée existant
+`https://defectdojo.int.albandrieu.com/api/v2/reimport-scan/`, avec SNI
+privé et vérification TLS, au lieu du transport HTTP de l'importeur
+minimal. Si la CA privée ou ce point d'entrée n'est pas disponible,
+le transfert doit échouer ; aucun contournement `-k` n'est autorisé.
+
 Le mode normal `minimal` reste le défaut et refuse toujours les requêtes
 HTTP brutes. Le profil natif n'importe **pas** automatiquement et ne change
 ni le réseau ni les permissions DefectDojo. La réponse HTTP de l'API
