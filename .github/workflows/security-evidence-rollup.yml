@@ -1,0 +1,45 @@
+name: Security evidence rollup (read-only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 6 * * 1-5"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: security-evidence-rollup
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Offline regression suite
+        run: |
+          python3 scripts/security/report-github-controls.py --check
+          python3 -m unittest tests/test_security_control_rollup.py -v
+      - name: Read public GitHub Actions metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/security/report-github-controls.py --fetch --output-dir security-evidence-output
+          echo "## Security evidence (read-only)" >> "$GITHUB_STEP_SUMMARY"
+          echo "CI outcomes are not proof of scans or private DefectDojo ingestion." >> "$GITHUB_STEP_SUMMARY"
+          echo "See attached HTML and JSON; unknown findings are not zero." >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish sanitized report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: security-evidence-rollup-${{ github.run_id }}
+          path: |
+            security-evidence-output/security-controls.json
+            security-evidence-output/security-controls.html
+          retention-days: 7
+          if-no-files-found: error
