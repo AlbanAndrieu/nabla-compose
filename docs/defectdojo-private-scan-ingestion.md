@@ -99,7 +99,7 @@ export DEFECTDOJO_SCAN_TYPE='ZAP Scan'
 export DEFECTDOJO_ENGAGEMENT_ID=<ENGAGEMENT_EXISTANT>
 export DEFECTDOJO_ZAP_IMPORT_PROFILE=private-native
 
-bash scripts/security/import-scan-defectdojo.sh --check \
+sudo -E bash scripts/security/import-scan-defectdojo.sh --check \
   /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
 ```
 
