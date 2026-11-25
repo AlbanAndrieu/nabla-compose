@@ -31,6 +31,8 @@ resource "truenas_vm" "talos" {
   ensure_display_device = false
   time                  = "UTC"
   cpu_mode              = "HOST-PASSTHROUGH"
+  # Live value (plan of 24/11): keep VMs suspended during ZFS snapshots for consistent disks.
+  suspend_on_snapshot = true
 }
 
 resource "truenas_vm_device" "talos_disk" {

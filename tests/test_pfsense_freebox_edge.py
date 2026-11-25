@@ -118,6 +118,8 @@ class FakeFreebox:
             if method == "POST":
                 s["leases"].append({**body, "id": body["mac"]})
             return h.reply(s["leases"] or None)
+        if rest == "/dhcp/dynamic_lease/":
+            return h.reply(s.get("dynamic") or None)
         if rest.startswith("/dhcp/static_lease/") and method == "PUT":
             lease_id = rest.rsplit("/", 1)[1].replace("%3A", ":")
             for lease in s["leases"]:
@@ -264,6 +266,66 @@ class FreeboxEdgeTest(unittest.TestCase):
         settled = self.run_cli("check", "--wan-mac", WAN_MAC, "--wan-ip", "192.168.1.3")
         self.assertIn("OK: pfSense WAN lease -> 192.168.1.3", settled.stdout)
         self.assertEqual(len(self.box.writes()), writes)
+
+    def test_leases_capture_plan_and_apply_from_a_private_inventory(self) -> None:
+        host_mac = "02:00:00:00:00:02"
+        self.box.state["lan"]["mode"] = "router"
+        self.box.state["leases"] = [{"id": WAN_MAC, "mac": WAN_MAC, "ip": "192.168.1.2", "comment": "R7000 WAN"}]
+        self.box.state["dynamic"] = [{"mac": WAN_MAC, "ip": "192.168.1.2", "hostname": "R7000"},
+                                     {"mac": host_mac.upper(), "ip": "192.168.1.30", "hostname": "homeassistant"}]
+        with tempfile.TemporaryDirectory(prefix="nabla-freebox-") as tmp:
+            inventory = Path(tmp) / "sub" / "leases.json"
+            captured = self.run_cli("leases", "--file", str(inventory), "--capture")
+            self.assertEqual(captured.returncode, 0, captured.stdout)
+            self.assertIn("OK: 2 lease(s) captured", captured.stdout)
+            self.assertEqual(stat.S_IMODE(inventory.stat().st_mode), 0o600)
+            self.assertEqual(json.loads(inventory.read_text(encoding="utf-8")), [
+                {"mac": WAN_MAC, "ip": "192.168.1.2", "comment": "R7000 WAN"},
+                {"mac": host_mac, "ip": "192.168.1.30", "comment": "homeassistant"}])
+            self.assertEqual(self.run_cli("leases", "--file", str(inventory), "--capture").returncode, 1)
+            # The operator moves the host out of the pool and renames it.
+            inventory.write_text(json.dumps([{"mac": WAN_MAC, "ip": "192.168.1.2", "comment": "R7000 WAN"},
+                                             {"mac": host_mac, "ip": "192.168.1.5", "comment": "Home Assistant"}]))
+            dry = self.run_cli("leases", "--file", str(inventory))
+            self.assertIn("CHANGE: create the lease Home Assistant -> 192.168.1.5", dry.stdout)
+            self.assertIn("summary: 1 change(s), mode=leases (dry run", dry.stdout)
+            self.assertEqual(self.box.writes(), [])
+            self.box.state["settings"] = False
+            self.assertIn("lacks the 'settings' permission", self.run_cli("leases", "--file", str(inventory), "--yes").stdout)
+            self.assertEqual(self.box.writes(), [])
+            self.box.state["settings"] = True
+            done = self.run_cli("leases", "--file", str(inventory), "--yes")
+            self.assertEqual(done.returncode, 0, done.stdout)
+            self.assertEqual(self.box.writes(), [("POST", "/api/v16/dhcp/static_lease/")])
+            inventory.write_text(json.dumps([{"mac": host_mac, "ip": "192.168.1.6", "comment": "Home Assistant"}]))
+            moved = self.run_cli("leases", "--file", str(inventory), "--yes")
+            self.assertIn("CHANGE: update the lease 192.168.1.5 Home Assistant -> 192.168.1.6", moved.stdout)
+            self.assertIn("INFO: lease 192.168.1.2 (R7000 WAN) is not in", moved.stdout)
+            self.assertEqual([x["ip"] for x in self.box.state["leases"]], ["192.168.1.2", "192.168.1.6"])
+            settled = self.run_cli("leases", "--file", str(inventory))
+            self.assertIn("OK: 1 static lease(s) match", settled.stdout)
+            for output in (captured.stdout, dry.stdout, done.stdout, moved.stdout):
+                self.assertNotIn(host_mac, output.lower())
+                self.assertNotIn(WAN_MAC, output.lower())
+
+    def test_leases_refuse_a_bad_inventory_and_bridge_mode(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="nabla-freebox-") as tmp:
+            inventory = Path(tmp) / "leases.json"
+            inventory.write_text("[]")
+            self.assertIn("leases only apply in router mode", self.run_cli("leases", "--file", str(inventory)).stdout)
+            self.box.state["lan"]["mode"] = "router"
+            for bad, message in (
+                ([{"mac": "nope", "ip": "192.168.1.5"}], "invalid mac"),
+                ([{"mac": WAN_MAC, "ip": "10.0.0.5"}], "is not a free address of 192.168.1.0/24"),
+                ([{"mac": WAN_MAC, "ip": "192.168.1.254"}], "is not a free address"),
+                ([{"mac": WAN_MAC, "ip": "192.168.1.5"}, {"mac": "02:00:00:00:00:03", "ip": "192.168.1.5"}],
+                 "repeats a mac or an ip"),
+                ({"mac": WAN_MAC}, "expected a JSON list")):
+                inventory.write_text(json.dumps(bad))
+                result = self.run_cli("leases", "--file", str(inventory), "--yes")
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(message, result.stdout)
+            self.assertEqual(self.box.writes(), [])
 
     def test_bad_arguments_and_plain_http_elsewhere_are_refused(self) -> None:
         self.assertEqual(self.run_cli("pin-wan", "--wan-mac", "nope", "--wan-ip", "192.168.1.2").returncode, 2)

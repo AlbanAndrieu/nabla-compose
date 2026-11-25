@@ -1,0 +1,33 @@
+# Kubernetes Talos et services de sécurité — items repris de l'archive
+
+> **Audit du 25/11/2026.** Les archives [jusqu'au 24/10](archive/roadmap-through-2026-10-24.md) et [avant compaction du 13/11](archive/2026-11-13-roadmap-before-compaction.md) contenaient des items Kubernetes et sécurité perdus lors des consolidations (dont Trivy Operator). Chacun a été confronté le 25/11 au dépôt, au catalogue, à `app.query` (MCP `truenas-readonly`) et au cluster Talos (`kubectl` en lecture seule, kubeconfig homelab). Seuls les items **encore ouverts** sont repris ici ; les statuts suivent la [roadmap active](roadmap.md#statuts-et-ordre-de-décision) et l'arbitrage reste dans le [portefeuille](roadmap-portfolio.md).
+
+**Relevé du 25/11** : cluster `taloscp01`, `taloswk01`, `taloswk02` Ready en **Talos v1.13.9 / Kubernetes v1.36.3** ; seuls Falco (3 pods), `truenas-csi` et Cilium tournent ; **0 NetworkPolicy, 0 Ingress, 0 PVC** ; namespace `keycloak` vide. Sur TrueNAS : CrowdSec, DefectDojo, DSOMM, honeypot, Suricata et Wazuh `RUNNING` ; `keycloak` et `hermes-agent` `STOPPED` ; aucun Vault déployé.
+
+## Kubernetes Talos (rattachement H01, sauf mention)
+
+| Item | État constaté le 25/11 | Preuve attendue |
+| --- | --- | --- |
+| **Scanner le cluster avec `trivy k8s`** (décision du 24/11) : CLI ponctuel ou planifié depuis la workstation, identité Kubernetes en lecture seule, rapport JSON importé dans DefectDojo (parser `Trivy Scan`, réimport dédupliqué). **Pas de Trivy Operator** : il resterait en permanence dans le cluster sur des workers réduits à 2048 MiB ; le plan archivé du 24/10 est remplacé. | Rien dans le cluster | Rapport privé daté, import DefectDojo dédupliqué, prise en charge du format `trivy k8s` vérifiée sur l'instance |
+| **Sauvegarde etcd hors nœud** avec restauration vérifiée (control-plane unique) : `talosctl etcd snapshot` chiffré vers TrueNAS ou Garage, cadence et rétention | Snapshot seulement dans les scripts d'upgrade | Snapshot régulier hors VM et restauration testée sur un cluster jetable |
+| **Upgrade Talos v1.14.4 / Kubernetes v1.37.1** : cible définie le 23/10 (`talosctl` 1.14.4 épinglé dans `mise.toml`), un worker à la fois, control-plane ensuite, puis `upgrade-k8s` | Cluster encore en v1.13.9 / v1.36.3 ; `preflight-supported-upgrade.py` CODED | Sauvegarde etcd d'abord, versions live des trois nœuds, CSI et Falco sains après upgrade |
+| **Pod Security `restricted` par défaut** avec exceptions explicites (Falco, `truenas-csi`, système), cartographie NIST CSF 2.0 | `keycloak` restricted ; `falco` et `truenas-csi` privileged ; autres namespaces sans label (défaut Talos `baseline`) | Labels `enforce` sur chaque namespace applicatif et liste d'exceptions justifiée |
+| **NetworkPolicy default-deny** livrée avec chaque workload | Application par Cilium prouvée le 21/11, mais aucune politique en place ; `kubernetes/keycloak/networkpolicy.yaml` non appliqué | Default-deny + flux autorisés par namespace, test de refus |
+| **Alertes Falco** : router les événements vers Loki/Alertmanager (falcosidekick ou Alloy) | Falco 3/3 ; `falcosidekick.enabled: false`, événements visibles seulement dans les logs des pods | Règle de test déclenchée et alerte reçue |
+| **Ingress Talos** (Kubara + Traefik, exposition bare-metal explicite), puis smoke FastAPI en image immuable via `test.int.albandrieu.com` (`scripts/talos/smoke-fastapi-sample.sh`) | Aucun Ingress | Route interne seulement, smoke PASS sur digest |
+| **Migrations Hermes, Keycloak et Vault/OpenBao sur Talos** (H03/H16) : le blocage « NetworkPolicy non prouvée » est levé depuis le 21/11 ; secrets machine longue durée dans Vault seulement après preuve de persistance et de restauration | Manifestes `kubernetes/hermes`, `hermes-sandbox`, `keycloak` et `platform-tools/vault-values.yaml` CODED, non appliqués ; Apps TrueNAS arrêtées | Un service à la fois, PSA + default-deny, puis retrait de l'App TrueNAS ([ADR Hermes](security/hermes-talos-migration.md)) |
+| **Site Alban sur Talos par Helm** (P2) : image OCI non-root signée (SBOM CycloneDX, provenance SLSA, cosign) côté `nabla-site-alban` ; chart + Helmfile, Ingress interne, gate local-first `helm lint --strict`, `kubeconform` sur la version du cluster, `ct lint`, `trivy config` côté Compose | `scripts/talos/deploy-site-alban.sh` existe, rien de déployé | Gate verte sur le chart, déploiement interne, Vercel reste le service public |
+| **Fédération Karmada / GPU** (P3) | Différée, hors chemin critique | — |
+
+## Services de sécurité (rattachement H13, sauf mention)
+
+| Item | État constaté le 25/11 | Preuve attendue |
+| --- | --- | --- |
+| **Scans privés Trivy/ZAP/Nuclei/Semgrep vers DefectDojo** : producteurs dans [F10 de fastapi-sample](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md), import côté Compose | `import-scan-defectdojo.sh`, `scan-repo-trivy.py` et `generate-homelab-sbom.sh` CODED ; Nuclei et Semgrep absents de F10 | Import dédupliqué de chaque format, sans secret ni scan hors périmètre |
+| **Dependency-Check** comme preuve SCA reproductible, **OpenSSF Scorecard** en job manuel | Absents | Rapport importé dans DefectDojo |
+| **Suricata → CrowdSec** (`eve.json`) | Suricata RUNNING, acquisition CODED dans `apps/crowdsec/acquis.d/security.yaml` | `cscli metrics` montre `eve.json` lu et analysé, une alerte de test |
+| **DSOMM** (P2) : producteurs d'évaluation pour `nabla-compose`, `fastapi-sample`, `nabla-site-alban` et `nabla-site-bababou`, revue manuelle (Security Champions, IAM, IA agentique) | App RUNNING | Agrégation complète avant usage comme preuve du portefeuille |
+| **OpenCRE** (P3) : stockage, image épinglée, santé, corrélation utile, ou retrait du catalogue | `planned`, aucune App | Décision documentée |
+| **Sauvegardes immuables** (H02/H10) : holds de snapshots ZFS ou Object Lock Garage pour les sauvegardes, rétention, audit des droits de suppression | Absent | Suppression refusée pendant la rétention, restauration testée |
+
+**Déjà couverts, non repris** : Falco déployé, application des NetworkPolicy par Cilium, remplacement de `democratic-csi` par `truenas-csi` (H01) ; `talosconfig`/kubeconfig dans Vaultwarden (H03) ; engagement DefectDojo `Trivy images` et SBOM Dependency-Track (H13) ; Keycloak/OIDC et PKI Vault (H16). Les items Snort, bouncer CrowdSec pfSense et NetFlow pfSense sont **obsolètes** depuis le retrait du pfSense (18/11).

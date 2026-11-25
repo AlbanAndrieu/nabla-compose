@@ -120,17 +120,17 @@ La Freebox ne pouvant pas prendre `172.17.0.1`, le Netgear Nighthawk R7000 (poin
 | Côté Internet | Adresse en `192.168.1.x` donnée par le DHCP de la Freebox. Double NAT, sans DMZ : rien n'est ouvert depuis Internet vers le homelab |
 | Sauvegarde | `NETGEAR_R7000.cfg`, dans les Documents de l'opérateur, hors dépôt : elle contient les mots de passe |
 
-**Administration** : la racine `https://172.17.0.1/` (ou `10.0.0.1` avant le changement de LAN) ne fonctionne pas. Elle redirige vers `www.routerlogin.com`, qu'un poste résolvant avec Pi-hole ou Quad9 n'envoie pas vers le routeur. Ouvrir directement **`https://172.17.0.1/start.htm`**. LAN Setup se trouve dans l'onglet ADVANCED, menu Setup.
+**Administration** : la racine `https://172.17.0.1/` (ou `10.0.0.1` avant le changement de LAN) ne fonctionne pas. Elle redirige vers `www.routerlogin.com`, qu’un poste résolvant avec Pi-hole ou un DNS public (Cloudflare) n’envoie pas vers le routeur. Ouvrir directement **`https://172.17.0.1/start.htm`**. LAN Setup se trouve dans l'onglet ADVANCED, menu Setup.
 
 Vérifié le 18/11 depuis la workstation : bail `172.17.0.57` avec la passerelle `172.17.0.1`, Internet joignable ; Pi-hole sur TrueNAS résout de nouveau `example.org`, donc TrueNAS sort par le R7000.
 
 Reste à vérifier (`NOT_VERIFIED`) :
 
-- DNS du R7000 (décidé le 21/11, Q6) : dans *Internet Setup*, « Use These DNS Servers » avec Pi-hole `172.17.0.24` en principal et la Freebox `192.168.1.254` en secondaire. Le R7000 distribue sa propre adresse par DHCP et relaie vers ces deux serveurs : si Pi-hole tombe, le LAN résout encore les noms publics (pas `*.int`). Réglage dans l'interface web du routeur, qui n'a ni API ni script : étape du propriétaire, `NOT_RUN`. Réception : `dig @172.17.0.1 hello.int.albandrieu.com` → `172.17.0.24`, puis Pi-hole arrêté, `dig @172.17.0.1 example.org` répond toujours ;
+- DNS du R7000 (décidé le 21/11, Q6) : dans *Internet Setup*, « Use These DNS Servers » avec Pi-hole `172.17.0.24` en principal et la Freebox `192.168.1.254` en secondaire. Le R7000 distribue sa propre adresse par DHCP et relaie vers ces deux serveurs : si Pi-hole tombe, le LAN résout encore les noms publics (pas `*.int`). Réglage dans l'interface web du routeur, qui n'a ni API ni script. **Appliqué par le propriétaire le 25/11 au soir**, après un essai avec Pi-hole seul : le relais ne résolvait alors plus aucun nom public, car l'amont de Pi-hole passait par Quad9, qui a quitté la France le 24/11. Mesuré ensuite : `dig @172.17.0.1` répond pour `example.com`, `claude.ai` et `nexus.int.albandrieu.com` (`172.17.0.24`). Reste `NOT_RUN` : l'essai avec Pi-hole arrêté. Voir [DNS and ingress ownership](../../dns-ingress-ownership.md) ;
 - Remote Management, UPnP et WPS désactivés ;
 - statut de support du R7000, modèle ancien : il reste derrière le NAT de la Freebox ;
 - adresse Internet du R7000 fixée sur la Freebox (`freebox-edge.py pin-wan --wan-mac <MAC> --wan-ip <ip>`, sans `--dmz`) ;
-- IPv6 absent du LAN.
+- IPv6 absent du LAN : le 25/11, le R7000 n'envoie plus d'annonce de routeur (son link-local `fe80::120c:6bff:fe62:128e` ne répond plus sur le LAN), alors qu'il le faisait le 20/11 ; la Freebox route toujours la délégation vers lui. À revoir dans ADVANCED > Advanced Setup > IPv6.
 
 ## Durcissement de la Freebox Pop (19-20/11/2026)
 
@@ -140,6 +140,22 @@ Appliqué par l'API avec l'app « Nabla edge », chaque réglage relu après éc
 - bail fixe du R7000 corrigé : MAC du WAN réel (`…:8F`) vers `192.168.1.117`, l'ancien bail visait une MAC inactive (`…:90`, commentaire « pfSense WAN ») ;
 - gardé : accès distant à Freebox OS et à l'API (Freebox Connect) ;
 - reste à la main (Gestion des accès > Applications) : réduire les droits de « Nabla edge », qui a tout reçu à son réenregistrement, et décocher « Modification des réglages » hors intervention.
+
+## Baux statiques de la Freebox (25/11/2026)
+
+`freebox-edge.py leases` aligne les baux statiques de la Freebox sur un inventaire privé `~/.config/nabla-compose/freebox-leases.json` (liste de `{mac, ip, comment}`, 0600, **hors dépôt** : ce dépôt est public). Après une réinitialisation usine, comme celle du 18/11, la même commande recrée tous les baux.
+
+```bash
+export FREEBOX_APP_TOKEN="$(bw get password FREEBOX_APP_TOKEN)"
+scripts/pfsense/freebox-edge.py leases --capture   # une fois : baux statiques + clients DHCP actuels, à leur adresse
+"$EDITOR" ~/.config/nabla-compose/freebox-leases.json   # garder les équipements fixes, renommer, sortir du pool .100-.199
+scripts/pfsense/freebox-edge.py leases              # plan : CHANGE par bail, rien n'est écrit
+scripts/pfsense/freebox-edge.py leases --yes        # écrit (droit « settings » requis)
+```
+
+Le plan crée les baux absents et corrige l'adresse ou le commentaire des baux existants, identifiés par MAC. Il **ne supprime jamais** un bail absent de l'inventaire : il le signale en `INFO`. Les MAC ne sont jamais affichées. Les adresses hors du réseau de la Freebox, son adresse propre et les doublons sont refusés avant toute écriture. Ne concerne que le réseau `192.168.1.0/24` de la Freebox (WAN du R7000, switch IoT/domotique) ; les réservations du homelab `172.17.0.0/24` sont dans le R7000, qui n'a pas d'API.
+
+**Appliqué le 25/11/2026** : le jeton de Vaultwarden était périmé (`invalid_token`, sans doute celui d'avant la réinitialisation du 18/11). L'app « Nabla edge » a donc été réenregistrée et a reçu « Modification des réglages ». Capture : 9 clients. Les 2 MAC aléatoires (bit « locally administered » : un téléphone et un Mac) sont exclues, parce qu'elles changent. 6 baux ont été créés à l'adresse courante de chaque appareil, pour ne couper personne : `.115`, `.131`, `.135`, `.151`, `.168`, `.177`. Avec le bail du WAN du R7000 (`.117`), cela fait 7 baux, et un nouveau plan donne `0 change(s)`. À faire : ranger le nouveau jeton dans Vaultwarden, refermer l'association d'applications et retirer « Modification des réglages » hors intervention.
 
 ## IPv6 sur le homelab, sans exposition (20/11/2026)
 

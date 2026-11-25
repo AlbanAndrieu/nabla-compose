@@ -18,46 +18,51 @@ after a client has connected**; they do not publish DNS records.
 
 ## Resolver architecture and precedence
 
-The validated LAN resolver contract is:
+pfSense is gone since 2026-11-18 and **Quad9 stopped serving France on
+2026-11-24** (from the Free public IP, every Quad9 address times out on UDP/53,
+refuses TCP/53 and DoT, and its DoH answers `403`). Cloudflare replaces Quad9
+everywhere. The LAN resolver contract on 2026-11-25 is:
 
 ```text
-TrueNAS / LAN client
-  resolver #1: pfSense Unbound 172.17.0.1
-  resolver #2: Quad9 9.9.9.9       (public fallback only)
-  resolver #3: Cloudflare 1.1.1.1  (public fallback only)
+LAN client (DHCP from the R7000, DNS = 172.17.0.1)
           |
           v
-pfSense / Unbound 172.17.0.1:53
-  Forwarding Mode: disabled
-  Outgoing Network Interfaces: All
-          |
-          +-- public names -----------------> recursive DNS resolution
-          |
-          `-- int.albandrieu.com override --> Pi-hole 172.17.0.24:53
-                                                |
-                                                `--> explicit private A records
-                                                     generated from Traefik labels
+R7000 DNS relay 172.17.0.1 (Internet Setup > "Use These DNS Servers")
+  primary:   Pi-hole 172.17.0.24:53
+               |-- int.albandrieu.com --> explicit private A records (Traefik labels)
+               `-- public names --------> AdGuard Home :553 (DoH) --> fallback 1.1.1.1
+  secondary: Freebox 192.168.1.254 (public names only)
+
+Workstation (ansible-workstation): Cloudflare 1.1.1.1 / 1.0.0.1 over strict DoT,
+  ~int.albandrieu.com routed to Pi-hole on eno1 in plain DNS.
 ```
 
+Measured on 2026-11-25: with the Freebox as secondary, the relay answers public
+names and `*.int` names. Without it, TrueNAS is a single point of failure for
+every relay client: on that evening Pi-hole's upstreams (AdGuard over Quad9 DoH,
+then `9.9.9.9`) were dead and `dig @172.17.0.1 example.com` timed out. When
+TrueNAS is down, public names still resolve through the Freebox; `*.int` names do
+not, and they all point to TrueNAS anyway. Not verified: whether this Netgear
+firmware only uses the secondary after a primary timeout. If it ever queries both,
+a client may get an empty answer for a `*.int` name (the Freebox returns
+`NOERROR` without an `A` record).
+
 On TrueNAS the persistent resolver order is configured in **System -> Network ->
-Network Configuration -> Settings** and currently materializes as:
+Network Configuration -> Settings**. Target:
 
 ```text
 nameserver 172.17.0.1
-nameserver 9.9.9.9
 nameserver 1.1.1.1
+nameserver 1.0.0.1
 ```
 
-The order matters. `9.9.9.9` and `1.1.1.1` cannot resolve the private
-`*.int.albandrieu.com` namespace and must not precede pfSense. They are public
-fallback resolvers, not split-DNS authorities. Private-name availability therefore
-requires pfSense/Unbound; public DNS remains recoverable through the fallback
-resolvers when appropriate.
+On 2026-11-25 it still listed `9.9.9.9` second (`NOT_RUN`: change it in the UI or
+with `midclt call network.configuration.update`). Public resolvers cannot resolve
+`*.int.albandrieu.com` and must not precede the LAN relay.
 
-Do not configure TrueNAS itself to use its locally hosted Pi-hole as the primary
+Do not configure TrueNAS itself to use its locally hosted Pi-hole as its only
 system resolver. Pi-hole runs on TrueNAS, so doing so would introduce a circular
-boot/runtime dependency. TrueNAS and normal LAN clients use pfSense/Unbound;
-Unbound selectively delegates only the private zone to Pi-hole.
+boot/runtime dependency; the R7000 secondary and the public fallbacks break it.
 
 ### pfSense / Unbound
 

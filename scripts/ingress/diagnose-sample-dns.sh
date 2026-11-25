@@ -148,7 +148,7 @@ if [[ "${MODE}" == --workstation ]]; then
     if grep -Fxq "${TRUENAS_IP}" <<<"${private_system}"; then
       ok "system resolver correctly routes private .int hostname to TrueNAS"
     else
-      warn "system resolver cannot resolve private .int hostname to TrueNAS; Quad9/public DNS alone is not sufficient"
+      warn "system resolver cannot resolve private .int hostname to TrueNAS; public DNS (Cloudflare) alone is not sufficient"
     fi
   fi
 fi
@@ -191,7 +191,7 @@ if [[ "${MODE}" == --workstation ]]; then
   if command -v resolvectl >/dev/null 2>&1; then
     if active_dns="$(resolvectl dns "${IFACE}" 2>/dev/null)"; then
       printf '%s\n' "${active_dns}"
-      # DHCP may correctly announce pfSense while a local profile selects Quad9.
+      # DHCP may correctly announce the LAN resolver while a local profile selects a public one.
       if ! grep -Fqw "${PFSENSE_DNS}" <<<"${active_dns}"; then
         warn "interface ${IFACE} DNS differs from pfSense; inspect NetworkManager profile/resolved, not DHCP blindly"
       fi

@@ -16,7 +16,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_POLICY = ROOT / "config/ingress-access-policy.json"
 QUERY_TYPES = ("A", "AAAA", "CNAME")
-DEFAULT_RESOLVERS = ("1.1.1.1", "9.9.9.9")
+DEFAULT_RESOLVERS = ("1.1.1.1", "1.0.0.1")  # Quad9 stopped serving France on 2026-11-24
 
 
 def resolve_query(name: str, resolver: str, rrtype: str) -> str:
