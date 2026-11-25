@@ -33,7 +33,7 @@ def enforced():
         "conditionGroup": [{"conditions": [{"type": "host", "op": "eq", "value": host}]}
                            for host in sorted(waf.EXPECTED_HOSTS)],
         "action": {"mitigate": {
-            "action": "rate_limit", "actionDuration": "1m",
+            "action": "rate_limit",
             "rateLimit": {"limit": 300, "window": 60, "keys": ["ip"],
                           "algo": "fixed_window", "action": "deny"},
         }},
@@ -51,6 +51,15 @@ class WafPreflightTests(unittest.TestCase):
 
     def test_expected_baseline(self):
         self.passes(baseline(), "baseline")
+
+    def test_expected_rate_only(self):
+        data = enforced()
+        for name in waf.BLOCK:
+            data["crs"][name]["action"] = "log"
+        self.passes(data, "rate-only")
+
+    def test_rate_only_rejects_fake_owasp_enforcement(self):
+        self.fails(enforced(), "rate-only")
 
     def test_expected_post_apply(self):
         self.passes(enforced(), "enforced")
@@ -101,6 +110,11 @@ class WafPreflightTests(unittest.TestCase):
     def test_rate_threshold_drift(self):
         data = enforced()
         data["rules"][0]["action"]["mitigate"]["rateLimit"]["limit"] = 500
+        self.fails(data, "enforced")
+
+    def test_unexpected_persistent_action(self):
+        data = enforced()
+        data["rules"][0]["action"]["mitigate"]["actionDuration"] = "1m"
         self.fails(data, "enforced")
 
     def test_extra_condition_drift(self):
