@@ -80,6 +80,7 @@ def evaluate(payload: dict, phase: str) -> None:
     require(len(set(hosts)) == 3 and set(hosts) == EXPECTED_HOSTS, "RATE_HOSTS_DRIFT")
     action = rule.get("action", {})
     mitigation = action.get("mitigate", {}) if isinstance(action, dict) else {}
+    require(isinstance(mitigation, dict), "RATE_ACTION_DRIFT")
     require(mitigation.get("action") == "rate_limit", "RATE_ACTION_DRIFT")
     require(mitigation.get("actionDuration") in (None, ""), "PERSISTENT_ACTION_UNEXPECTED")
     rate = mitigation.get("rateLimit")
