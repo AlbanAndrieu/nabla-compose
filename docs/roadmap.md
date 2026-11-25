@@ -91,6 +91,8 @@ docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions
   un indexeur 3.x.
 - Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
 
+**K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, PSA, alertes Falco, sauvegardes immuables.
+
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
 **Détection de dérive OpenTofu (23/11/2026) — CODED, NOT_RUN** : rien ne
@@ -164,8 +166,3 @@ le garde `scripts/truenas/ipv6-guard.nft`, les tests de non-exposition depuis
 l'extérieur et le retour arrière. Conserver les détails techniques dans le
 [runbook Freebox/R7000](pfsense/runbooks/freebox-router-mode.md) ; ce report
 n'est ni une preuve de réception, ni une tâche à exécuter maintenant.
-
-## Recommandations de la passe du 2026-11-23
-- Prioriser H17 et H13, différer H08.
-- Garder contrôle de secrets dans Vaultwarden.
-- Ne pas activer IPv6 avant arbitrage final.
