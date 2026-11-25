@@ -31,7 +31,7 @@ def require(condition: bool, code: str) -> None:
 
 def evaluate(payload: dict, phase: str) -> None:
     """Check the entire scoped active WAF, not only changes intended by IaC."""
-    require(phase in {"baseline", "enforced"}, "INVALID_PHASE")
+    require(phase in {"baseline", "rate-only", "enforced"}, "INVALID_PHASE")
     if isinstance(payload, dict) and isinstance(payload.get("result"), dict):
         payload = payload["result"]
     require(isinstance(payload, dict), "INVALID_PAYLOAD")
@@ -81,7 +81,7 @@ def evaluate(payload: dict, phase: str) -> None:
     action = rule.get("action", {})
     mitigation = action.get("mitigate", {}) if isinstance(action, dict) else {}
     require(mitigation.get("action") == "rate_limit", "RATE_ACTION_DRIFT")
-    require(mitigation.get("actionDuration") == "1m", "RATE_DURATION_DRIFT")
+    require(mitigation.get("actionDuration") in (None, ""), "PERSISTENT_ACTION_UNEXPECTED")
     rate = mitigation.get("rateLimit")
     require(isinstance(rate, dict), "MISSING_RATE_POLICY")
     require(rate.get("limit") == 300 and rate.get("window") == 60 and
@@ -102,7 +102,7 @@ def read_live() -> dict:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=("baseline", "enforced"), required=True)
+    parser.add_argument("--phase", choices=("baseline", "rate-only", "enforced"), required=True)
     sources = parser.add_mutually_exclusive_group(required=True)
     sources.add_argument("--live", action="store_true", help="Vercel GET, never changes rules")
     sources.add_argument("--file", type=Path, help="Private Vercel API JSON snapshot")
