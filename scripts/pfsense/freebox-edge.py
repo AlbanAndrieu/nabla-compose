@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Freebox OS API helper for the edge uplink: LAN mode and address, pfSense's WAN lease and DMZ.
+"""Freebox OS API helper for the edge uplink: LAN mode and address, static DHCP leases and DMZ.
 
 Freebox OS SDK: https://dev.freebox.fr/sdk/os/ (login, lan, dhcp, nat, connection).
 Procedure: docs/pfsense/runbooks/freebox-router-mode.md
 
-- Reads only need the app token. set-mode, set-lan-ip and pin-wan also need the app's "settings" permission
+- Reads only need the app token. set-mode, set-lan-ip, pin-wan and leases also need the app's "settings" permission
   (Freebox OS > Paramètres de la Freebox > Gestion des accès > Applications) and --yes; without
   --yes they print the planned change and write nothing.
 - The app token is a secret: it comes from FREEBOX_APP_TOKEN or --token-file and is never printed.
@@ -321,6 +321,85 @@ def cmd_set_lan_ip(box: Freebox, args: argparse.Namespace) -> int:
     return 0
 
 
+def lease_network(box: Freebox) -> tuple[str, ipaddress.IPv4Network]:
+    lan = box.call("GET", "/lan/config/")
+    if lan_mode(lan) != "router":
+        raise FreeboxError("leases only apply in router mode")
+    dhcp = box.call("GET", "/dhcp/config/") or {}
+    return lan.get("ip"), ipaddress.ip_network(f"{lan.get('ip')}/{dhcp.get('netmask', '255.255.255.0')}", strict=False)
+
+
+def load_leases(path: Path, box_ip: str, network: ipaddress.IPv4Network) -> list[dict]:
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
+        raise FreeboxError(f"{path}: expected a JSON list of {{mac, ip, comment}}")
+    seen: set[str] = set()
+    for index, entry in enumerate(entries):
+        mac, ip = str(entry.get("mac", "")).lower(), str(entry.get("ip", ""))
+        if not MAC_RE.match(mac):
+            raise FreeboxError(f"{path}: entry {index} has an invalid mac")
+        try:
+            if ipaddress.ip_address(ip) not in network or ip == box_ip:
+                raise ValueError
+        except ValueError:
+            raise FreeboxError(f"{path}: entry {index} ip {ip!r} is not a free address of {network}") from None
+        if mac in seen or ip in seen:
+            raise FreeboxError(f"{path}: entry {index} repeats a mac or an ip")
+        seen.update((mac, ip))
+        entry.update(mac=mac, comment=str(entry.get("comment", "")))
+    return entries
+
+
+def cmd_leases(box: Freebox, args: argparse.Namespace) -> int:
+    path = Path(args.file).expanduser()
+    box_ip, network = lease_network(box)
+    current = {str(x.get("mac", "")).lower(): x for x in box.call("GET", "/dhcp/static_lease/") or []}
+    if args.capture:
+        # Seeds the private inventory with the static leases and the hosts on the LAN right now, at their current address.
+        found = [{"mac": mac, "ip": x.get("ip"), "comment": x.get("comment") or x.get("hostname") or ""}
+                 for mac, x in current.items()]
+        for x in box.call("GET", "/dhcp/dynamic_lease/") or []:
+            mac = str(x.get("mac", "")).lower()
+            if mac not in current and x.get("ip"):
+                found.append({"mac": mac, "ip": x.get("ip"), "comment": x.get("hostname") or ""})
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(sorted(found, key=lambda x: ipaddress.ip_address(x["ip"])), handle, indent=2)
+            handle.write("\n")
+        print(f"OK: {len(found)} lease(s) captured in {path}; review it, then run leases to plan")
+        return 0
+    wanted = load_leases(path, box_ip, network)
+    # Labels only: a lease id is the MAC address, which stays out of the output.
+    plan = []
+    for entry in wanted:
+        label = f"{entry['comment'] or 'unnamed'} -> {entry['ip']}"
+        lease = current.get(entry["mac"])
+        if lease is None:
+            plan.append((f"create the lease {label}", "POST", "/dhcp/static_lease/", entry))
+        elif lease.get("ip") != entry["ip"] or (lease.get("comment") or "") != entry["comment"]:
+            plan.append((f"update the lease {lease.get('ip')} {label}", "PUT",
+                         f"/dhcp/static_lease/{urllib.parse.quote(str(lease['id']), safe='')}",
+                         {"ip": entry["ip"], "comment": entry["comment"]}))
+    managed = {entry["mac"] for entry in wanted}
+    for mac, lease in current.items():
+        if mac not in managed:
+            print(f"INFO: lease {lease.get('ip')} ({lease.get('comment') or 'unnamed'}) is not in {path}, left as is")
+    for label, *_ in plan:
+        print(f"CHANGE: {label}")
+    if not plan:
+        print(f"OK: {len(wanted)} static lease(s) match {path}")
+    suffix = "" if args.yes or not plan else " (dry run, add --yes to apply)"
+    print(f"summary: {len(plan)} change(s), mode=leases{suffix}")
+    if not plan or not args.yes:
+        return 0
+    require_settings(box)
+    for label, method, lease_path, body in plan:
+        box.call(method, lease_path, body)
+        print(f"OK: {label}")
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--base-url", default=DEFAULT_URL)
@@ -347,6 +426,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     lan_ip.add_argument("--dhcp-first", type=int, default=100, help="first host number of the DHCP pool")
     lan_ip.add_argument("--dhcp-last", type=int, default=199, help="last host number of the DHCP pool")
     lan_ip.add_argument("--yes", action="store_true")
+    leases = sub.add_parser("leases", help="reconcile the static DHCP leases with a private inventory")
+    # Outside the repository: MAC addresses do not belong in a public repo.
+    leases.add_argument("--file", default=os.path.join(os.environ.get("XDG_CONFIG_HOME") or "~/.config",
+                                                       "nabla-compose", "freebox-leases.json"))
+    leases.add_argument("--capture", action="store_true", help="write the current leases to a new --file (0600)")
+    leases.add_argument("--yes", action="store_true")
     args = parser.parse_args(argv)
     # Freebox OS answers invalid_gateway_ip ("L'IP doit être de type 192.168.x.x") to anything else
     # (observed 2026-11-18 on API 16.1): refuse it before the first write.
@@ -364,7 +449,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 COMMANDS = {"discover": cmd_discover, "register": cmd_register, "check": cmd_check,
-            "set-mode": cmd_set_mode, "set-lan-ip": cmd_set_lan_ip, "pin-wan": cmd_pin_wan}
+            "set-mode": cmd_set_mode, "set-lan-ip": cmd_set_lan_ip, "pin-wan": cmd_pin_wan, "leases": cmd_leases}
 
 
 def main(argv: list[str]) -> int:

@@ -66,7 +66,7 @@ case "$*" in
   *"-g GENERAL.CONNECTION"*) echo 'Wired connection' ;;
   *"connection show Wired connection"*)
     if [ "${MOCK_EMPTY_NM_FIELDS:-0}" != 1 ]; then
-      echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
+      echo 'ipv4.dns: 1.1.1.1,1.0.0.1'
       echo 'ipv4.ignore-auto-dns: yes'
     fi ;;
   *) echo 'GENERAL.CONNECTION: Wired connection' ;;
@@ -105,9 +105,9 @@ esac
         self.assertIn("sample_dns_summary failures=2", outcome.stdout)
         self.assertIn("EVIDENCE: Pi-hole local record explains", outcome.stdout)
 
-    def test_dhcp_correct_but_workstation_active_dns_is_quad9(self) -> None:
+    def test_dhcp_correct_but_workstation_active_dns_is_public(self) -> None:
         outcome = self.run_dns(
-            "--workstation", MOCK_ACTIVE_DNS="9.9.9.9 149.112.112.112",
+            "--workstation", MOCK_ACTIVE_DNS="1.1.1.1 1.0.0.1",
         )
         self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
         self.assertIn("domain_name_servers = 172.17.0.1", outcome.stdout)
@@ -117,13 +117,13 @@ esac
         self.assertIn("SKIP: Pi-hole container configuration requires --truenas", outcome.stdout)
         self.assertNotIn("Pi-hole container", outcome.stdout.split("SKIP:")[0])
 
-    def test_quad9_only_does_not_prove_private_int_resolution(self) -> None:
+    def test_public_dns_only_does_not_prove_private_int_resolution(self) -> None:
         outcome = self.run_dns(
-            "--workstation", MOCK_ACTIVE_DNS="9.9.9.9 149.112.112.112",
+            "--workstation", MOCK_ACTIVE_DNS="1.1.1.1 1.0.0.1",
             MOCK_PRIVATE_SYS="missing",
         )
         self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
-        self.assertIn("Quad9/public DNS alone is not sufficient", outcome.stdout)
+        self.assertIn("public DNS (Cloudflare) alone is not sufficient", outcome.stdout)
         self.assertIn("DNS differs from pfSense", outcome.stdout)
         self.assertIn("sample_dns_summary failures=0 warnings=2", outcome.stdout)
 

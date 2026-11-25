@@ -36,9 +36,9 @@ class PublicDnsEvidenceContract(unittest.TestCase):
 
     def test_timeout_and_servfail_do_not_claim_absence(self):
         with mock.patch.object(module.subprocess, "run", side_effect=subprocess.TimeoutExpired("dig", 5)):
-            self.assertEqual(module.resolve_query("s3.int.albandrieu.com", "9.9.9.9", "A"), "unknown")
+            self.assertEqual(module.resolve_query("s3.int.albandrieu.com", "1.0.0.1", "A"), "unknown")
         with mock.patch.object(module.subprocess, "run", return_value=fake_response(status="SERVFAIL")):
-            self.assertEqual(module.resolve_query("s3.int.albandrieu.com", "9.9.9.9", "A"), "unknown")
+            self.assertEqual(module.resolve_query("s3.int.albandrieu.com", "1.0.0.1", "A"), "unknown")
 
     def test_disagreeing_recursors_are_unknown(self):
         def fake(name, resolver, rrtype):

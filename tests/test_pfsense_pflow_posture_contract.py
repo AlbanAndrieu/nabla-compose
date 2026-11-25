@@ -42,7 +42,7 @@ class PflowPostureContract(unittest.TestCase):
 
     def test_whatsapp_dns_comparison_is_bounded_and_read_only(self):
         content = WORKSTATION.read_text(encoding="utf-8")
-        self.assertIn("172.17.0.1 9.9.9.9", content)
+        self.assertIn("172.17.0.1 1.1.1.1", content)
         self.assertIn("dig +time=2 +tries=1", content)
         self.assertIn("dns_comparison=NOT_RUN", content)
         self.assertIn("a_records=", content)

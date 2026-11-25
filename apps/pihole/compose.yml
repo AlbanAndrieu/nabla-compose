@@ -52,10 +52,12 @@ services:
       # Never forward the private zone upstream: it would come back here and loop until timeout.
       FTLCONF_misc_dnsmasq_lines: "local=/int.albandrieu.com/"
       # Never 172.17.0.1: since pfSense left (2026-11-18) it is the R7000, which relays
-      # the LAN to this Pi-hole, so forwarding there loops. AdGuard Home (:553, Quad9 DoH) first.
+      # the LAN to this Pi-hole, so forwarding there loops. AdGuard Home (:553, DoH) first.
       # Same for conditional forwarding: dns.revServers stays [] (cleared 2026-11-20 in
       # pihole.toml); FTLCONF has no documented empty-array form, so it is not pinned here.
-      FTLCONF_dns_upstreams: "172.17.0.24#553;9.9.9.9"
+      # Quad9 stopped serving France on 2026-11-24 (9.9.9.9 times out, its DoH answers 403):
+      # Cloudflare is the fallback, and AdGuard's own upstream must not be Quad9 either.
+      FTLCONF_dns_upstreams: "172.17.0.24#553;1.1.1.1"
       # The whole LAN arrives from one client (the R7000 relay): the 1000/60 s default throttles it.
       FTLCONF_dns_rateLimit_count: "6000"
     ports:

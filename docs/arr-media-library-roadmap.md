@@ -21,7 +21,7 @@
    (`network_mode: service:gluetun`). Le pare-feu de Gluetun assure le kill
    switch. Les autres services TrueNAS et le LAN ne sont pas touchés.
 2. **DNS over TLS émis dans le tunnel.** Le résolveur intégré de Gluetun
-   (DoT vers Quad9) ne sort que par l'interface VPN. Ni pfSense, ni Pi-hole, ni
+   (DoT vers Cloudflare) ne sort que par l'interface VPN. Ni pfSense, ni Pi-hole, ni
    les résolveurs de secours de TrueNAS ne voient les requêtes du client torrent.
    Pas de forwarder DNS supplémentaire sur TrueNAS.
 3. **Indexeurs via le proxy HTTP de Gluetun.** Prowlarr reste sur le réseau
@@ -183,7 +183,7 @@ topologie et son espace libre sont `NOT_VERIFIED` (D3).
 │  namespace « acquisition » (projet Compose apps/media-acquisition)          │
 │  ┌──────────────────────────────────────────────────┐                       │
 │  │ gluetun     interface VPN + kill switch          │◄─ proxy HTTP :8888 ───┼─ prowlarr
-│  │             DNS 127.0.0.1 → DoT Quad9 via VPN    │   (réseau arr)        │  (+ flaresolverr si requis)
+│  │             DNS 127.0.0.1 → DoT Cloudflare via VPN    │   (réseau arr)        │  (+ flaresolverr si requis)
 │  │ qbittorrent WebUI :8080, liée à l'interface VPN  │◄─ API :8080 ──────────┼─ radarr / sonarr / lidarr
 │  └──────────────────────────────────────────────────┘                       │
 │                                                                             │
@@ -226,7 +226,7 @@ flowchart BT
     PVPN["ProtonVPN<br/>serveur P2P, port redirigé"]
     SWARM["Pairs et trackers<br/>BitTorrent"]
     IDX["Indexeurs torrent"]
-    Q9["Quad9<br/>DNS over TLS"]
+    Q9["Cloudflare<br/>DNS over TLS"]
   end
 
   subgraph NETW["Vu avec l'IP WAN du foyer"]
@@ -306,7 +306,7 @@ flowchart BT
 | Flux | Dans ProtonVPN ? | Raison |
 | --- | --- | --- |
 | qBittorrent : pairs, trackers, DHT | **Oui**, obligatoire | c'est le flux qui expose l'IP aux autres pairs et aux sociétés de surveillance |
-| DNS de qBittorrent et du proxy (DoT Quad9) | **Oui** | ni le FAI ni Quad9 ne voient l'IP du foyer |
+| DNS de qBittorrent et du proxy (DoT Cloudflare) | **Oui** | ni le FAI ni Cloudflare ne voient l'IP du foyer |
 | Prowlarr vers les indexeurs (recherche, fichiers `.torrent`) | **Oui**, via le proxy :8888 | les recherches révèlent les titres recherchés |
 | FlareSolverr (si nécessaire) | **Oui**, selon §6.3 | il visite les mêmes indexeurs |
 | Radarr, Sonarr, Lidarr vers TMDB, TVDB, MusicBrainz, Servarr | Non (option N3) | métadonnées publiques ; les API limitent souvent les IP VPN |
@@ -333,7 +333,7 @@ avec la pile \*arr : à traiter, si besoin, dans `ansible-workstation`.
 
 | Zone | Clients | Résolveur | Transport | Qui voit les requêtes |
 | --- | --- | --- | --- | --- |
-| Acquisition | qBittorrent (trackers, DHT), proxy HTTP Gluetun (requêtes de Prowlarr) | DNS intégré de Gluetun | DoT vers Quad9, **dans** le tunnel | Quad9, qui ne voit que l'IP de sortie VPN. Ni le FAI, ni pfSense, ni Pi-hole. |
+| Acquisition | qBittorrent (trackers, DHT), proxy HTTP Gluetun (requêtes de Prowlarr) | DNS intégré de Gluetun | DoT vers Cloudflare, **dans** le tunnel | Cloudflare, qui ne voit que l'IP de sortie VPN. Ni le FAI, ni pfSense, ni Pi-hole. |
 | Homelab | Radarr, Sonarr, Bazarr, Seerr, serveur média, autres conteneurs, TrueNAS | DNS Docker, puis pfSense Unbound `172.17.0.1` ; `int.albandrieu.com` vers Pi-hole | récursif depuis le WAN (inchangé) | Serveurs autoritatifs et FAI : noms de domaine des API de métadonnées. Les titres restent dans HTTPS. |
 | Clients LAN | postes, nœuds Talos… | pfSense Unbound | inchangé | inchangé |
 
@@ -364,8 +364,9 @@ avec la pile \*arr : à traiter, si besoin, dans `ansible-workstation`.
 Référence : [options DNS de Gluetun](https://github.com/qdm12/gluetun-wiki/blob/main/setup/options/dns.md).
 À revérifier sur la version épinglée.
 
-- `DNS_UPSTREAM_RESOLVER_TYPE=dot` et `DNS_UPSTREAM_RESOLVERS=quad9` (défaut :
-  `cloudflare`) ;
+- `DNS_UPSTREAM_RESOLVER_TYPE=dot` et `DNS_UPSTREAM_RESOLVERS=cloudflare` (défaut de
+  Gluetun ; Quad9 jusqu'au 25/11/2026, retiré parce que Quad9 ne sert plus la France
+  depuis le 24/11) ;
 - `DNS_UPSTREAM_IPV6=off` et `BLOCK_MALICIOUS=on` ;
 - **ne jamais définir** `DNS_UPSTREAM_PLAIN_ADDRESSES` vers Pi-hole, pfSense
   ou une IP de bridge. La documentation de Gluetun prévient que le DNS peut
@@ -851,7 +852,7 @@ Ordre de déploiement mis à jour :
 - Le VPN protège la vie privée vis-à-vis du FAI et des pairs. Il ne change pas
   le statut juridique des contenus. En France, l'Arcom surveille les réseaux P2P
   publics : télécharger uniquement des contenus que l'on a le droit d'obtenir.
-- La confiance est transférée au fournisseur VPN et à Quad9.
+- La confiance est transférée au fournisseur VPN et à Cloudflare.
 - Les requêtes de métadonnées (TMDB, TVDB, serveurs Servarr) et de sous-titres
   sortent par le WAN. Elles révèlent l'IP et l'intérêt pour certains titres à
   ces API. Accepté par défaut ; sinon, option N3.
