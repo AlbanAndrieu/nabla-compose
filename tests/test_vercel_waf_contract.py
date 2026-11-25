@@ -17,12 +17,17 @@ class BababouWafContract(unittest.TestCase):
         cls.terragrunt = TERRAGRUNT.read_text(encoding="utf-8")
         cls.runbook = RUNBOOK.read_text(encoding="utf-8")
 
-    def test_sqli_xss_rce_are_blocking_and_enabled(self):
+    def test_enterprise_owasp_is_explicit_opt_in(self):
+        self.assertRegex(
+            self.config,
+            r'variable "enable_owasp_blocking"\s*\{[^}]*default\s*=\s*false',
+        )
+        self.assertIn('var.enable_owasp_blocking ? "deny" : "log"', self.config)
         for group in ("sqli", "xss", "rce"):
             with self.subTest(group=group):
                 self.assertRegex(
                     self.config,
-                    rf'\b{group}\s*=\s*\{{\s*action\s*=\s*"deny",\s*active\s*=\s*true\s*\}}',
+                    rf'\b{group}\s*=\s*\{{\s*action\s*=\s*local.owasp_attack_action,\s*active\s*=\s*true\s*\}}',
                 )
         self.assertRegex(
             self.config,
@@ -46,7 +51,7 @@ class BababouWafContract(unittest.TestCase):
         self.assertRegex(self.config, r'\bwindow\s*=\s*60\b')
         self.assertIn('keys   = ["ip"]', self.config)
         self.assertIn('algo   = "fixed_window"', self.config)
-        self.assertIn('action_duration = "1m"', self.config)
+        self.assertNotRegex(self.config, r'(?m)^\\s*action_duration\\s*=')
         self.assertIn('action = "deny"', self.config)
 
     def test_only_verified_custom_domains_no_preview(self):
