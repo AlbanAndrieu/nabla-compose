@@ -1,8 +1,8 @@
 # Vercel WAF — Bababou (owner: nabla-compose)
 
-**CODED / IMPORTED, NOT APPLIED** (26 November 2026). This unit owns the Vercel firewall of the existing `nabla-site-bababou` project. The Next.js application, tests and deployments remain in `nabla-site-bababou`. Production has NOT been modified by this PR.
+**CODED / IMPORT REPORTED, NOT APPLIED** (26 November 2026). This unit declares the Vercel firewall of the existing `nabla-site-bababou` project. The Next.js application, tests and deployments remain in `nabla-site-bababou`. Production has NOT been modified by this PR.
 
-**Incident du 22/11 :** la roadmap [H04](../../docs/roadmap.md) confirme que l'import du WAF a été effectué dans l'état Terraform et que l'apply initial a retourné `payment_required` (règles OWASP managées hors forfait). **Ne pas recommencer l'import** : vérifier l'état Garage avec `state list`. Le connecteur Vercel confirme le 26/11 que le WAF de production est inchangé (SQLi/XSS/RCE toujours en `log`, aucune règle de rate limiting).
+**Incident du 22/11 :** la roadmap [H04](../../docs/roadmap.md) confirme que l'import du WAF a été effectué dans l'état Terraform et que l'apply initial a retourné `payment_required` (règles OWASP managées hors forfait). **Ne pas recommencer l'import** : l'import est attesté par la roadmap, mais l'état Garage n'a pas été consulté dans cette session. Vérifier avec `state list` avant toute modification. Le connecteur Vercel confirme le 26/11 que le WAF de production est inchangé (SQLi/XSS/RCE toujours en `log`, aucune règle de rate limiting).
 
 ## Live configuration observed before this PR
 
@@ -59,13 +59,29 @@ python3 scripts/security/check_vercel_waf.py --phase enforced --live
 
 All phases are **read-only** and fail closed on policy drift. An `enforced` PASS is not a replacement for testing actual WAF response behavior.
 
+## GitHub Actions static validation (no secrets)
+
+The dedicated `vercel-waf-ci.yml` workflow validates `tofu fmt`, the pinned
+Vercel provider schema (`tofu init -backend=false`, `tofu validate`) and the
+Python policy contracts on pull requests. It deliberately does **not** access
+Garage, obtain a Vercel API token, import state, create a plan against live
+infrastructure or call `apply`. A green workflow is necessary but not
+sufficient for production acceptance.
+
+Before any operator apply, compare the imported state, existing WAF rule IDs,
+provider output and the exact reviewed plan. A full-config Vercel WAF resource
+may re-submit unchanged managed-ruleset fields; if Vercel returns
+`payment_required` even for the rate-only change, stop and preserve production
+rather than forcing a paid capability or replacing the whole WAF via API.
+
 ## Adoption and rollout — already imported on 22/11; do not import again
 
 1. Run the read-only `baseline` guard, inventory the live WAF and verify the operator state belongs to this exact project. If any new human-made rule exists, reconcile the HCL before proceeding.
 2. From a single operator workstation with Garage access, verify `terraform`/`tofu`, `terragrunt`, credentials, and state ownership. Execute:
 
    ```bash
-   python3 -m unittest tests.test_vercel_waf_contract -v\n   python3 -m unittest discover -s tests -p 'test_vercel_waf_preflight.py' -v
+   python3 -m unittest tests.test_vercel_waf_contract -v
+   python3 -m unittest discover -s tests -p 'test_vercel_waf_preflight.py' -v
    tofu -chdir=terraform/vercel-waf fmt -check
    tofu -chdir=terraform/vercel-waf init -backend=false -input=false
    tofu -chdir=terraform/vercel-waf validate
