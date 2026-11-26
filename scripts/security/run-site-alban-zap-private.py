@@ -327,6 +327,7 @@ def import_existing(run_id: str, manifest: dict) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     actions = parser.add_mutually_exclusive_group()
+    actions.add_argument("--check", action="store_true", help="offline policy check (default)")
     actions.add_argument("--run", action="store_true", help="scan and retain full reports")
     actions.add_argument("--retry-import", metavar="RUN_ID", help="reimport archived XML")
     actions.add_argument("--verify-import", metavar="RUN_ID", help="poll an existing async import without resubmitting")
