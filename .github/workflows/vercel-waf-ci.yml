@@ -1,0 +1,64 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Bababou Vercel WAF static checks
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - terraform/vercel-waf/**
+      - infrastructure/vercel-waf/**
+      - scripts/security/check_vercel_waf.py
+      - tests/test_vercel_waf_contract.py
+      - tests/test_vercel_waf_preflight.py
+      - .github/workflows/vercel-waf-ci.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bababou-waf-static-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: WAF HCL + offline policy contracts (no credentials)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup pinned OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
+
+      - name: Python syntax and offline policy tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/security/check_vercel_waf.py tests/test_vercel_waf_preflight.py tests/test_vercel_waf_contract.py
+          python3 -m unittest tests.test_vercel_waf_contract -v
+          python3 -m unittest discover -s tests -p 'test_vercel_waf_preflight.py' -v
+
+      - name: OpenTofu formatting
+        run: tofu fmt -check -diff terraform/vercel-waf
+
+      - name: Initialize pinned Vercel provider without backend
+        working-directory: terraform/vercel-waf
+        run: tofu init -backend=false -input=false -no-color
+
+      - name: Validate provider schema without backend
+        working-directory: terraform/vercel-waf
+        run: tofu validate -no-color
+
+      # No Vercel token, remote Garage state, production plan or apply in CI.
