@@ -51,7 +51,7 @@ class BababouWafContract(unittest.TestCase):
         self.assertRegex(self.config, r'\bwindow\s*=\s*60\b')
         self.assertIn('keys   = ["ip"]', self.config)
         self.assertIn('algo   = "fixed_window"', self.config)
-        self.assertNotRegex(self.config, r'(?m)^\\s*action_duration\\s*=')
+        self.assertNotRegex(self.config, r'(?m)^\s*action_duration\s*=')
         self.assertIn('action = "deny"', self.config)
 
     def test_only_verified_custom_domains_no_preview(self):
