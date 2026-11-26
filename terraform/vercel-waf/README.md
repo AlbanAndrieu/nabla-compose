@@ -63,7 +63,7 @@ All phases are **read-only** and fail closed on policy drift. An `enforced` PASS
 
 The dedicated `vercel-waf-ci.yml` workflow validates `tofu fmt`, the pinned
 Vercel provider schema (`tofu init -backend=false`, `tofu validate`) and the
-Python policy contracts on pull requests. It deliberately does **not** access
+Python policy and plan-rejection contracts on pull requests. It deliberately does **not** access
 Garage, obtain a Vercel API token, import state, create a plan against live
 infrastructure or call `apply`. A green workflow is necessary but not
 sufficient for production acceptance.
@@ -95,7 +95,31 @@ rather than forcing a paid capability or replacing the whole WAF via API.
    `tofu init -backend=false` is **configuration validation only**, not Garage initialization. **Do not run `import` again** when `state list` already shows the firewall resource. State writes must never run on two workstations.
 
 3. Examine the complete plan. With default `enable_owasp_blocking=false`, the ONLY intended change is insertion of **one** non-persistent rate-limit rule on the three custom domains; SQLi/XSS/RCE must remain `log`. With Enterprise approval and `enable_owasp_blocking=true`, a separate future plan may additionally change SQLi/XSS/RCE `log → deny`. **STOP** if bot protection is disabled, generic detection changes, other managed classes are activated, a domain/route or unrelated rule is removed, the provider attempts a resource replacement, or a plan/entitlement requirement is unsupported.
-4. Apply only with the exact reviewed state on the designated workstation and the operator's approval, through:
+4. **Automated local plan gate (rate-only):** generate a private plan against the
+   already-imported Garage state. The checker accepts only an in-place update
+   that introduces the **one** approved 300/min/IP rule, while leaving OWASP,
+   Bot Protection and every other property unchanged.
+
+   ```bash
+   umask 077
+   review_dir="$(mktemp -d)"
+   trap 'rm -rf -- "$review_dir"' EXIT
+   review_plan="$review_dir/bababou-waf.tfplan"
+
+   scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf plan \
+     -input=false -out="$review_plan"
+   (cd infrastructure/vercel-waf && terragrunt show -json "$review_plan") |
+     python3 scripts/security/check_vercel_waf_plan.py
+   ```
+
+   **STOP** unless the checker returns `WAF_PLAN_ALLOWED`. Its contract is
+   intentionally narrow: it does not approve an Enterprise OWASP rollout or
+   a provider reconciliation that changes unrelated attributes. `tofu show
+   -json` includes sensitive state metadata: **never** publish its output,
+   redirect it to Actions logs, or commit the plan. Review the exact
+   human-readable plan separately before any apply.
+
+5. Apply only with the exact reviewed state on the designated workstation and the operator's approval, through:
 
    ```bash
    scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf apply
