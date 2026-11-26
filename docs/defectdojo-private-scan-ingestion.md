@@ -130,6 +130,73 @@ n'atteste pas la création des findings : vérifier le résultat du parseur,
 les endpoints, la déduplication et la fermeture des findings dans l'UI
 privée. **État : CODED / NOT_RUN / NOT_IMPORTED.**
 
+### Chaîne native complète ZAP → TrueNAS → DefectDojo (26/11/2026)
+
+La commande d'orchestration est
+`scripts/security/run-site-alban-zap-private.py`.
+Contrairement au collecteur GitHub, **aucun finding ni preuve HTTP n'est
+expurgé dans cette chaîne privée**. Le scan conserve sous
+`/mnt/cpool/defectdojo/private-zap/site-alban/runs/<run_id>/` :
+
+- `report-full.xml` (**traditional-xml-plus**, requêtes et réponses), document importé dans DefectDojo ;
+- `report-full.json` et `report-full.html` (données HTTP détaillées) ;
+- `report.xml`, `report.json`, `report.html` et `report.md` (sorties standards ZAP) ;
+- `console.log`, `manifest.json` et les empreintes SHA-256, le reçu d'import
+  `defectdojo-response.json` et les réponses de suivi du Test.
+
+Les rapports survivent aux erreurs ZAP, HTTP et DefectDojo. Aucun purgeur
+automatique n'est installé. Le wrapper accepte les scans avec avertissements
+ou règles FAIL (codes ZAP 0, 1 ou 2) si **tous** les rapports sont produits ;
+les erreurs de scanner, fichiers absents ou XML invalides sont archivés
+avec l'état `INCOMPLETE`/`INVALID_XML` sans import.
+
+Exécution manuelle sur **TrueNAS** après déploiement du checkout :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/security/run-site-alban-zap-private.py --check
+
+# Remplacer 123 par le vrai engagement déjà existant dans DefectDojo.
+# Le fichier d'authentification DefectDojo reste privé :
+# /mnt/cpool/secrets/runtime/defectdojo/import-token
+sudo env NABLA_ZAP_PRIVATE_SCAN_APPROVED=YES \
+  NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES \
+  DEFECTDOJO_ENGAGEMENT_ID=123 \
+  python3 scripts/security/run-site-alban-zap-private.py --run
+
+# Si l'import a échoué, préserver le scan et le retransmettre sans rescanner :
+sudo env NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES \
+  DEFECTDOJO_ENGAGEMENT_ID=123 \
+  python3 scripts/security/run-site-alban-zap-private.py --retry-import <RUN_ID>
+
+# Si l'API a renvoyé un import asynchrone : revérifier sans nouveau POST :
+sudo python3 scripts/security/run-site-alban-zap-private.py --verify-import <RUN_ID>
+```
+
+Pour un site protégé par Vercel, fournir
+`NABLA_ZAP_VERCEL_BYPASS_FILE` pointant vers un fichier privé
+`0600` contenant le token Automation Bypass. Le token ne doit pas
+figurer dans la ligne de commande, les rapports publics ni dans Git.
+
+**Planification sans deuxième Cron** : le Cron horaire existant
+`scripts/cron.sh` lance ce scan le **samedi à 06:00 (heure de TrueNAS)**
+uniquement si `NABLA_CRON_ZAP_PRIVATE_ENABLED=true` et
+`NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID=<ID>` sont présents dans son
+environnement. Le job active l'import natif automatique après archivage.
+Ne pas activer cette option avant déploiement, installation du token
+DefectDojo et vérification Docker.
+
+**Sémantique du résultat** : l'importeur garde le corps complet de la
+réponse API dans l'archive privée, avec le Test ID. Le runner exige
+soit un résultat synchrone avec statistiques, soit un Test asynchrone
+ayant atteint `Processed` via `GET /api/v2/tests/{id}/`. Si le traitement
+reste en cours, il marque `PENDING` : un HTTP `2xx` n'est pas un
+faux `CONFIRMED`. On peut reprendre la vérification sans rescanner.
+
+**Statut : code préparé dans Compose #451, non exécuté sur TrueNAS.**
+La CI hors ligne ne valide ni la disponibilité Docker, ni la résolution
+TLS privée, ni le parseur DefectDojo de l'instance réelle.
+
 ## CTEM — checkdmarc JSON normalisé et import contrôlé (21/11/2026)
 
 Le workflow GitHub `external-attack-surface.yml` exécute
