@@ -122,7 +122,7 @@ class NativeZapPipelineTests(unittest.TestCase):
         self.assertIn("NABLA_CRON_ZAP_PRIVATE_ENABLED", cron)
         self.assertIn("NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID", cron)
         self.assertIn("run_weekly_private_zap || status=1", cron)
-        self.assertIn('[[ "$weekday" == 6 && "$hour" == 06 ]]', cron)
+        self.assertIn('[[ "${weekday}" == 6 && "${hour}" == 06 ]]', cron)
         self.assertIn("NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES", cron)
         syntax = subprocess.run(["bash", "-n", str(ROOT / "scripts/cron.sh")],
                                 capture_output=True, text=True, check=False)
