@@ -34,3 +34,24 @@ def zap_started(zap, target):
     if str(response).strip().lower() != "ok":
         raise RuntimeError("ZAP_THROTTLE_NOT_ENABLED")
     return zap, target
+
+def zap_pre_shutdown(zap):
+    """Produce PLUS evidence while the ZAP daemon still holds HTTP messages.
+
+    Standard -x/-J/-r reports are preserved as fallbacks, but native
+    report-full.xml is the authoritative input for DefectDojo.
+    """
+    for template, filename in (
+        ("traditional-xml-plus", "report-full.xml"),
+        ("traditional-json-plus", "report-full.json"),
+        ("traditional-html-plus", "report-full.html"),
+    ):
+        result = zap.reports.generate(
+            title="Site Alban private DAST full evidence",
+            template=template,
+            reportfilename=filename,
+            reportdir="/zap/wrk",
+            display="false",
+        )
+        if not result:
+            raise RuntimeError("ZAP_FULL_REPORT_NOT_GENERATED")
