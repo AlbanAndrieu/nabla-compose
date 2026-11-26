@@ -70,7 +70,8 @@ class NativeZapPipelineTests(unittest.TestCase):
 
     def test_report_archive_is_immutable_and_has_verifiable_checksums(self):
         with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory)
+            run_dir = Path(directory) / "20261126T010000Z-01234567"
+            run_dir.mkdir()
             sample = run_dir / "report.xml"
             sample.write_bytes(XML)
             first = runner.digest(sample)
@@ -91,12 +92,18 @@ class NativeZapPipelineTests(unittest.TestCase):
         self.assertIn('"report.json"', source)
         self.assertIn('"report.html"', source)
         self.assertIn('"report.md"', source)
+        for output in ("report-full.xml", "report-full.json", "report-full.html"):
+            self.assertIn('"' + output + '"', source)
         self.assertIn('"console.log"', source)
+        hook = (ROOT / "scripts/security/zap-site-alban-rate-limit-hook.py").read_text()
+        for template in ("traditional-xml-plus", "traditional-json-plus", "traditional-html-plus"):
+            self.assertIn(template, hook)
         self.assertIn('"--hook=/zap/wrk/rate-limit-hook.py"', source)
         self.assertIn('"--retry-import"', source)
         self.assertIn('reports_retained=true', source)
         self.assertNotIn('shutil.rmtree', source)
-        self.assertNotIn('unlink(', source)
+        self.assertNotIn('rmtree(', source)
+        self.assertNotIn('report-full.xml").unlink', source)
 
     def test_importer_retains_response_and_reimport_does_not_close_old_findings(self):
         importer = IMPORTER_PATH.read_text(encoding="utf-8")
