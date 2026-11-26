@@ -19,8 +19,9 @@ JOB = {
     "description": NAME,
     "user": "root",
     "enabled": False,
+    # Hidden streams: cron-notify.sh reports a failure to OpenClaw, success stays silent.
     "stdout": True,
-    "stderr": False,
+    "stderr": True,
     "schedule": {
         "minute": "50",
         "hour": "06",
@@ -29,6 +30,7 @@ JOB = {
         "dow": "*",
     },
     "command": (
+        f"bash /mnt/cpool/compose/nabla-compose/scripts/truenas/cron-notify.sh {NAME} -- "
         "/usr/bin/python3 "
         "/mnt/cpool/compose/nabla-compose/scripts/security/"
         "run-nabla-github-app-cron.py --run"

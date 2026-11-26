@@ -22,6 +22,7 @@ CTEM_MAIL_ENABLED="${NABLA_CRON_CTEM_MAIL_ENABLED:-false}"
 ZAP_PRIVATE_ENABLED="${NABLA_CRON_ZAP_PRIVATE_ENABLED:-false}"
 ZAP_PRIVATE_ENGAGEMENT="${NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID:-}"
 OPENTOFU_DRIFT_ENABLED="${NABLA_CRON_OPENTOFU_DRIFT_ENABLED:-true}"
+CONVERGE_ENABLED="${NABLA_CRON_CONVERGE_ENABLED:-true}"
 OPENTOFU_DRIFT_ALERTMANAGER_URL="${NABLA_CRON_OPENTOFU_DRIFT_ALERTMANAGER_URL:-http://172.17.0.24:9093}"
 FASTAPI_CLOUD_URL="${NABLA_CRON_FASTAPI_CLOUD_URL:-https://fastapi-sample.fastapicloud.dev}"
 FASTAPI_REMOTE="${NABLA_CRON_FASTAPI_REMOTE:-https://github.com/AlbanAndrieu/fastapi-sample.git}"
@@ -82,6 +83,21 @@ if command -v docker >/dev/null 2>&1; then
   fi
 fi
 
+# Converge a TrueNAS declaration every hour: idempotent, and it repairs UI edits.
+# Hourly rather than on a diff: the first run after a merge still executes the
+# sync_checkout bash loaded before the pull.
+converge() {
+  local script="$1" output changes
+  [[ "${CONVERGE_ENABLED}" == true ]] || return 0
+  if output="$(sudo -n python3 "${SCRIPT_DIR}/truenas/${script}" --apply 2>&1)"; then
+    changes="$(grep -cE '^(CREATED|UPDATED|DELETED|SENT)' <<<"${output}" || true)"
+    [[ "${changes}" == 0 ]] || log_info "${script}: ${changes} change(s) applied."
+  else
+    log_error "${script}: $(tail -n 1 <<<"${output}")"
+    return 1
+  fi
+}
+
 sync_checkout() {
   local local_sha remote_sha merge_output reload
 
@@ -122,7 +138,6 @@ sync_checkout() {
   if ! git diff --quiet "${local_sha}" HEAD -- apps/prometheus/prometheus.yml apps/prometheus/rules/; then
     log_info "Prometheus: $(sudo -n bash "${SCRIPT_DIR}/truenas/reload-prometheus-rules.sh" apply 2>&1 | tail -n 1)"
   fi
-
   if git diff --quiet "${local_sha}" HEAD -- bootstrap/ docker-compose-truenas.yml .doco-cd.yaml; then
     log_info "Checkout synchronized; no Doco-CD configuration changed."
   else
@@ -381,6 +396,9 @@ sync_checkout || {
 report_apps
 report_recent_containers
 if [[ "${synced}" == true ]]; then
+  # Second exception to "plan only", after the Prometheus reload.
+  converge reconcile-mail-settings.py || status=1
+  converge reconcile-cron-jobs.py || status=1
   run_weekly_ctem_amass || status=1
   run_weekly_ctem_mail || status=1
   run_weekly_private_zap || status=1
