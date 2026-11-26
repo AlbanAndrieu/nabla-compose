@@ -29,7 +29,8 @@ HOOK = REPO / "scripts/security/zap-site-alban-rate-limit-hook.py"
 IMPORTER = REPO / "scripts/security/import-scan-defectdojo.sh"
 IMAGE = "ghcr.io/zaproxy/zaproxy:2.17.0"
 TARGET = "https://www.albanandrieu.com"
-EXPECTED_REPORTS = ("report.xml", "report.json", "report.html", "report.md")
+EXPECTED_REPORTS = ("report.xml", "report.json", "report.html", "report.md",
+                    "report-full.xml", "report-full.json", "report-full.html")
 RUN_ID_RE = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}$")
 
 
@@ -204,7 +205,7 @@ def import_existing(run_id: str, manifest: dict) -> int:
     if not re.fullmatch(r"[1-9][0-9]*", os.environ.get("DEFECTDOJO_ENGAGEMENT_ID", "")):
         fail("DEFECTDOJO_ENGAGEMENT_ID must be a real existing engagement")
     run_dir = run_dir_for(run_id)
-    source = run_dir / "report.xml"
+    source = run_dir / "report-full.xml"
     counts = validate_xml(source)
     staging = stage_xml(source, run_id)
     if manifest.get("import_state") == "CONFIRMED":
@@ -292,7 +293,7 @@ def main() -> int:
         )
         if completed:
             try:
-                manifest["counts"] = validate_xml(run_dir / "report.xml")
+                manifest["counts"] = validate_xml(run_dir / "report-full.xml")
                 manifest["scan_state"] = "COMPLETE"
             except Exception as exc:
                 manifest["scan_error_type"] = type(exc).__name__
@@ -305,7 +306,7 @@ def main() -> int:
         if manifest["scan_state"] != "COMPLETE":
             return 2
 
-        stage_xml(run_dir / "report.xml", run_id)
+        stage_xml(run_dir / "report-full.xml", run_id)
         if os.environ.get("NABLA_ZAP_PRIVATE_AUTO_IMPORT") == "YES":
             return import_existing(run_id, manifest)
         info("XML staged for later import; NABLA_ZAP_PRIVATE_AUTO_IMPORT is not enabled")
