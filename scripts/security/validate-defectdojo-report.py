@@ -88,8 +88,8 @@ def validate_private_native_zap(data: bytes, approved_hosts: set[str]) -> None:
             for instance in instances:
                 check_url(instance.findtext("uri", ""))
             count += 1
-    if count == 0:
-        raise ValueError("no native ZAP findings to import")
+    # A valid zero-finding scan is still a complete report. Do not lose
+    # remediation/closure evidence just because there were no alerts.
 
 
 def validate(service: str, scanner: str, data: bytes, *, private_zap_native: bool = False) -> None:
@@ -99,7 +99,8 @@ def validate(service: str, scanner: str, data: bytes, *, private_zap_native: boo
     spec = policy["producers"].get(service)
     if not spec or scanner not in spec["allow"] or scanner in policy["deny"]:
         raise ValueError("project/scan parser not on the explicit allowlist")
-    if len(data) == 0 or len(data) > 10_000_000:
+    max_bytes = 100_000_000 if private_zap_native else 10_000_000
+    if len(data) == 0 or len(data) > max_bytes:
         raise ValueError("invalid report size")
     if private_zap_native and scanner != "ZAP Scan":
         raise ValueError("native ZAP profile requires ZAP Scan parser")
