@@ -18,6 +18,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import uuid
 from xml.etree import ElementTree
 
@@ -113,6 +115,72 @@ def validate_xml(path: Path) -> dict:
     return {name: counts.get(code, 0) for code, name in (
         ("0", "info"), ("1", "low"), ("2", "medium"), ("3", "high")
     )}
+
+
+def classify_import_response(body: object) -> str:
+    """Keep API acceptance distinct from confirmed persistence of findings."""
+    if not isinstance(body, dict):
+        return "UNVERIFIED"
+    if body.get("status") == "Failed":
+        return "FAILED"
+    if body.get("status") == "Processed":
+        return "CONFIRMED"
+    if body.get("background_import") is True:
+        return "PENDING"
+    if isinstance(body.get("statistics"), dict):
+        return "CONFIRMED"  # Synchronous API: statistics are computed post-write.
+    return "API_ACCEPTED_UNVERIFIED"
+
+
+def poll_import_test(test_id: int, run_dir: Path) -> str:
+    """Inspect async processing state; save every JSON status in the archive."""
+    token_file = Path(os.environ.get(
+        "DEFECTDOJO_IMPORT_TOKEN_FILE",
+        "/mnt/cpool/secrets/runtime/defectdojo/import-token",
+    ))
+    if (token_file.is_symlink() or not token_file.is_file()
+            or token_file.stat().st_uid != 0
+            or token_file.stat().st_mode & 0o777 != 0o600):
+        return "PENDING"  # Response retained; no reimport is triggered.
+    token = token_file.read_text(encoding="utf8").strip()
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf8", delete=False) as config:
+        os.fchmod(config.fileno(), 0o600)
+        config.write('header = "Authorization: Token ' + token + '"\n')
+        config_path = Path(config.name)
+    try:
+        for attempt in range(1, 9):
+            result = subprocess.run(
+                [
+                    "curl", "--config", str(config_path), "--silent",
+                    "--show-error", "--fail-with-body", "--noproxy", "*",
+                    "--proto", "=https", "--max-redirs", "0",
+                    "--resolve", "defectdojo.int.albandrieu.com:443:172.17.0.24",
+                    "--connect-timeout", "5", "--max-time", "20",
+                    f"https://defectdojo.int.albandrieu.com/api/v2/tests/{test_id}/",
+                ],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                check=False, timeout=25,
+            )
+            if result.returncode == 0 and result.stdout:
+                evidence = run_dir / f"defectdojo-test-status-{attempt}.json"
+                with evidence.open("xb") as stream:
+                    os.fchmod(stream.fileno(), 0o600)
+                    stream.write(result.stdout)
+                try:
+                    payload = json.loads(result.stdout)
+                except (ValueError, UnicodeDecodeError):
+                    payload = {}
+                if isinstance(payload, dict):
+                    state = payload.get("status")
+                    if state == "Failed":
+                        return "FAILED"
+                    if state == "Processed" and payload.get("processing") is not True:
+                        return "CONFIRMED"
+            if attempt < 8:
+                time.sleep(4)
+        return "PENDING"
+    finally:
+        config_path.unlink(missing_ok=True)
 
 
 def stage_xml(source: Path, run_id: str) -> Path:
@@ -233,13 +301,26 @@ def import_existing(run_id: str, manifest: dict) -> int:
             env=env, stdout=log, stderr=subprocess.STDOUT,
             timeout=180, check=False,
         )
-    manifest["import_state"] = "API_ACCEPTED" if result.returncode == 0 else "FAILED"
+    state = "FAILED" if result.returncode != 0 else "API_ACCEPTED_UNVERIFIED"
+    payload = {}
+    if receipt.exists() and receipt.stat().st_size > 0:
+        try:
+            payload = json.loads(receipt.read_text(encoding="utf8"))
+        except (ValueError, UnicodeError):
+            payload = {}
+        if result.returncode == 0:
+            state = classify_import_response(payload)
+            if state == "PENDING":
+                test_id = payload.get("test_id") if isinstance(payload, dict) else None
+                if isinstance(test_id, int) and test_id > 0:
+                    state = poll_import_test(test_id, run_dir)
+    manifest["import_state"] = state
     manifest["import_exit_code"] = result.returncode
     manifest["counts"] = counts
     manifest["last_import_receipt"] = receipt.name if receipt.exists() else None
     manifest_write(run_dir, manifest)
-    info(f"run={run_id} import={manifest['import_state']} reports_retained=true")
-    return 0 if result.returncode == 0 else 1
+    info(f"run={run_id} import={state} reports_retained=true")
+    return 0 if state == "CONFIRMED" else 1
 
 
 def main() -> int:
@@ -247,6 +328,7 @@ def main() -> int:
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--run", action="store_true", help="scan and retain full reports")
     actions.add_argument("--retry-import", metavar="RUN_ID", help="reimport archived XML")
+    actions.add_argument("--verify-import", metavar="RUN_ID", help="poll an existing async import without resubmitting")
     args = parser.parse_args()
     if not args.run and not args.retry_import:
         info("CHECK_ONLY target=SiteAlban report=XML+JSON+HTML+Markdown; network=false")
@@ -262,6 +344,21 @@ def main() -> int:
         if args.retry_import:
             run_dir = run_dir_for(args.retry_import)
             return import_existing(args.retry_import, load_manifest(run_dir))
+        if args.verify_import:
+            run_dir = run_dir_for(args.verify_import)
+            manifest = load_manifest(run_dir)
+            receipt_name = manifest.get("last_import_receipt")
+            if not isinstance(receipt_name, str) or not receipt_name.startswith("defectdojo-response"):
+                fail("no submitted DefectDojo response found in archive")
+            body = json.loads((run_dir / receipt_name).read_text(encoding="utf8"))
+            test_id = body.get("test_id") if isinstance(body, dict) else None
+            if not isinstance(test_id, int) or test_id <= 0:
+                fail("no async Test ID to verify")
+            state = poll_import_test(test_id, run_dir)
+            manifest["import_state"] = state
+            manifest_write(run_dir, manifest)
+            info(f"run={args.verify_import} import={state} reports_retained=true")
+            return 0 if state == "CONFIRMED" else 1
 
         if os.environ.get("NABLA_ZAP_PRIVATE_SCAN_APPROVED") != "YES":
             fail("NABLA_ZAP_PRIVATE_SCAN_APPROVED=YES required")
