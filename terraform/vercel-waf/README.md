@@ -119,10 +119,10 @@ rather than forcing a paid capability or replacing the whole WAF via API.
    redirect it to Actions logs, or commit the plan. Review the exact
    human-readable plan separately before any apply.
 
-5. Apply only with the exact reviewed state on the designated workstation and the operator's approval, through:
+5. Apply **the exact approved saved plan** only after the local gate and human review, from the **same operator shell** (before its `EXIT` cleanup trap runs), with the operator's approval:
 
    ```bash
-   scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf apply
+   scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf apply "$review_plan"
    ```
 
    The wrapper backs up Garage state before apply. Never use `Vercel PUT` (whole WAF overwrite) or manual dashboard edits while Terragrunt is authoritative. If the provider requests a paid feature, stop; do not upgrade billing automatically.
