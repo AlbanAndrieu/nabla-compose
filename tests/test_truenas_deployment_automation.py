@@ -380,6 +380,8 @@ esac""",
         "NABLA_CRON_LOCK_FILE": str(tmp_path / "cron.lock"),
         "NABLA_CRON_FASTAPI_REMOTE": str(sample_remote),
         "NABLA_CRON_LOG_DIR": str(tmp_path / "logs"),
+        # The daily drift plan fires at 09:00 local time: keep this test clock-independent.
+        "NABLA_CRON_OPENTOFU_DRIFT_ENABLED": "false",
     }
     result = subprocess.run(
         ["bash", str(CRON), str(checkout)],
