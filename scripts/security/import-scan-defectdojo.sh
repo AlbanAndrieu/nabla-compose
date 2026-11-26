@@ -21,9 +21,9 @@ fi
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in --check|--apply) ;; *) fail "usage: bash $0 [--check|--apply] /absolute/report.json" ;; esac
 [[ -n "${REPORT}" && -f "${REPORT}" && ! -L "${REPORT}" && "${REPORT}" == /* ]] || fail "report must be an absolute regular path"
-size="$(stat -c %s "$REPORT")"
+size="$(stat -c %s "${REPORT}")"
 MAX_REPORT_BYTES=10000000
-[[ "$ZAP_IMPORT_PROFILE" != private-native ]] || MAX_REPORT_BYTES=100000000
+[[ "${ZAP_IMPORT_PROFILE}" != private-native ]] || MAX_REPORT_BYTES=100000000
 (( size > 0 && size <= MAX_REPORT_BYTES )) || fail "report size outside the configured profile limit"
 [[ "${SERVICE_ID}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || fail "DEFECTDOJO_SERVICE_ID required"
 [[ "${ENGAGEMENT}" =~ ^[1-9][0-9]*$ ]] || fail "existing DEFECTDOJO_ENGAGEMENT_ID required (no auto-create)"
@@ -82,49 +82,49 @@ umask 077
 config="$(mktemp)"
 response_tmp="$(mktemp)"
 trap 'rm -f "$config" "$response_tmp"' EXIT
-printf 'header = "Authorization: Token %s"\n' "$token" > "$config"
+printf 'header = "Authorization: Token %s"\n' "${token}" > "${config}"
 unset token
 
 # Preserve API response on TrueNAS: HTTP accepted is not necessarily processed.
 RECEIPT_FILE="$(printenv DEFECTDOJO_IMPORT_RECEIPT_FILE || true)"
-if [[ -n "$RECEIPT_FILE" ]]; then
-  [[ "$ZAP_IMPORT_PROFILE" == private-native ]] || fail "receipt mode reserved for private-native ZAP"
-  if [[ ! "$RECEIPT_FILE" =~ ^/mnt/cpool/defectdojo/private-zap/site-alban/runs/[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}/defectdojo-response(-retry-[a-f0-9]{8})?[.]json$ ]]; then
+if [[ -n "${RECEIPT_FILE}" ]]; then
+  [[ "${ZAP_IMPORT_PROFILE}" == private-native ]] || fail "receipt mode reserved for private-native ZAP"
+  if [[ ! "${RECEIPT_FILE}" =~ ^/mnt/cpool/defectdojo/private-zap/site-alban/runs/[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}/defectdojo-response(-retry-[a-f0-9]{8})?[.]json$ ]]; then
     fail "receipt path outside the private archive"
   fi
-  [[ ! -e "$RECEIPT_FILE" && ! -L "$RECEIPT_FILE" ]] || fail "receipt already exists"
-  receipt_dir="$(dirname -- "$RECEIPT_FILE")"
-  [[ -d "$receipt_dir" && ! -L "$receipt_dir" ]] || fail "receipt directory invalid"
-  [[ "$(stat -c %u:%g "$receipt_dir")" == 0:0 && "$(stat -c %a "$receipt_dir")" == 700 ]] ||
+  [[ ! -e "${RECEIPT_FILE}" && ! -L "${RECEIPT_FILE}" ]] || fail "receipt already exists"
+  receipt_dir="$(dirname -- "${RECEIPT_FILE}")"
+  [[ -d "${receipt_dir}" && ! -L "${receipt_dir}" ]] || fail "receipt directory invalid"
+  [[ "$(stat -c %u:%g "${receipt_dir}")" == 0:0 && "$(stat -c %a "${receipt_dir}")" == 700 ]] ||
     fail "receipt directory must be root:root 0700"
 fi
 
-http="$(curl --config "$config" --silent --show-error \
+http="$(curl --config "${config}" --silent --show-error \
   --noproxy '*' "${TRANSPORT[@]}" --max-redirs 0 \
   --connect-timeout 5 --max-time 180 \
-  --output "$response_tmp" --write-out '%{http_code}' \
-  --request POST "$API" \
-  --form-string "engagement=$ENGAGEMENT" \
-  --form-string "scan_type=$SCAN_TYPE" \
-  --form-string "test_title=nabla-$SERVICE_ID-$SCAN_TYPE" \
+  --output "${response_tmp}" --write-out '%{http_code}' \
+  --request POST "${API}" \
+  --form-string "engagement=${ENGAGEMENT}" \
+  --form-string "scan_type=${SCAN_TYPE}" \
+  --form-string "test_title=nabla-${SERVICE_ID}-${SCAN_TYPE}" \
   --form-string "minimum_severity=Info" \
   --form-string "verified=false" \
   --form-string "active=true" \
   --form-string "background_import=false" \
   --form-string "auto_create_context=false" \
   --form-string "close_old_findings=false" \
-  --form "file=@$REPORT;type=$REPORT_MIME")" || fail "private upload transport failed"
+  --form "file=@${REPORT};type=${REPORT_MIME}")" || fail "private upload transport failed"
 
-if [[ -n "$RECEIPT_FILE" ]]; then
-  [[ -s "$response_tmp" ]] || fail "empty DefectDojo response; report retained"
-  cp --no-clobber -- "$response_tmp" "$RECEIPT_FILE"
-  chmod 0600 "$RECEIPT_FILE"
+if [[ -n "${RECEIPT_FILE}" ]]; then
+  [[ -s "${response_tmp}" ]] || fail "empty DefectDojo response; report retained"
+  cp --no-clobber -- "${response_tmp}" "${RECEIPT_FILE}"
+  chmod 0600 "${RECEIPT_FILE}"
 fi
-[[ "$http" == 200 || "$http" == 201 || "$http" == 202 ]] ||
-  fail "DefectDojo API returned HTTP $http; private response retained when configured"
+[[ "${http}" == 200 || "${http}" == 201 || "${http}" == 202 ]] ||
+  fail "DefectDojo API returned HTTP ${http}; private response retained when configured"
 
-if [[ -n "$RECEIPT_FILE" ]]; then
-  python3 - "$RECEIPT_FILE" <<'PY'
+if [[ -n "${RECEIPT_FILE}" ]]; then
+  python3 - "${RECEIPT_FILE}" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -144,4 +144,4 @@ except (ValueError, OSError):
     print("RECEIPT: response unreadable; API accepted but status must be checked")
 PY
 fi
-printf 'API_ACCEPTED: DefectDojo HTTP %s; verify findings and background Test status\n' "$http"
+printf 'API_ACCEPTED: DefectDojo HTTP %s; verify findings and background Test status\n' "${http}"
