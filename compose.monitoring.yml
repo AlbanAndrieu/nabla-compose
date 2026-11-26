@@ -25,36 +25,8 @@ services:
       - "8126:8125"
     networks: [intranet]
 
-  grafana:
-    image: grafana/grafana:12.3.0
-    container_name: grafana
-    user: "0:0"
-    environment:
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_AUTH_DISABLE_LOGIN_FORM: "false"
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/postgres/1-global-db-overview.json
-      GF_INSTALL_PLUGINS: marcusolsson-treemap-panel,grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel
-      # Paused: the Temporal rules query prometheus/loki, absent locally (13k errors in 6 h).
-      GF_UNIFIED_ALERTING_EXECUTE_ALERTS: "false"
-    ports:
-      - "${GRAFANA_PORT:-30037}:3000"
-    restart: unless-stopped
-    volumes:
-      - ./pgwatch/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/pgwatch_dashboards.yml
-      - ./pgwatch/grafana/postgres_datasource.yml:/etc/grafana/provisioning/datasources/postgres_datasource.yml
-      - ./pgwatch/grafana/prometheus_datasource.yml:/etc/grafana/provisioning/datasources/prometheus_datasource.yml
-      - ./pgwatch/grafana/postgres/v12:/var/lib/grafana/dashboards/postgres
-      - ./pgwatch/grafana/prometheus/v12:/var/lib/grafana/dashboards/prometheus
-      - ./temporal/deployment/grafana/dashboards:/var/lib/grafana/dashboards/temporal:ro
-      - ./temporal/deployment/grafana/provisioning/datasources/all.yml:/etc/grafana/provisioning/datasources/temporal_datasources.yml:ro
-      - ./temporal/deployment/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
-      - ./grafana/provisioning/datasources/pyroscope.yml:/etc/grafana/provisioning/datasources/pyroscope.yml
-      - type: bind
-        source: ./temporal/deployment/grafana/grafana.ini
-        target: /etc/grafana/grafana.ini
-        read_only: true
-    networks: [intranet]
-
+  # No Grafana on the workstation: dashboards live on TrueNAS (apps/grafana) and
+  # logs reach them through rsyslog -> Alloy on TrueNAS (UDP 1514) -> Loki.
   github-exporter:
     image: githubexporter/github-exporter:1.0.3
     container_name: github-exporter
