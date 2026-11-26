@@ -9,8 +9,10 @@ on:
       - terraform/vercel-waf/**
       - infrastructure/vercel-waf/**
       - scripts/security/check_vercel_waf.py
+      - scripts/security/check_vercel_waf_plan.py
       - tests/test_vercel_waf_contract.py
       - tests/test_vercel_waf_preflight.py
+      - tests/test_vercel_waf_plan.py
       - .github/workflows/vercel-waf-ci.yml
   workflow_dispatch:
 
@@ -46,9 +48,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/security/check_vercel_waf.py tests/test_vercel_waf_preflight.py tests/test_vercel_waf_contract.py
+          python3 -m py_compile scripts/security/check_vercel_waf.py scripts/security/check_vercel_waf_plan.py tests/test_vercel_waf_preflight.py tests/test_vercel_waf_contract.py tests/test_vercel_waf_plan.py
           python3 -m unittest tests.test_vercel_waf_contract -v
           python3 -m unittest discover -s tests -p 'test_vercel_waf_preflight.py' -v
+          python3 -m unittest discover -s tests -p 'test_vercel_waf_plan.py' -v
 
       - name: OpenTofu formatting
         run: tofu fmt -check -diff terraform/vercel-waf
