@@ -8,7 +8,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = ROOT / "scripts/security/run-site-alban-zap-private.py"
@@ -60,12 +59,11 @@ class NativeZapPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             path = Path(tempdir) / "report.xml"
             path.write_bytes(XML)
-            with mock.patch.object(runner.REPO, "joinpath", wraps=runner.REPO.joinpath):
-                # The report counts are derived from the original native XML.
-                from xml.etree import ElementTree
-                root = ElementTree.parse(path)
-                self.assertEqual(root.findtext(".//responsebody"), "FULL_HTTP_BODY")
-                self.assertEqual(root.findtext(".//riskcode"), "2")
+            # The report retains the original HTTP fields without projecting to public origins.
+            from xml.etree import ElementTree
+            root = ElementTree.parse(path)
+            self.assertEqual(root.findtext(".//responsebody"), "FULL_HTTP_BODY")
+            self.assertEqual(root.findtext(".//riskcode"), "2")
 
     def test_zero_findings_remains_a_valid_complete_private_report(self):
         validator.validate("nabla-site-alban", "ZAP Scan", EMPTY_XML, private_zap_native=True)
