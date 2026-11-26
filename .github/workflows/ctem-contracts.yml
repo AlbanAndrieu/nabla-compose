@@ -170,8 +170,8 @@ jobs:
             scripts/security/pull-ctem-mail-artifact.py \
             scripts/security/render-ctem-amass-html.py \
             scripts/security/project-ctem-mail-findings.py \
-            scripts/security/validate-defectdojo-report.py
-            scripts/security/run-site-alban-zap-private.py
+            scripts/security/validate-defectdojo-report.py \
+            scripts/security/run-site-alban-zap-private.py \
             scripts/security/zap-site-alban-rate-limit-hook.py
           bash -n scripts/security/run-ctem-amass-truenas.sh
           bash -n scripts/security/import-scan-defectdojo.sh
