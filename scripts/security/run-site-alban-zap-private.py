@@ -148,6 +148,7 @@ def poll_import_test(test_id: int, run_dir: Path) -> str:
         config.write('header = "Authorization: Token ' + token + '"\n')
         config_path = Path(config.name)
     try:
+        poll_id = uuid.uuid4().hex[:8]
         for attempt in range(1, 9):
             result = subprocess.run(
                 [
@@ -162,7 +163,7 @@ def poll_import_test(test_id: int, run_dir: Path) -> str:
                 check=False, timeout=25,
             )
             if result.returncode == 0 and result.stdout:
-                evidence = run_dir / f"defectdojo-test-status-{attempt}.json"
+                evidence = run_dir / f"defectdojo-test-status-{poll_id}-{attempt}.json"
                 with evidence.open("xb") as stream:
                     os.fchmod(stream.fileno(), 0o600)
                     stream.write(result.stdout)
@@ -330,7 +331,7 @@ def main() -> int:
     actions.add_argument("--retry-import", metavar="RUN_ID", help="reimport archived XML")
     actions.add_argument("--verify-import", metavar="RUN_ID", help="poll an existing async import without resubmitting")
     args = parser.parse_args()
-    if not args.run and not args.retry_import:
+    if not args.run and not args.retry_import and not args.verify_import:
         info("CHECK_ONLY target=SiteAlban report=XML+JSON+HTML+Markdown; network=false")
         for source in (RULES, HOOK, IMPORTER):
             if not source.is_file():
