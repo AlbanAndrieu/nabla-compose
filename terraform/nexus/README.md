@@ -1,9 +1,11 @@
 # Nexus — dépôts gérés par OpenTofu
 
-**État (23/11/2026) :** jamais appliqué. Nexus 3.92.3 Community sert 9 dépôts
-Maven/NuGet créés à la main (lecture anonyme de
-`/service/rest/v1/repositories`, 23/11) ; aucun dépôt de ce module n'existe, il
-n'y a donc pas de collision de nom au premier `apply`. Unité Terragrunt :
+**État (27/11/2026) :** lots N1 (APT, 7 proxys), N2 (npm : `npm-proxy`,
+`npm-local`, `npm-all`) et N3 (PyPI : `pypi-proxy`, `pypi-local`, `pypi-all`)
+appliqués format par format depuis la workstation ; l'état Garage
+`nexus/tfstate.json` existe et le plan final avec `["apt","npm","pypi"]` répond
+`No changes`. Docker, Hugging Face et Terraform ne sont pas activés. Les 9 dépôts
+Maven/NuGet créés à la main restent hors de ce module. Unité Terragrunt :
 [`infrastructure/nexus`](../../infrastructure/nexus/terragrunt.hcl), état
 `nexus/tfstate.json` dans Garage, cible LAN `https://nexus.int.albandrieu.com`
 ([apps/nexus](../../apps/nexus/README.md)).
@@ -20,27 +22,34 @@ n'y a donc pas de collision de nom au premier `apply`. Unité Terragrunt :
 | `manage_rbac` | non | rôles `global-*`/`docker-*`, utilisateurs `home-ops` et `albandrieu` |
 | `manage_realms` | non | liste des realms actifs (remplace **toute** la liste vivante) |
 
-Élargir un format à la fois : `TF_VAR_enabled_formats='["apt","npm"]'`, plan
-relu, `apply`, réception côté workstation, puis le format suivant. Le test
-hors ligne [`tests/formats.tftest.hcl`](tests/formats.tftest.hcl) fige ce
-contrat (défaut = APT seul, aucun realm/rôle/utilisateur).
+« Défaut » est celui du module. L'unité
+[`infrastructure/nexus`](../../infrastructure/nexus/terragrunt.hcl) fixe
+`enabled_formats = ["apt", "npm", "pypi"]` depuis le 27/11 : retirer un format
+de cette liste **détruit** ses dépôts.
 
-**Realms** : `GET /service/rest/v1/security/realms/active` répond 403 en
-anonyme (23/11) ; la liste vivante n'est pas encore relevée. Avant
-`manage_realms=true`, recopier cette liste à l'identique dans
-[`system.tofu`](system.tofu) : un oubli (par ex. `NuGetApiKey`, utilisé par
-les dépôts NuGet) désactive le realm en production.
+Élargir un format à la fois : l'ajouter à `enabled_formats` dans l'unité, plan
+relu, `apply`, réception côté workstation, puis le format suivant. **Un
+`TF_VAR_enabled_formats` exporté l'emporte sur `inputs`** (Terragrunt n'écrase
+jamais un `TF_VAR_*` existant, vérifié avec 0.95.1) : le retirer avant un plan.
+Le test hors ligne [`tests/formats.tftest.hcl`](tests/formats.tftest.hcl) fige
+le contrat du module (défaut = APT seul, aucun realm/rôle/utilisateur).
+
+**Realms** : relevé admin du 27/11, `NexusAuthenticatingRealm` seul actif (ni
+`NpmToken` ni `DockerToken`). Avant `manage_realms=true`, recopier la liste
+vivante à l'identique dans [`system.tofu`](system.tofu) : un oubli désactive le
+realm en production.
 
 **Utilisateurs** : plus de 1Password ni de mot de passe généré dans l'état.
 Les mots de passe viennent de Vaultwarden par
 `TF_VAR_nexus_user_passwords='{"home-ops":"…","albandrieu":"…"}'` (jamais dans
-Git ni affichés). Si `albandrieu` existe déjà dans Nexus, l'importer avant le
-premier `apply` avec `manage_rbac=true`.
+Git ni affichés). Au 27/11, seuls `admin` et `anonymous` existent : si
+`albandrieu` est créé à la main d'ici là, l'importer avant le premier `apply`
+avec `manage_rbac=true`.
 
 ## Identifiants (Vaultwarden, jamais affichés)
 
 Attendus par [`config/secrets/manifest.json`](../../config/secrets/manifest.json),
-**absents de Vaultwarden au 23/11** (relevé par noms de champs, valeurs non lues) :
+**toujours absents de Vaultwarden au 27/11** :
 
 - `nabla/prod/nexus-infrastructure` : champs `NEXUS_USERNAME`, `NEXUS_PASSWORD`
   (compte admin ou rôle avec `nx-repository-admin-*` et `nx-settings-read` ;
@@ -49,8 +58,11 @@ Attendus par [`config/secrets/manifest.json`](../../config/secrets/manifest.json
   `AWS_SECRET_ACCESS_KEY` de la clé Garage du bucket `opentofu-state` (seuls
   `GARAGE_ADMIN_TOKEN` et `TRUENAS_INFRA_API_KEY` y sont présents).
 
-**À faire par le propriétaire** : créer ces champs. Sans eux le relevé des
-realms et le `plan` restent `NOT_RUN`.
+Le run du 27/11 a utilisé en mémoire le compte `admin` existant (hors
+Vaultwarden) et la clé Garage `opentofu` lue par l'API admin Garage, sans rien
+écrire ni afficher. **À faire par le propriétaire** : créer un compte de service
+Nexus et ces champs, puis changer le mot de passe `admin`. Sans eux, un `plan`
+lancé par un agent reste `NOT_RUN`.
 
 ## Plan en lecture seule (workstation)
 
@@ -63,11 +75,13 @@ export GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY="$(bw get item nabla/prod/infrastru
 unset BW_SESSION
 curl -sS --max-time 10 -K <(printf 'user = "%s:%s"\n' "$NEXUS_USERNAME" "$NEXUS_PASSWORD") \
   https://nexus.int.albandrieu.com/service/rest/v1/security/realms/active
-scripts/infra/terragrunt-safe.sh infrastructure/nexus plan -lock=false -no-color -out=nexus-n1.tfplan
+env -u TF_VAR_enabled_formats scripts/infra/terragrunt-safe.sh infrastructure/nexus plan -lock=false -detailed-exitcode -no-color
 ```
 
-Attendu pour le lot N1 : `Plan: 7 to add, 0 to change, 0 to destroy`, uniquement
-des `sonatyperepo_repository_apt_proxy.apt_proxy[...]`, aucun
+Attendu depuis le 27/11 : `No changes` (code 0). Un `destroy` sur `npm-*` ou
+`pypi-*` signale un `TF_VAR_enabled_formats` encore exporté ou une régression de
+l'unité. Pour un nouveau lot (N4 Docker), ajouter `-out=nexus-n4.tfplan` et
+n'attendre que des créations du format ajouté, aucun
 `sonatyperepo_security_realms`, `sonatyperepo_role` ni `sonatyperepo_user`.
 Pour la PR, ne joindre que les adresses et la ligne `Plan:`
 (`grep -E '^  # |^Plan:'`), jamais le plan binaire ni l'état.
@@ -78,7 +92,7 @@ Pour la PR, ne joindre que les adresses et la ligne `Plan:`
 relu, unité par unité (`terragrunt-safe.sh` sauvegarde l'état Garage avant) :
 
 ```bash
-scripts/infra/terragrunt-safe.sh infrastructure/nexus apply nexus-n1.tfplan
+scripts/infra/terragrunt-safe.sh infrastructure/nexus apply nexus-n4.tfplan
 ```
 
 Réception depuis `ansible-workstation` : `mise run nexus-clients-check`
