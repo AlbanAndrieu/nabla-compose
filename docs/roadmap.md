@@ -46,7 +46,7 @@ Le report P2 provenait de trois incertitudes **techniques**, non d'un arbitrage 
 
 ### 5. H03/H04 — dépendances strictement nécessaires
 
-Matérialiser les secrets de **Dependency-Track/CTEM** dans les fichiers root:root 0600, prouver l'authentification et l'isolation PostgreSQL sans exposer leurs valeurs ; Cloudflare DNS, Tunnel, AppSec et WAF sont validés par contrôles extérieurs négatifs et plans import-first, mais **aucun apply implicite**. WAF Vercel de Bababou : import fait, apply refusé le 22/11 (`payment_required`, OWASP Core Ruleset Enterprise requis), WAF toujours inchangé au contrôle du 26/11. **Rate limiting Hobby non persistant** isolé par `enable_owasp_blocking=false` ; contrôle de dérive read-only avec tests offline ; état Garage et plan avant tout nouvel apply. Pour bloquer SQLi/XSS/RCE par le ruleset managé : éligibilité Enterprise et activation explicite nécessaires ([runbook](../terraform/vercel-waf/README.md)). Vaultwarden 1.37.5 et son adaptateur étaient déjà sains au dernier relevé ; ne pas réinitialiser ces services.
+Matérialiser les secrets de **Dependency-Track/CTEM** dans les fichiers root:root 0600, prouver l'authentification et l'isolation PostgreSQL sans exposer leurs valeurs ; Cloudflare DNS, Tunnel, AppSec et WAF sont validés par contrôles extérieurs négatifs et plans import-first, mais **aucun apply implicite**. WAF Vercel de Bababou inchangé au 26/11 : OWASP managé réservé à Enterprise (`payment_required` le 22/11) ; seul le rate limiting Hobby non persistant s'applique, après plan et état Garage ([runbook](../terraform/vercel-waf/README.md)). Vaultwarden 1.37.5 et son adaptateur étaient déjà sains au dernier relevé ; ne pas réinitialiser ces services.
 
 ### 6. H08 autres Apps et Nexus : non urgents
 
