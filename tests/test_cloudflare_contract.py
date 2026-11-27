@@ -99,7 +99,7 @@ class CloudflareContract(unittest.TestCase):
         # Owner decision (27/11/2026): on the Free plan Bot Fight Mode cannot be skipped and it
         # challenged the site support chat calling Open WebUI from Vercel (AWS) with a 403.
         source = (TF / "bot-management.tofu").read_text(encoding="utf-8")
-        self.assertIn("fight_mode                  = false", source)
+        self.assertIn("fight_mode = false", source)
         imports = (TF / "imports.tofu").read_text(encoding="utf-8")
         self.assertRegex(imports, r"to = cloudflare_bot_management\.albandrieu\n\s*id = var\.zone_id")
 
