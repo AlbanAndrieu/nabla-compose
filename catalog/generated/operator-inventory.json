@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:18fd3f49a7d7bc5b9d88d4feabe3ed0c9d201168621d68eecc7563a4fb974772",
+  "catalogRevision": "sha256:55d4f200ef5a602095c470208cab3c35674cd034f3f4667103d3bdb3b07daed3",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -2930,7 +2930,8 @@
       "runtime": {
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ],
         "provider": "truenas-app"
       },
@@ -2939,7 +2940,7 @@
         "detect"
       ],
       "sourcePath": "apps/scanopy/compose.yml",
-      "url": "http://172.17.0.24:60072"
+      "url": "https://scanopy.int.albandrieu.com"
     },
     {
       "category": "network",
@@ -3599,7 +3600,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:33850db3e2c2baf96b2dbd31f227e17d087027890f33cea08cb8b97f5f1607f8",
+  "operatorRevision": "sha256:618c15dc5d0da028eaad470cbe7a9c9f914978cb51083fc403c898dfebcebc05",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -6572,6 +6573,16 @@
       "strength": "required",
       "target": "scanopy-daemon",
       "type": "consumesApi"
+    },
+    {
+      "description": "Traefik serves the UI as scanopy.int.albandrieu.com; Pi-hole DNS Sync publishes the record.",
+      "evidence": [
+        "apps/scanopy/compose.yml:traefik.http.routers.scanopy"
+      ],
+      "source": "scanopy",
+      "strength": "optional",
+      "target": "traefik",
+      "type": "exposedBy"
     },
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -9869,7 +9880,8 @@
       "runtime": {
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ],
         "provider": "truenas-app"
       },
@@ -9878,7 +9890,7 @@
         "detect"
       ],
       "sourcePath": "apps/scanopy/compose.yml",
-      "url": "http://172.17.0.24:60072"
+      "url": "https://scanopy.int.albandrieu.com"
     },
     {
       "category": "network",

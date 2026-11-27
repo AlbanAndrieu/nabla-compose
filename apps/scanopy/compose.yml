@@ -66,6 +66,13 @@ services:
     init: true
     labels:
       com.albandrieu.nabla.entity-ref: component:default/scanopy
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.scanopy.rule: Host(`scanopy.int.albandrieu.com`)
+      traefik.http.routers.scanopy.entrypoints: websecure
+      traefik.http.routers.scanopy.tls.certresolver: letsencrypt
+      traefik.http.routers.scanopy.service: scanopy
+      traefik.http.services.scanopy.loadbalancer.server.port: "60072"
     x-nabla:
       id: scanopy
       name: Scanopy
@@ -76,7 +83,7 @@ services:
       securityFunctions:
         - identify
         - detect
-      url: http://172.17.0.24:60072
+      url: https://scanopy.int.albandrieu.com
       description: Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.
       runtime:
         provider: truenas-app
@@ -98,6 +105,12 @@ services:
           description: Scanopy consumes discovery data from its integrated daemon.
           evidence:
             - apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik serves the UI as scanopy.int.albandrieu.com; Pi-hole DNS Sync publishes the record.
+          evidence:
+            - apps/scanopy/compose.yml:traefik.http.routers.scanopy
       exposure:
         - name: lan
           protocol: HTTP
@@ -134,8 +147,12 @@ services:
       - /mnt/cpool/scanopy/data:/data
     networks:
       - intranet
+      - traefik_network
 
 networks:
   intranet:
     external: true
     name: intranet
+  traefik_network:
+    external: true
+    name: traefik_network

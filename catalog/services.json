@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:33850db3e2c2baf96b2dbd31f227e17d087027890f33cea08cb8b97f5f1607f8",
+  "catalogRevision": "sha256:618c15dc5d0da028eaad470cbe7a9c9f914978cb51083fc403c898dfebcebc05",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2607,7 +2607,7 @@
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
       "composeService": "scanopy",
-      "url": "http://172.17.0.24:60072",
+      "url": "https://scanopy.int.albandrieu.com",
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
@@ -2624,7 +2624,8 @@
         "provider": "truenas-app",
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ]
       }
     },

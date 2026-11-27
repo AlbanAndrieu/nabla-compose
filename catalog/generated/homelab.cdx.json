@@ -1015,7 +1015,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:18fd3f49a7d7bc5b9d88d4feabe3ed0c9d201168621d68eecc7563a4fb974772"
+        "value": "sha256:55d4f200ef5a602095c470208cab3c35674cd034f3f4667103d3bdb3b07daed3"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1023,7 +1023,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:18fd3f49-a7d7-bc5b-9d88-d4feabe3ed0c",
+  "serialNumber": "urn:uuid:55d4f200-ef5a-6020-95c4-70208cab3c35",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
