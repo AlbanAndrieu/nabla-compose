@@ -130,9 +130,9 @@ class ProvisionerStatusTests(unittest.TestCase):
                        for who in ("main", "cron", "coder")}
         self.models_by_hash = {self.hashes["main"]: self.main_models, self.hashes["cron"]: self.cron_models,
                                self.hashes["coder"]: self.coder_models}
-        # main/cron: 2 USD per 7 days; coder: 11 USD per 7 days (10 EUR per week).
+        # main/cron: 2 USD per 7 days; coder: 90 USD per 7 days (hourly passes, 27/11).
         self.budget_by_hash = {self.hashes["main"]: (2, "7d"), self.hashes["cron"]: (2, "7d"),
-                               self.hashes["coder"]: (11, "7d")}
+                               self.hashes["coder"]: (90, "7d")}
         runtime_file = patch.object(self.provisioner, "runtime_file_values", return_value={})
         self.runtime_file = runtime_file.start()
         self.addCleanup(runtime_file.stop)
@@ -432,9 +432,9 @@ class ProvisionerStatusTests(unittest.TestCase):
         code, posts, output = self.add_missing_run(404)
         self.assertEqual(code, 0)
         self.assertEqual(posts, [{"key": self.env["LITELLM_OPENCLAW_CODER_API_KEY"], "key_alias": "openclaw-coder",
-                                  "models": self.coder_models, "max_budget": 11, "budget_duration": "7d",
+                                  "models": self.coder_models, "max_budget": 90, "budget_duration": "7d",
                                   "metadata": {"managed_by": "nabla-compose", "purpose": "openclaw-coder"}}])
-        self.assertIn("openclaw_coder_budget_cap=11", output)
+        self.assertIn("openclaw_coder_budget_cap=90", output)
         self.assertIn("openclaw_coder_budget_duration=7d", output)
         self.assertIn("openclaw_main_presence=existing", output)
         self.assertIn("openclaw_coder_presence=missing", output)
@@ -465,7 +465,7 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertNotIn("SYNTHETIC", output.getvalue())
 
     def test_lifetime_budget_on_coder_key_is_a_scope_mismatch(self):
-        self.budget_by_hash[self.hashes["coder"]] = (11, None)
+        self.budget_by_hash[self.hashes["coder"]] = (90, None)
 
         def info(path, master, body=None):
             return self.info_for(path)

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:9d82ac03074b399099129235f8d34552b7e14e6f3ca8f3cdfece34318e6eb314",
+  "catalogRevision": "sha256:c0624707fc8c22eca1041008717107934c71c24be9048ab8b40b0183d79b1ff2",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -760,7 +760,7 @@
         "detect"
       ],
       "sourcePath": "apps/dependency-track/compose.yml",
-      "status": "planned",
+      "status": "active",
       "url": "http://172.17.0.24:31084"
     },
     {
@@ -782,7 +782,7 @@
         "detect"
       ],
       "sourcePath": "apps/dependency-track/compose.yml",
-      "status": "planned"
+      "status": "active"
     },
     {
       "category": "infrastructure",
@@ -3599,7 +3599,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:91e64fc10ebf30d7cfd1478e66d15bc8cd780d8be82cc555fed5a95538dcecac",
+  "operatorRevision": "sha256:d0135e0fdef491ae8b465a4288c449cd67aae2777ab6e288492e73d2694a4bed",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -4212,7 +4212,7 @@
     },
     {
       "evidence": [
-        "apps/dependency-track/compose.yml:ALPINE_DATABASE_URL"
+        "apps/dependency-track/compose.yml:DT_DATASOURCE_URL"
       ],
       "source": "dependency-track-api",
       "strength": "required",
@@ -4222,7 +4222,7 @@
     {
       "description": "Prometheus scrapes the Dependency-Track API server metrics endpoint.",
       "evidence": [
-        "apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED"
+        "apps/dependency-track/compose.yml:DT_METRICS_ENABLED"
       ],
       "source": "dependency-track-api",
       "strength": "optional",
@@ -7862,7 +7862,7 @@
         "detect"
       ],
       "sourcePath": "apps/dependency-track/compose.yml",
-      "status": "planned",
+      "status": "active",
       "url": "http://172.17.0.24:31084"
     },
     {
@@ -7885,7 +7885,7 @@
         "detect"
       ],
       "sourcePath": "apps/dependency-track/compose.yml",
-      "status": "planned"
+      "status": "active"
     },
     {
       "category": "infrastructure",

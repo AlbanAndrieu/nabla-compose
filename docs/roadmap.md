@@ -32,7 +32,7 @@
 
 ### 2. H13 — Dependency-Track et CTEM (P0, immédiat)
 
-**Dependency-Track sort de H08.** Recevoir le `--check dependency-track` existant, le secret 0600, PostgreSQL partagé, la version des images (la déclaration actuelle autorise `latest`, **ne pas déployer sans épinglage et revue**), puis le statut API/GUI `:31083/:31084`, les scrapes et un **SBOM CycloneDX de test**, sans publication WAN. Import SCA privé sans confondre vulnérabilités SCA et actifs issus d'Amass. [Runbook Dependency-Track](runbooks/ctem-dependency-track-acceptance.md).
+**Dependency-Track 5.2.0 : DEPLOYED le 25/11** : secret re-rendu en `DT_DATASOURCE_PASSWORD`, `/data` rendu à l'UID de l'image (profil de dataset), mot de passe admin par défaut remplacé (Vaultwarden `DT_ADMIN_PASSWORD`). API `:31083` 200, anonyme 401, frontend `:31084` 200, `up=1`. Restent un **SBOM CycloneDX de test**, la sonde Gatus et l'import SCA privé distinct des actifs Amass, sans publication WAN. [Runbook](runbooks/ctem-dependency-track-acceptance.md).
 
 **CTEM** : réceptionner les deux points de vue Amass (LAN TrueNAS / extérieur GitHub autorisé), l'audit déclaratif LAN-only et la politique Cloudflare réelle ; qualifier les candidats avant tout scan actif et toute insertion DefectDojo ; déployer progressivement Cartography/Neo4j, Prowler, OASM et ingestion DefectDojo **avec tests de refus, RBAC et déduplication**. Aucun scan d'un réseau tiers ni import automatique des candidats. [CTEM](runbooks/ctem-external-exposure.md), [ADR 0004](adr/0004-ctem.md).
 
@@ -55,7 +55,7 @@ La [PR #438 Nexus](https://github.com/AlbanAndrieu/nabla-compose/pull/438), Jopl
 **Nexus, cache de paquets** (relevé du 22/11) : 3.92.3 Community, 9 dépôts Maven et NuGet seulement ; les dépôts de `terraform/nexus` (`apt-ubuntu-26-04`, `npm-all`, `pypi-all`, `docker-all`, `terraform-proxy`…) répondent 404, **jamais appliqués**.
 
 - [x] proxy séparé `apt-ubuntu-26-04-security` (`security.ubuntu.com`, `resolute-security`), `CODED` le 22/11 ;
-- [ ] `tofu plan` puis `apply` de `terraform/nexus` (jeton admin depuis Vaultwarden), relire la liste des dépôts ;
+- [ ] `apply` de `terraform/nexus` : plan du 26/11 = 7 proxys APT (lot N1), **bloqué** : l'item Vaultwarden `nabla/prod/nexus-infrastructure` (`NEXUS_USERNAME`/`NEXUS_PASSWORD`) n'existe pas ;
 - [ ] accès HTTPS privé `nexus.int` et route publique CI via Traefik + CrowdSec (`nexus_tunnel_via_traefik`), `CODED` le 22/11 ([apps/nexus](../apps/nexus/README.md)) ; puis 3.98.3 après test de restauration de `cpool/nexus3` ;
 - [ ] clients de la workstation (apt, npm, pip, uv) : `ansible-workstation`, `docs/workstation-nexus-package-cache.md`.
 
@@ -81,32 +81,23 @@ l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit
 sans conteneur dominant (pics cgroup : ClickHouse +1 Gio, gateway +0,8, mongo +0,5,
 docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions du
 24/11 :
-- **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`,
-  gain attendu ≈ 1 Gio) ; remonter à 4096 MiB pour H01. **CODED**, apply
-  `infrastructure/truenas` puis redémarrage des deux workers : NOT_RUN tant que le
-  coffre n'est pas déverrouillé dans le terminal du propriétaire.
+- **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`) ;
+  remonter à 4096 MiB pour H01. **DEPLOYED le 25/11** : apply `infrastructure/truenas`
+  (2 changements), workers redémarrés un par un, RSS QEMU ≈ 2 Gio chacun ; RAM
+  84,6 → 83,4 %, pic nocturne à re-mesurer.
 - **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
   embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir quand Wazuh publiera
   un indexeur 3.x.
 - Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
 
-**K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, PSA, alertes Falco, sauvegardes immuables.
+**K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
-**Détection de dérive OpenTofu (23/11/2026) — CODED, NOT_RUN** : rien ne
-signalait qu'un `apply` manquait (`cloudflaretokens` modifié par `PUT` d'API,
-`nexus` #438 et `github` #424 jamais appliqués). `scripts/infra/opentofu-drift-check.py`
-planifie chaque jour `origin/master` contre la prod pour `cloudflare`,
-`cloudflaretokens`, `nexus` et `github` (`plan -detailed-exitcode`, jamais
-d'`apply`) et remonte la dérive à Alertmanager (`OpenTofuDrift`) et par courriel
-du cron. Hébergement TrueNAS et inclusion de `cloudflaretokens` validés par le
-propriétaire le 23/11. **À faire par le propriétaire** : clé Garage en lecture,
-jetons en lecture seule dans `/mnt/cpool/secrets/runtime/opentofu-drift/`, premier
-passage manuel puis `--enable` du cron
-([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
-`entra` et `defender-free` restent hors périmètre (`NOT_APPLIED` volontaire).
+**Dérive OpenTofu — CODED, cron restauré le 26/11** : `opentofu-drift-check.py` planifie `origin/master` contre la prod (`cloudflare`, `cloudflaretokens`, `nexus`, `github`), sans `apply`, alerte `OpenTofuDrift`, via `scripts/cron.sh` (09:00) et la clé Garage `opentofu` provisoire. Câblage du 24/11 non poussé avant la fusion de #446, rejoué dans #449. Plans du 26/11 : `cloudflare` 0 changement, `github` aucun, `nexus` +7 (bloqué, voir H08), `cloudflaretokens` non planifiable sans bootstrap ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
+
+**À faire par le propriétaire — enrôler les racines** (sinon `SKIPPED`) : jetons en lecture seule par racine dans `/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env` (Cloudflare via `cloudflaretokens`, PAT GitHub fine-grained, rôle Nexus en lecture), clé Garage en lecture seule, puis premier verdict. `entra` et `defender-free` : `NOT_APPLIED` volontaire.
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le

@@ -28,6 +28,11 @@
       "properties": {
         "recordsize": "16K"
       }
+    },
+    "dependency-track": {
+      "purpose": "Dependency-Track 5.x apiserver file storage: the image runs as uid 1000, gid 0 and creates /data/.dependency-track at startup (AccessDeniedException on a root-owned data directory, 25/11/2026).",
+      "owner": "1000:0",
+      "directories": ["data"]
     }
   }
 }

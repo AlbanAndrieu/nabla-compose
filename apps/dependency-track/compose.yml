@@ -48,7 +48,7 @@ services:
       category: security
       presentationRole: support
       criticality: medium
-      status: planned
+      status: active
       securityFunctions:
         - identify
         - detect
@@ -61,12 +61,12 @@ services:
           strength: optional
           description: Prometheus scrapes the Dependency-Track API server metrics endpoint.
           evidence:
-            - apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED
+            - apps/dependency-track/compose.yml:DT_METRICS_ENABLED
         - target: postgresql
           type: storesIn
           strength: required
           evidence:
-            - apps/dependency-track/compose.yml:ALPINE_DATABASE_URL
+            - apps/dependency-track/compose.yml:DT_DATASOURCE_URL
 
   dependency-track:
     logging: *nabla-logging
@@ -95,7 +95,7 @@ services:
       category: security
       presentationRole: service
       criticality: medium
-      status: planned
+      status: active
       securityFunctions:
         - identify
         - detect

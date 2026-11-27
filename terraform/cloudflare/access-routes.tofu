@@ -130,8 +130,12 @@ locals {
         { type = "public", uri = "open-webui.albandrieu.com", cidr = null, port_range = null },
         { type = "private", uri = null, cidr = "172.17.0.24/32", port_range = "31028" },
       ]
-      policies = [local.access_policy_nabla_id, local.access_policy_temporary_access_id, local.access_policy_fastapi_sample_monitor_id]
-      tags     = []
+      # The site support chat (nabla-site-alban /api/support-chat) calls the API with its own service token.
+      policies = concat(
+        [local.access_policy_nabla_id, local.access_policy_temporary_access_id, local.access_policy_fastapi_sample_monitor_id],
+        [for policy in cloudflare_zero_trust_access_policy.site_support : policy.id],
+      )
+      tags = []
     }
     "reactive" = {
       domain = "reactive.albandrieu.com"

@@ -128,9 +128,11 @@ endpoints:
     extra-labels:
       nabla_monitor_id: dependency-track-api
       nabla_service_id: dependency-track-api
-    url: tcp://172.17.0.24:31083
+    # /health answers the HTML index page of every unknown path; /api/version is the API's own JSON.
+    url: http://172.17.0.24:31083/api/version
     conditions:
-      - "[CONNECTED] == true"
+      - "[STATUS] == 200"
+      - "len([BODY].version) > 0"
   - name: Docker API
     group: infrastructure
     interval: 60s

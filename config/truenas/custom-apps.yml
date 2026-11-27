@@ -61,6 +61,10 @@ apps:
     include:
       - apps/defectdojo/compose.yml
     state: running
+  - name: dependency-track
+    include:
+      - apps/dependency-track/compose.yml
+    state: running
   - name: docker-socket-proxy
     include:
       - apps/docker-socket-proxy/compose.yml

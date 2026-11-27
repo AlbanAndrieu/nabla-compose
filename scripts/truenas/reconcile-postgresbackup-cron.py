@@ -45,7 +45,8 @@ def job(name: str, schedule: dict[str, str], overrides: str = "") -> dict:
         "stdout": True,
         "stderr": True,
         "schedule": {"minute": "20", "hour": "03", "dom": "*", "month": "*", "dow": "*", **schedule},
-        "command": f"{BASE_COMMAND}{overrides} postgresbackup",
+        # cron-notify.sh reports a failure to OpenClaw, success stays silent.
+        "command": f"bash {CHECKOUT}/scripts/truenas/cron-notify.sh {name} -- {BASE_COMMAND}{overrides} postgresbackup",
     }
 
 
