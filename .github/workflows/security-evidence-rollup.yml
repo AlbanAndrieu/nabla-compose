@@ -1,0 +1,35 @@
+name: Security evidence rollup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 6 * * 1-5"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Validate report contracts without network access
+        run: |
+          python3 scripts/security/report-github-controls.py --check
+          python3 -m unittest tests/test_security_control_rollup.py -v
+      - name: Collect read-only GitHub workflow metadata
+        run: python3 scripts/security/report-github-controls.py --fetch --output-dir security-evidence-output
+      - name: Upload evidence report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: security-evidence-rollup
+          path: |
+            security-evidence-output/security-controls.json
+            security-evidence-output/security-controls.html
+          retention-days: 7
+          if-no-files-found: error
