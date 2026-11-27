@@ -28,6 +28,8 @@ started=${SECONDS}
 "$@" >"${log}" 2>&1
 rc=$?
 find "${LOG_DIR}" -maxdepth 1 -name "${name}-*.log" -mtime +30 -delete 2>/dev/null
+# A quiet success leaves no empty log: the 5-minute jobs would pile up thousands.
+((rc == 0)) && [[ ! -s "${log}" ]] && rm -f "${log}"
 ((rc == 0)) && exit 0
 
 as_root() { if ((EUID == 0)); then "$@"; else sudo -n "$@"; fi; }

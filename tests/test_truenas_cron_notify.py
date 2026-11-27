@@ -83,6 +83,9 @@ def test_success_is_silent(env, tmp_path):
     result = run(["bash", str(NOTIFY), "demo", "--", "bash", "-c", "echo all good"], env)
     assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
     assert not (tmp_path / "state" / "midclt.log").exists()
+    assert [p.name.split("-")[0] for p in (tmp_path / "logs").iterdir()] == ["demo"]
+    run(["bash", str(NOTIFY), "quiet", "--", "true"], env)
+    assert not list((tmp_path / "logs").glob("quiet-*.log"))  # an empty success log is dropped
 
 
 def test_failure_sends_one_short_summary(env, tmp_path):
