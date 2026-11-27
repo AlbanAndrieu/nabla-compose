@@ -5,15 +5,33 @@ from [`compose.yml`](compose.yml), TCP/3310 on `172.17.0.24:30005`.
 
 ## Scans
 
-The scans are TrueNAS cron jobs declared in ansible-workstation
-`playbooks/truenas-stabilize.yml`. They run `clamdscan --fdpass` in
-`ix-clamav-clamav-1` and log to `/mnt/cpool/logs/clamav-scan-*.log`:
+The scans are TrueNAS cron jobs declared in
+[`scripts/truenas/reconcile-cron-jobs.py`](../../scripts/truenas/reconcile-cron-jobs.py)
+(moved from ansible-workstation on 26/11/2026). Each one runs
+[`clamav-scan.sh`](../../scripts/truenas/clamav-scan.sh) through
+`cron-notify.sh`. The script:
+
+- starts the App when it is stopped (it is a night-window App);
+- waits up to 30 minutes for `clamd` (`clamdscan --ping`);
+- holds the App, so the 07:00 night-window stop is deferred until the scan ends;
+- runs `clamdscan --multiscan --fdpass --infected`, logging to
+  `/mnt/cpool/logs/clamav-scan-*.log`;
+- deletes the logs older than 90 days;
+- puts the App back in its previous state.
+
+A clean scan sends nothing. Infected files or an error send a short summary to
+OpenClaw (mail and Slack).
 
 | Cron | When | Scope |
 | --- | --- | --- |
-| `clamav-scan` | 1st of the month, 06:00 | the whole pool (`/scandir`) |
-| `clamav-scan-exposed` | Saturday, 04:00 | SMB/NFS shares, mail, uploads, ISOs |
-| `clamav-cleanup` | 1st of the month, 04:50 | logs older than 90 days |
+| `clamav-scan` | 1st of the month, 01:30 | the whole pool (`/scandir`) |
+| `clamav-scan-exposed` | Saturday, 01:30 | SMB/NFS shares, mail, uploads, ISOs |
+
+On 21/11/2026, the Saturday 04:00 scan lost `clamd` halfway through:
+`Communication error`, then `Connection refused` for the remaining paths. The
+likely cause is the 07:00 night-window stop of `clamav`. An out-of-memory kill
+at the 2 GiB limit is the other suspect. The scan log was not read, so this is
+not confirmed; `clamav-scan.sh` now reports an OOM kill when it happens.
 
 The workstation scans its own disks (ansible-workstation
 `files/clamav-scan-local-disks.sh`), never the TrueNAS shares.

@@ -63,6 +63,11 @@ for app in "${apps[@]}"; do
       if [[ "${state}" == DEPLOYING ]]; then
         printf ' SKIP in-flight deployment\n'; failures=$((failures+1)); continue
       fi
+      # A job using the App (clamav-scan.sh) holds this lock: it stops the App itself when done.
+      lock="${NABLA_APP_LOCK_DIR:-/run/lock}/nabla-app-${app}.lock"
+      if [[ -e "${lock}" ]] && ! flock -n "${lock}" true; then
+        touch "${lock}.stop-pending"; printf ' HELD by a running job, stop deferred\n'; continue
+      fi
       printf ' STOP\n'
       if ! midclt call -j app.stop "${app}" >/dev/null; then failures=$((failures+1)); fi ;;
     --start:STOPPED)

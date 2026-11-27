@@ -30,3 +30,7 @@ route_access_application_ids = {
   "openrag"      = "80ca0edb-cf9b-4910-96b0-c9a1d64d9782" # gitleaks:allow
   "garage"       = "9898af9b-1b55-44d6-b755-469436092439" # gitleaks:allow
 }
+
+# Access service token of the nabla-site-alban support chat (site_support policy on openwebui).
+# Created outside OpenTofu on 27/11/2026; its secret lives in Vaultwarden nabla/prod/site-support and Vercel.
+site_support_service_token_id = "abc09e29-31ca-48d7-96ae-916393bc441b" # gitleaks:allow

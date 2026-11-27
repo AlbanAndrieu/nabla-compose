@@ -28,10 +28,12 @@ def job(name: str, mode: str, hour: str, dow: str) -> dict:
         "description": name,
         "user": "root",
         "enabled": True,
+        # Hidden streams: cron-notify.sh reports a failure to OpenClaw, success stays silent.
         "stdout": True,
-        "stderr": False,
+        "stderr": True,
         "schedule": {"minute": "00", "hour": hour, "dom": "*", "month": "*", "dow": dow},
-        "command": f"python3 {CHECKOUT}/scripts/truenas/reconcile-night-window-cron.py {mode}",
+        "command": (f"bash {CHECKOUT}/scripts/truenas/cron-notify.sh {name} -- "
+                    f"python3 {CHECKOUT}/scripts/truenas/reconcile-night-window-cron.py {mode}"),
     }
 
 

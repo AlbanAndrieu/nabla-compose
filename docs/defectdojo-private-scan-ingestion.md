@@ -68,6 +68,135 @@ puis seulement planification éventuelle sous contrôle et alertes.
 > à l'import ; vérifier son ACL réelle. Aucun tunnel, DNS ou API publique
 > n'est créé par ce runbook.
 
+
+## Site Alban — import optionnel du XML ZAP natif depuis TrueNAS (26/11/2026)
+
+**Pourquoi :** le rapport GitHub expurgé ne fournit que les IDs de règles HIGH et
+l'origine publique. Il ne contient ni URL/paramètre affecté, ni preuve HTTP,
+ni alertes LOW/MEDIUM. DefectDojo OSS sait importer un **XML ZAP natif**
+via le parseur `ZAP Scan` ; ces champs permettent de localiser et qualifier
+les vulnérabilités. Le circuit natif est **distinct** du collecteur GitHub et
+ne l'autorise pas à télécharger des artefacts bruts.
+
+**Contrat du profil `private-native` :** entrée exclusivement dans
+`/mnt/cpool/defectdojo/private-zap/site-alban/*.xml`, répertoire
+`root:root 0700`, fichier `root:root 0600`, chemin canonique sans lien
+symbolique, XML sans DTD/entités, borné à 10 Mo, hôtes HTTPS Site Alban,
+identifiants de règles numériques et niveaux de risque 0–3. Les URL et
+requêtes/réponses **peuvent contenir des cookies, jetons ou données
+personnelles** : une revue et une suppression des secrets sont requises
+avant import. Ne jamais les téléverser dans GitHub, PR, SARIF ou logs.
+
+Préparation sur TrueNAS (aucun scan exécuté par ce changement) :
+
+```bash
+sudo install -d -m 0700 -o root -g root /mnt/cpool/defectdojo/private-zap/site-alban
+# Produire séparément un rapport XML natif avec OWASP ZAP -x report.xml,
+# en réutilisant le hook 1 req/s et le périmètre HTTPS Site Alban ;
+# installer ensuite le rapport vérifié sous root:root 0600 dans cette inbox.
+export DEFECTDOJO_SERVICE_ID=nabla-site-alban
+export DEFECTDOJO_SCAN_TYPE='ZAP Scan'
+export DEFECTDOJO_ENGAGEMENT_ID=<ENGAGEMENT_EXISTANT>
+export DEFECTDOJO_ZAP_IMPORT_PROFILE=private-native
+
+sudo -E bash scripts/security/import-scan-defectdojo.sh --check \
+  /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
+```
+
+**Import explicitement approuvé**, uniquement sur TrueNAS après revue du
+rapport, de la portée et des champs sensibles :
+
+```bash
+sudo -E env DEFECTDOJO_IMPORT_APPROVED=YES \
+  DEFECTDOJO_PRIVATE_ZAP_APPROVED=YES \
+  DEFECTDOJO_SERVICE_ID=nabla-site-alban \
+  DEFECTDOJO_SCAN_TYPE='ZAP Scan' \
+  DEFECTDOJO_ZAP_IMPORT_PROFILE=private-native \
+  DEFECTDOJO_ENGAGEMENT_ID=<ENGAGEMENT_EXISTANT> \
+  bash scripts/security/import-scan-defectdojo.sh --apply \
+  /mnt/cpool/defectdojo/private-zap/site-alban/report.xml
+```
+
+Pour ce profil natif, l'import utilise le point d'entrée existant
+`https://defectdojo.int.albandrieu.com/api/v2/reimport-scan/`, avec SNI
+privé et vérification TLS, au lieu du transport HTTP de l'importeur
+minimal. Si la CA privée ou ce point d'entrée n'est pas disponible,
+le transfert doit échouer ; aucun contournement `-k` n'est autorisé.
+
+Le mode normal `minimal` reste le défaut et refuse toujours les requêtes
+HTTP brutes. Le profil natif n'importe **pas** automatiquement et ne change
+ni le réseau ni les permissions DefectDojo. La réponse HTTP de l'API
+n'atteste pas la création des findings : vérifier le résultat du parseur,
+les endpoints, la déduplication et la fermeture des findings dans l'UI
+privée. **État : CODED / NOT_RUN / NOT_IMPORTED.**
+
+### Chaîne native complète ZAP → TrueNAS → DefectDojo (26/11/2026)
+
+La commande d'orchestration est
+`scripts/security/run-site-alban-zap-private.py`.
+Contrairement au collecteur GitHub, **aucun finding ni preuve HTTP n'est
+expurgé dans cette chaîne privée**. Le scan conserve sous
+`/mnt/cpool/defectdojo/private-zap/site-alban/runs/<run_id>/` :
+
+- `report-full.xml` (**traditional-xml-plus**, requêtes et réponses), document importé dans DefectDojo ;
+- `report-full.json` et `report-full.html` (données HTTP détaillées) ;
+- `report.xml`, `report.json`, `report.html` et `report.md` (sorties standards ZAP) ;
+- `console.log`, `manifest.json` et les empreintes SHA-256, le reçu d'import
+  `defectdojo-response.json` et les réponses de suivi du Test.
+
+Les rapports survivent aux erreurs ZAP, HTTP et DefectDojo. Aucun purgeur
+automatique n'est installé. Le wrapper accepte les scans avec avertissements
+ou règles FAIL (codes ZAP 0, 1 ou 2) si **tous** les rapports sont produits ;
+les erreurs de scanner, fichiers absents ou XML invalides sont archivés
+avec l'état `INCOMPLETE`/`INVALID_XML` sans import.
+
+Exécution manuelle sur **TrueNAS** après déploiement du checkout :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/security/run-site-alban-zap-private.py --check
+
+# Remplacer 123 par le vrai engagement déjà existant dans DefectDojo.
+# Le fichier d'authentification DefectDojo reste privé :
+# /mnt/cpool/secrets/runtime/defectdojo/import-token
+sudo env NABLA_ZAP_PRIVATE_SCAN_APPROVED=YES \
+  NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES \
+  DEFECTDOJO_ENGAGEMENT_ID=123 \
+  python3 scripts/security/run-site-alban-zap-private.py --run
+
+# Si l'import a échoué, préserver le scan et le retransmettre sans rescanner :
+sudo env NABLA_ZAP_PRIVATE_AUTO_IMPORT=YES \
+  DEFECTDOJO_ENGAGEMENT_ID=123 \
+  python3 scripts/security/run-site-alban-zap-private.py --retry-import <RUN_ID>
+
+# Si l'API a renvoyé un import asynchrone : revérifier sans nouveau POST :
+sudo python3 scripts/security/run-site-alban-zap-private.py --verify-import <RUN_ID>
+```
+
+Pour un site protégé par Vercel, fournir
+`NABLA_ZAP_VERCEL_BYPASS_FILE` pointant vers un fichier privé
+`0600` contenant le token Automation Bypass. Le token ne doit pas
+figurer dans la ligne de commande, les rapports publics ni dans Git.
+
+**Planification sans deuxième Cron** : le Cron horaire existant
+`scripts/cron.sh` lance ce scan le **samedi à 06:00 (heure de TrueNAS)**
+uniquement si `NABLA_CRON_ZAP_PRIVATE_ENABLED=true` et
+`NABLA_CRON_ZAP_PRIVATE_ENGAGEMENT_ID=<ID>` sont présents dans son
+environnement. Le job active l'import natif automatique après archivage.
+Ne pas activer cette option avant déploiement, installation du token
+DefectDojo et vérification Docker.
+
+**Sémantique du résultat** : l'importeur garde le corps complet de la
+réponse API dans l'archive privée, avec le Test ID. Le runner exige
+soit un résultat synchrone avec statistiques, soit un Test asynchrone
+ayant atteint `Processed` via `GET /api/v2/tests/{id}/`. Si le traitement
+reste en cours, il marque `PENDING` : un HTTP `2xx` n'est pas un
+faux `CONFIRMED`. On peut reprendre la vérification sans rescanner.
+
+**Statut : code préparé dans Compose #451, non exécuté sur TrueNAS.**
+La CI hors ligne ne valide ni la disponibilité Docker, ni la résolution
+TLS privée, ni le parseur DefectDojo de l'instance réelle.
+
 ## CTEM — checkdmarc JSON normalisé et import contrôlé (21/11/2026)
 
 Le workflow GitHub `external-attack-surface.yml` exécute

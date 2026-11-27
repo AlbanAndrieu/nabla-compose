@@ -68,6 +68,7 @@ class CloudflareContract(unittest.TestCase):
                 "fastapi_github_webhook", "honeypot_login", "truenas_admin",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site",
+             "cloudflare_zero_trust_access_policy.site_support",
              "cloudflare_dns_record.mail_tls_rpt", "cloudflare_dns_record.mail_mta_sts",
              "cloudflare_workers_script.mta_sts", "cloudflare_workers_custom_domain.mta_sts",
              "cloudflare_dns_record.dmarc_report_authorization",

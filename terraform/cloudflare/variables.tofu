@@ -63,6 +63,12 @@ variable "dns_retirement_phase" {
   }
 }
 
+variable "site_support_service_token_id" {
+  description = "Access service token of the nabla-site-alban support chat for Open WebUI's API; empty until created."
+  type        = string
+  default     = ""
+}
+
 variable "freshrss_site_service_token_id" {
   description = "Access service token of nabla-site-alban for the FreshRSS GReader API; empty until the owner creates it."
   type        = string

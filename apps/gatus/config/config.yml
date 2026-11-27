@@ -106,6 +106,27 @@ endpoints:
   url: tcp://172.17.0.24:31085
   conditions:
   - '[CONNECTED] == true'
+- name: Dependency-Track
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: dependency-track
+    nabla_service_id: dependency-track
+    nabla_entity_ref: component:default/dependency-track
+  url: tcp://172.17.0.24:31084
+  conditions:
+  - '[CONNECTED] == true'
+- name: Dependency-Track API
+  group: security
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: dependency-track-api
+    nabla_service_id: dependency-track-api
+    nabla_entity_ref: component:default/dependency-track-api
+  url: http://172.17.0.24:31083/api/version
+  conditions:
+  - '[STATUS] == 200'
+  - len([BODY].version) > 0
 - name: Docker API
   group: infrastructure
   interval: 60s

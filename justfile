@@ -998,7 +998,7 @@ openclaw-coder-key-plan:
     fi
 
 # Explicit, NABLA_RUNTIME_CHANGE_APPROVED=yes: generate the value once (never rotated),
-# sync the Gateway file, register the key (11 USD / 7 days) with no LiteLLM or Gateway restart.
+# sync the Gateway file, register the key (90 USD / 7 days) with no LiteLLM or Gateway restart.
 openclaw-coder-key-apply:
     #!/usr/bin/env bash
     set -euo pipefail

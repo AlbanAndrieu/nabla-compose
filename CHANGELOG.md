@@ -1,3 +1,17 @@
+# [0.120.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.119.0...0.120.0) (2026-11-27)
+
+
+### Features
+
+* OpenClaw coder budget, site-support model, disk temperature guard, Dependency-Track probes ([#453](https://github.com/AlbanAndrieu/nabla-compose/issues/453)) ([04ce655](https://github.com/AlbanAndrieu/nabla-compose/commit/04ce65509157c927b05a4aa258325547fc453323)), closes [#339](https://github.com/AlbanAndrieu/nabla-compose/issues/339)
+
+# [0.119.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.118.0...0.119.0) (2026-11-27)
+
+
+### Features
+
+* **defectdojo:** opt-in private native ZAP XML with endpoint evidence ([#451](https://github.com/AlbanAndrieu/nabla-compose/issues/451)) ([d66e313](https://github.com/AlbanAndrieu/nabla-compose/commit/d66e313ae35a7a64ce1ccea6f8da3cd88b9071fb)), closes [#446](https://github.com/AlbanAndrieu/nabla-compose/issues/446)
+
 # [0.118.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.117.0...0.118.0) (2026-11-23)
 
 
