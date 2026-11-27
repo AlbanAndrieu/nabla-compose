@@ -1,3 +1,10 @@
+# [0.121.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.120.0...0.121.0) (2026-11-27)
+
+
+### Features
+
+* **security:** consolidated read-only GitHub control evidence report ([#452](https://github.com/AlbanAndrieu/nabla-compose/issues/452)) ([c87f2d7](https://github.com/AlbanAndrieu/nabla-compose/commit/c87f2d7af50e602d8fa6fdb00155c89b0429bf5f))
+
 # [0.120.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.119.0...0.120.0) (2026-11-27)
 
 
