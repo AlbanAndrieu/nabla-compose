@@ -104,6 +104,27 @@
     "port": 31085
   },
   {
+    "id": "dependency-track",
+    "type": "port",
+    "name": "Dependency-Track",
+    "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31084
+  },
+  {
+    "id": "dependency-track-api",
+    "type": "http",
+    "name": "Dependency-Track API",
+    "description": "Nabla generated monitor: dependency-track-api",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31083/api/version"
+  },
+  {
     "id": "docker",
     "type": "port",
     "name": "Docker API",

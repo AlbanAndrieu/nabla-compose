@@ -68,6 +68,8 @@ OWNED = [
         {"minute": "37", "hour": "4", "dow": "0"}, adopt="prune-docker-images.sh"),
     *(job(f"smart-long-{disk}", f"smartctl -t long /dev/disk/by-id/{device}", {"hour": "8", "dom": dom})
       for disk, (device, dom) in SMART.items()),
+    job("disk-temperature-guard", f"python3 {SCRIPTS}/truenas/disk-temperature-guard.py", {"minute": "*/5"},
+        adopt="check-disk-temperature.sh"),
 ]
 # clamav-scan.sh prunes the scan logs older than 90 days after each scan.
 RETIRED = ("clamav-cleanup",)

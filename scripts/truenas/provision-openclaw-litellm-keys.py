@@ -26,9 +26,9 @@ KEYS = (
     ("LITELLM_OPENCLAW_MAIN_API_KEY", "openclaw-main",
      ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"], 2, "7d"),
     ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen", "gpt-4.1-mini"], 2, "7d"),
-    # Agent `coder` (nabla-openclaw docs/coder-agent.md): 10 EUR per week. LiteLLM
-    # budgets are USD: 11 USD stays <= 10 EUR while EUR/USD >= 1.10 (1.1221 on 2026-11-10).
-    ("LITELLM_OPENCLAW_CODER_API_KEY", "openclaw-coder", ["gpt-4.1"], 11, "7d"),
+    # Agent `coder` (nabla-openclaw docs/coder-agent.md): 90 USD per 7 days (owner,
+    # 27/11/2026) for 80 hourly roadmap passes a day at ~0.15 USD each (measured on 27/11).
+    ("LITELLM_OPENCLAW_CODER_API_KEY", "openclaw-coder", ["gpt-4.1"], 90, "7d"),
 )
 
 

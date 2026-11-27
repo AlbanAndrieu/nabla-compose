@@ -26,6 +26,7 @@ class FakeApi:
 
     def __init__(self, *, group=None, user=None, knowledge=None, files=(), model=None, members=()):
         self.token, self.calls, self.members = "admin", [], set(members)
+        self.base = {"id": "gpt-4.1-mini", "access_grants": [{"principal_type": "group", "principal_id": "staff", "permission": "read"}]}
         self.config = {"WEBUI_URL": "http://x", "ENABLE_API_KEYS": False}
         self.group, self.user, self.knowledge, self.files, self.model = group, user, knowledge, list(files), model
 
@@ -68,7 +69,10 @@ class FakeApi:
         if route == ("GET", "/api/v1/knowledge/k1/files"):
             return {"items": self.files}
         if route == ("GET", "/api/v1/models/model"):
-            return self.model
+            return self.model if path.endswith("id=site-support") else self.base
+        if route == ("POST", "/api/v1/models/model/access/update"):
+            self.base = {"id": body["id"], "access_grants": body["access_grants"]}
+            return self.base
         if route == ("POST", "/api/v1/auths/signin"):
             return {"token": "user-session"}
         if route == ("POST", "/api/v1/auths/api_key"):
@@ -83,7 +87,10 @@ class FakeApi:
 def run(api, *argv):
     out = StringIO()
     with mock.patch.object(site, "Api", lambda url, token: api), mock.patch.object(sys, "argv", ["x", *argv]), \
-            mock.patch.dict("os.environ", {"OPEN_WEBUI_API_KEY": "admin"}, clear=False), contextlib.redirect_stdout(out):
+            mock.patch.dict("os.environ", {"OPEN_WEBUI_API_KEY": "admin",
+                                           # an operator shell exporting the admin login would add a signin POST
+                                           "OPEN_WEBUI_EMAIL": "", "OPEN_WEBUI_PASSWORD": ""}, clear=False), \
+            contextlib.redirect_stdout(out):
         assert site.main() == 0
     return out.getvalue()
 
@@ -113,7 +120,10 @@ def test_apply_creates_objects_readable_by_the_support_user_only(tmp_path):
     assert json.loads(upload[3]["metadata"])["knowledge_id"] == "k1"
     model = next(c[2] for c in api.posts() if c[1] == "/api/v1/models/create")
     assert model["access_grants"] == site.only("u1") and model["base_model_id"] == "gpt-4.1-mini"
-    assert model["meta"]["knowledge"][0]["id"] == "k1"
+    assert model["meta"]["knowledge"][0]["id"] == "k1" and model["params"]["function_calling"] == "legacy"
+    assert api.calls[-1][:2] == ("GET", "/api/models")  # model cache refreshed after the create
+    # read on the chained base model, existing grants kept (the API replaces the list)
+    assert api.base["access_grants"] == [{"principal_type": "group", "principal_id": "staff", "permission": "read"}, *site.only("u1")]
 
 
 def test_converged_objects_are_left_alone_and_extra_members_removed(tmp_path):
@@ -125,6 +135,7 @@ def test_converged_objects_are_left_alone_and_extra_members_removed(tmp_path):
                   knowledge={"id": "k1", "name": site.KNOWLEDGE, "access_grants": stored},
                   files=[{"id": "f1", "filename": "faq.md", "meta": {"file_hash": digest}}])
     api.config["ENABLE_API_KEYS"] = True
+    api.base["access_grants"] = [{**grant, "id": "a2", "resource_type": "model"} for grant in site.only("u1")]
     run(api, "--apply", "--base-model", "gpt-4.1-mini", "--knowledge-dir", str(folder))
     writes = [c[1] for c in api.posts() if c[1] != "/api/v1/groups/id/g1/users"]
     assert writes == ["/api/v1/groups/id/g1/users/remove", "/api/v1/models/create"] and api.members == {"u1"}
