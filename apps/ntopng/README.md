@@ -28,7 +28,10 @@ the Vaultwarden value at the next start.
 Persistent data: `/mnt/cpool/ntopng` (configuration, category lists) and
 `/mnt/cpool/ntopng/redis`. The RRD time series (`/var/lib/ntopng/0` and `-1`)
 live in a tmpfs since 21/11: they caused most of the pool's small writes, and
-their history restarts empty with the container.
+their history restarts empty with the container. The SQLite alert store
+(`/var/lib/ntopng/0/alerts`) shares that tmpfs, so the entrypoint sets
+`ntopng.prefs.emit_flow_alerts` to 0: flow alerts reached ~700/s on `br0` and
+filled it in 13 minutes (27/11). Flow scores and host alerts remain.
 
 ## Out of scope without a licence
 
