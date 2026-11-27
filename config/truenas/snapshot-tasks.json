@@ -188,7 +188,6 @@
         "cpool/defectdojo",
         "cpool/dependency-track",
         "cpool/dockhand",
-        "cpool/dococd",
         "cpool/dozzle",
         "cpool/drawio",
         "cpool/dsomm",
@@ -258,6 +257,10 @@
     {
       "dataset": "cpool/compose",
       "reason": "Git checkout; GitHub is the source of truth."
+    },
+    {
+      "dataset": "cpool/dococd",
+      "reason": "Doco-CD disabled since 06/11 (owner decision), unused; data kept, nothing to restore."
     },
     {
       "dataset": "cpool/influxdb",

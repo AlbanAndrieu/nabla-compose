@@ -67,11 +67,17 @@ Tout se lance sur TrueNAS, depuis le checkout canonique.
 
 ## Reste à faire
 
-- Doublons (28/11) : les 62 datasets classés sont aussi couverts par les tâches
-  17-19. `cpool/nexus3` et `cpool/bitcoind` (classe à points rares, 39,1 Go de
-  snapshots sur bitcoind) sont exclus et purgés, leur dernière `auto-` gardée
-  jusqu'au premier point mensuel du 01/12 ; les autres classes restent doublées
-  tant que l'arbitrage classe par classe n'est pas fait.
+- Doublons (28/11) : les 62 datasets classés étaient aussi couverts par les
+  tâches 17-19. Exclus et purgés des `auto-` historiques (purge **par nom**,
+  jamais par plage : les points de classe sont intercalés) : `nexus3` et
+  `bitcoind` (40 Go), classe `databases` (42,9 → 10,8 Go, ClickHouse 30,7 Go
+  récupérés), `dococd` passé en `noSnapshot` (Doco-CD inutilisé, 1,8 Go, tâches
+  de classe supprimées). Une dernière `auto-` reste là où aucun point de classe
+  n'existe encore (`allow_empty=false` sur un dataset figé) : `nexus3` et
+  `bitcoind` jusqu'au 01/12, `wazuh`. `critical` reste doublé volontairement
+  (0,1 Go, points de restauration en plus) ; `app-state` (≈ 1,3 Go) et les
+  classes restantes, non prioritaires. Les tâches 17-19 restent : elles seules
+  protègent les 50 datasets sans classe (21 Go, dont `postgres` et `home`).
 
 - Alertes Prometheus sur le nombre de snapshots, le ratio `usedbysnapshots` par
   dataset et l'occupation du pool.
