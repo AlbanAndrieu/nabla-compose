@@ -26,7 +26,8 @@ def test_dependency_track_v5_is_version_pinned_and_private() -> None:
         # A floating tag might still point to v4; require pinned v5.
         assert f"ghcr.io/dependencytrack/{source}:5.2.0" in service["image"]
         assert ":latest" not in service["image"]
-        assert service["x-nabla"]["status"] == "planned"
+        # Deployed on 25/11/2026 (rollout-pending-apps --apply dependency-track).
+        assert service["x-nabla"]["status"] == "active"
         assert service["x-nabla"]["runtime"]["provider"] == "truenas-app"
         assert all(p["host_ip"] == "172.17.0.24" for p in service["ports"])
         assert "privileged" not in service and "network_mode" not in service

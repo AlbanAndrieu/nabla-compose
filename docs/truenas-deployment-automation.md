@@ -69,7 +69,13 @@ Both reuse this same hourly Cron task, not creating another scheduler. It invoke
 `sudo -n` only for the reviewed CTEM runner; private results stay root-only,
 while the Cron mail contains counts/status only. The cron never redeploys a TrueNAS App
 and does not start/replace Doco-CD. See the
-[CTEM runbook](runbooks/ctem-external-exposure.md). Each run mails a short report:
+[CTEM runbook](runbooks/ctem-external-exposure.md). Since 26/11/2026 the job is
+`nabla-hourly-sync` in
+[`reconcile-cron-jobs.py`](../scripts/truenas/reconcile-cron-jobs.py). It runs
+through `cron-notify.sh` with stdout and stderr hidden, so a clean run sends
+nothing; a failure sends a short summary to OpenClaw (mail and Slack). Each
+run's full report stays in `/mnt/cpool/var/nabla/ops-logs/cron/` (or `/tmp` when
+the cron user cannot write there). It holds:
 
 - the commits pulled (no git progress) and the redeploy plan of the TrueNAS
   Apps they touch ([below](#redeploying-only-the-apps-a-change-touches)); the
@@ -81,6 +87,34 @@ and does not start/replace Doco-CD. See the
   (`NABLA_CRON_DOCO_CD_PROJECTS`, default `vaultwarden garage`) or another
   Compose project;
 - the FastAPI Sample decision (up to date, skipped and why, updated, failed).
+
+### Robot mail and Slack (26/11/2026)
+
+- Every TrueNAS cron job runs through
+  [`cron-notify.sh`](../scripts/truenas/cron-notify.sh), with stdout and stderr
+  hidden. `reconcile-cron-jobs.py --apply` aligns all of them, the
+  night-window, postgresbackup and DefectDojo jobs included.
+- After each successful sync, `cron.sh` runs `reconcile-mail-settings.py
+  --apply` and `reconcile-cron-jobs.py --apply` through `sudo -n`. This is the
+  second exception to "plan only", after the Prometheus reload.
+  - Both are idempotent and also undo edits made in the UI, so they converge
+    within two hours of a merge, without an SSH session.
+  - Hourly rather than on a diff: the first run after a merge still executes
+    the code loaded before the pull.
+  - A refused apply fails the run and is reported like any other failure.
+- A failure sends `openclaw@albandrieu.com` a summary of at most 12 lines.
+  Repeated lines are collapsed with a count, and the summary ends with the path
+  of the full log. The mail goes through `midclt call -j mail.send`, as HTML
+  with emoji.
+- The same summary goes to Slack when the runtime secret `cron-notify`
+  (Vaultwarden `nabla/prod/cron-notify`, field `SLACK_WEBHOOK_URL`) holds an
+  incoming webhook.
+- [`reconcile-mail-settings.py`](../scripts/truenas/reconcile-mail-settings.py)
+  `--check|--apply` sets the TrueNAS sender to `Nabla homelab
+  <no-reply@albandrieu.com>`. A sender change is tested with one mail and undone
+  if the relay refuses it. The script also points the root, administrator
+  and cron user addresses, and any Mail alert service, at
+  `openclaw@albandrieu.com`.
 
 Docker storage maintenance is intentionally **not** added to this hourly Git
 cron. Runtime cleanup has a different ownership, privilege and cadence boundary.

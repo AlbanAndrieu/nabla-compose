@@ -111,10 +111,10 @@ def test_lifecycle_planner_orders_shared_data_before_new_persistent_apps() -> No
         {"id": "defectdojo", "state": "RUNNING"},
         {"id": "neo4j", "state": "RUNNING"},
     ]
-    # dependency-track is declared ``planned`` (not deployed on TrueNAS yet):
-    # the planner suppresses it unless an operator explicitly includes it for
-    # a bounded activation test. plumber and netbox are active (16/11).
-    planned = ("dependency-track",)
+    # neo4j (neo4j-security) is declared ``planned``: the planner suppresses it
+    # unless an operator explicitly includes it for a bounded activation test.
+    # plumber and netbox are active (16/11), dependency-track since 25/11/2026.
+    planned = ("neo4j",)
 
     def plan_for(*extra: str) -> dict:
         with tempfile.TemporaryDirectory() as tmp:
@@ -140,6 +140,8 @@ def test_lifecycle_planner_orders_shared_data_before_new_persistent_apps() -> No
         return json.loads(result.stdout)
 
     default_plan = plan_for()
+    default_start = default_plan["start_order"]
+    assert default_start.index("postgres") < default_start.index("dependency-track")
     for app in planned:
         assert default_plan["suppressed_apps_by_status"].get(app) == "planned"
         assert app not in default_plan["start_order"]

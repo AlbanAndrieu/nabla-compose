@@ -42,15 +42,68 @@ def validate_fastapi_image(report: dict) -> None:
         raise ValueError("no actionable image findings")
 
 
-def validate(service: str, scanner: str, data: bytes) -> None:
+def validate_private_native_zap(data: bytes, approved_hosts: set[str]) -> None:
+    """Review-bound native ZAP XML. Preserve HTTP evidence only on TrueNAS."""
+    if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
+        raise ValueError("XML entities and document types forbidden")
+    try:
+        root = ElementTree.fromstring(data)
+    except ElementTree.ParseError as exc:
+        raise ValueError("invalid native ZAP XML") from exc
+    if root.tag != "OWASPZAPReport":
+        raise ValueError("expected native OWASP ZAP XML")
+    sites = root.findall("site")
+    if not 0 < len(sites) <= 20:
+        raise ValueError("invalid native ZAP site count")
+
+    def check_url(value: str) -> None:
+        if not isinstance(value, str) or value != value.strip():
+            raise ValueError("invalid native ZAP URL")
+        url = urlsplit(value)
+        if (
+            url.scheme != "https" or url.hostname not in approved_hosts
+            or url.username is not None or url.password is not None
+            or url.port not in (None, 443) or url.fragment
+        ):
+            raise ValueError("native ZAP target outside the approved HTTPS site")
+        # Paths and query strings are intentionally retained on PRIVATE reports.
+
+    count = 0
+    for site in sites:
+        check_url(site.get("name", ""))
+        host = site.get("host")
+        if host is not None and host != urlsplit(site.get("name", "")).hostname:
+            raise ValueError("native ZAP site host mismatch")
+        alerts = site.findall("alerts/alertitem")
+        if len(alerts) > 2500:
+            raise ValueError("too many native ZAP alerts")
+        for alert in alerts:
+            pluginid = alert.findtext("pluginid", "")
+            severity = alert.findtext("riskcode", "")
+            if not re.fullmatch(r"[0-9]{1,10}", pluginid) or severity not in {"0", "1", "2", "3"}:
+                raise ValueError("invalid native ZAP finding identity or risk")
+            instances = alert.findall("instances/instance")
+            if len(instances) > 2500:
+                raise ValueError("too many native ZAP instances")
+            for instance in instances:
+                check_url(instance.findtext("uri", ""))
+            count += 1
+    # A valid zero-finding scan is still a complete report. Do not lose
+    # remediation/closure evidence just because there were no alerts.
+
+
+def validate(service: str, scanner: str, data: bytes, *, private_zap_native: bool = False) -> None:
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
     if not policy.get("defaultDeny"):
         raise ValueError("policy must default deny")
     spec = policy["producers"].get(service)
     if not spec or scanner not in spec["allow"] or scanner in policy["deny"]:
         raise ValueError("project/scan parser not on the explicit allowlist")
-    if len(data) == 0 or len(data) > 10_000_000:
+    max_bytes = 100_000_000 if private_zap_native else 10_000_000
+    if len(data) == 0 or len(data) > max_bytes:
         raise ValueError("invalid report size")
+    if private_zap_native and scanner != "ZAP Scan":
+        raise ValueError("native ZAP profile requires ZAP Scan parser")
     if scanner == "Nuclei Scan":
         results = []
         for line in data.splitlines():
@@ -81,6 +134,11 @@ def validate(service: str, scanner: str, data: bytes) -> None:
                     raise ValueError("unapproved Nuclei description or evidence")
         return
     if scanner == "ZAP Scan":
+        if private_zap_native:
+            if service != "nabla-site-alban":
+                raise ValueError("private native ZAP limited to Site Alban")
+            validate_private_native_zap(data, set(spec["hosts"]))
+            return
         if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
             raise ValueError("XML entities and document types forbidden")
         try:
@@ -225,11 +283,14 @@ def main() -> int:
     parser.add_argument("--service", required=True)
     parser.add_argument("--scan-type", required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--private-zap-native", action="store_true",
+                        help="reviewed native ZAP XML, accepted only via TrueNAS importer")
     args = parser.parse_args()
     if not args.report.is_absolute() or args.report.is_symlink() or not args.report.is_file():
         parser.error("absolute regular non-symlink report required")
     try:
-        validate(args.service, args.scan_type, args.report.read_bytes())
+        validate(args.service, args.scan_type, args.report.read_bytes(),
+                 private_zap_native=args.private_zap_native)
     except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
         parser.error(f"report rejected: {exc}")
     print(f"ACCEPTABLE: {args.service} / {args.scan_type} (offline schema and scope only)")

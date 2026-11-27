@@ -208,22 +208,21 @@ The normal bootstrap must never require restoring state. If a restore becomes ne
 
 ## Drift detection (read-only)
 
-`scripts/infra/opentofu-drift-check.py` plans committed `origin/master` against production for `cloudflare`, `cloudflaretokens`, `nexus` and `github`: `plan -detailed-exitcode -lock=false` through `terragrunt-safe.sh`, never `apply`, on a `git archive` snapshot (the TrueNAS checkout is never written). Exit `0` in sync, `2` drift, `1` error or credentials missing. Only resource addresses and the `Plan:`/`Error:` summaries are reported, credential values redacted. Each run pushes one `OpenTofuDrift{root=…}` alert per root to Alertmanager (firing 26 h on drift or error, resolved when in sync), and the TrueNAS cron mails stderr, i.e. anomalies only. `nexus` and `github` report drift until their first apply.
+`scripts/infra/opentofu-drift-check.py` plans committed `origin/master` against production for `cloudflare`, `cloudflaretokens`, `nexus` and `github`: `plan -detailed-exitcode -lock=false` through `terragrunt-safe.sh`, never `apply`, on a `git archive` snapshot (the TrueNAS checkout is never written). Exit `0` in sync or root not enrolled, `2` drift, `1` error. Only resource addresses and the `Plan:`/`Error:` summaries are reported, credential values redacted. Each run pushes one `OpenTofuDrift{root=…}` alert per enrolled root to Alertmanager (firing 26 h on drift or error, resolved when in sync). `nexus` and `github` report drift until their first apply.
 
-**Status (23/11/2026):** CODED, offline tests (`tests/test_opentofu_drift_check.py`); hosting on TrueNAS approved by the owner; real runs `NOT_RUN` until the steps below.
+**Schedule:** the existing hourly TrueNAS cron (`scripts/cron.sh`, user `albandrieu`) runs it once a day at 09:00, after the 01-07 night window, through `sudo -n` with the CI pins (`opentofu@1.12.5`, `terragrunt@0.97.0`) resolved by that user's mise; no second cron job. Anomalies appear as `ERROR` lines in the cron mail. Disable with `NABLA_CRON_OPENTOFU_DRIFT_ENABLED=false`.
 
-Activation, as root on TrueNAS:
+**Credentials:** `/mnt/cpool/secrets/runtime/opentofu-drift/` (0700), files `root:root 0600`, never printed. Keys outside this allow-list (plus `TF_VAR_*`) are refused. `common.env` is mandatory; a root is enrolled by dropping its `<root>.env`, and is `SKIPPED` until then.
 
-1. Read-only Garage key (a plan without lock file writes no state): `docker exec garage /garage key create opentofu-drift-read`, then `docker exec garage /garage bucket allow --read opentofu-state --key opentofu-drift-read`.
-2. Directory `/mnt/cpool/secrets/runtime/opentofu-drift/` (0700), files 0600 owned by root, values from Vaultwarden and never printed. Keys outside this allow-list (plus `TF_VAR_*`) are refused:
-   - `common.env`: `GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID`, `GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY` (the read-only key);
-   - `cloudflare.env`: `CLOUDFLARE_API_TOKEN`, read-only equivalents of the `nabla-opentofu` policies ([`tokens.tofu`](../terraform/cloudflaretokens/tokens.tofu));
-   - `cloudflaretokens.env`: `CLOUDFLARE_API_TOKEN` with Account API Tokens Read, `TF_VAR_state_passphrase`, `TF_VAR_opentofu_token_client_ips`. The owner accepted on 23/11/2026 that TrueNAS root can then decrypt this state; the `nabla-opentofu` token stays restricted to the WAN IP;
-   - `nexus.env`: `NEXUS_USERNAME`/`NEXUS_PASSWORD` of a Nexus role with read privileges only, `OP_SERVICE_ACCOUNT_TOKEN` read-only on the `Automation` vault;
-   - `github.env`: `GITHUB_TOKEN`, fine-grained and read-only (Administration, Metadata).
-3. Install `mise` for root, then `mise install opentofu@1.12.5 terragrunt@0.97.0` (the CI pins).
-4. Manual first run, report only: `/root/.local/bin/mise exec opentofu@1.12.5 terragrunt@0.97.0 -- python3 scripts/infra/opentofu-drift-check.py --run`. Whether Account API Tokens Read suffices for the `cloudflaretokens` plan is proven here.
-5. `python3 scripts/truenas/reconcile-opentofu-drift-cron.py --check`, then `--apply` (registers the daily 05:20 job **disabled**), then `OPENTOFU_DRIFT_APPROVED=YES python3 scripts/truenas/reconcile-opentofu-drift-cron.py --enable`.
+- `common.env`: `GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID`, `GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY`. **Temporary (24/11/2026):** `sudo bash scripts/truenas/install-opentofu-drift-garage-key.sh --check`, then `--apply`, copies the current Garage key `opentofu` (RWO on `opentofu-state`, the key every apply already uses) from the `garage` container, which root on TrueNAS could already read. A plan without lock file writes no state, so a dedicated read-only key is the target (roadmap);
+- `cloudflare.env`: `CLOUDFLARE_API_TOKEN`, read-only equivalents of the `nabla-opentofu` policies ([`tokens.tofu`](../terraform/cloudflaretokens/tokens.tofu));
+- `cloudflaretokens.env`: `CLOUDFLARE_API_TOKEN` with Account API Tokens Read, `TF_VAR_state_passphrase`, `TF_VAR_opentofu_token_client_ips`. The owner accepted on 23/11/2026 that TrueNAS root can then decrypt this state; the `nabla-opentofu` token stays restricted to the WAN IP;
+- `nexus.env`: `NEXUS_USERNAME`/`NEXUS_PASSWORD` of a Nexus role with read privileges only;
+- `github.env`: `GITHUB_TOKEN`, fine-grained and read-only (Administration, Metadata).
+
+Manual run on TrueNAS, report only (no alert): `sudo -n env PATH="$(mise exec opentofu@1.12.5 terragrunt@0.97.0 -- sh -c 'echo $PATH')" python3 scripts/infra/opentofu-drift-check.py --run`. Whether Account API Tokens Read suffices for the `cloudflaretokens` plan is proven on its first enrolled run.
+
+**Status (24/11/2026):** CODED, offline tests (`tests/test_opentofu_drift_check.py`). On TrueNAS, `install-opentofu-drift-garage-key.sh --apply` then `--check` converged, and a manual run of the committed check against `origin/master` `1f50bb07` returned exit `0` with the four roots `SKIPPED` (`common.env` accepted, OpenTofu 1.12.5 / Terragrunt 0.97.0 from mise). No plan, Garage backend read or alert has run yet; the daily 09:00 run starts once this change reaches TrueNAS `master`.
 
 ## What should remain outside Vaultwarden
 

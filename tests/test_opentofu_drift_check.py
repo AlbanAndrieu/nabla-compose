@@ -8,8 +8,8 @@ import importlib.util
 from io import StringIO
 import os
 from pathlib import Path
+import re
 import subprocess
-import sys
 import tempfile
 from unittest import TestCase, main, mock
 
@@ -25,7 +25,8 @@ def load(name: str, relative: str):
 
 
 drift = load("opentofu_drift_check", "scripts/infra/opentofu-drift-check.py")
-cron = load("opentofu_drift_cron", "scripts/truenas/reconcile-opentofu-drift-cron.py")
+CRON = REPO / "scripts/cron.sh"
+KEY_SCRIPT = REPO / "scripts/truenas/install-opentofu-drift-garage-key.sh"
 
 CANARY = "s3cr3t-token-value-0123456789"
 PLAN_OUTPUT = f"""
@@ -124,6 +125,13 @@ class CredentialFiles(TestCase):
         ):
             self.assertEqual(drift.plan_root("/snapshot", "github"), ("NOT_RUN", ["credentials missing: common.env"]))
 
+    def test_root_without_credentials_is_skipped_without_plan(self):
+        with (
+            SecretsDir(VALID),
+            mock.patch.object(drift.subprocess, "run", side_effect=AssertionError("planned")),
+        ):
+            self.assertEqual(drift.plan_root("/snapshot", "github"), ("SKIPPED", ["credentials missing: github.env"]))
+
     def test_group_readable_file_is_rejected(self):
         with SecretsDir(VALID, mode=0o640):
             state, lines = drift.plan_root("/snapshot", "cloudflaretokens")
@@ -153,15 +161,18 @@ class Reporting(TestCase):
 
     def test_alerts_fire_on_anomaly_and_resolve_when_in_sync(self):
         now = dt.datetime(2026, 11, 23, 5, 20, tzinfo=dt.timezone.utc)
-        payload = drift.alerts({"cloudflare": ("IN_SYNC", []), "nexus": ("DRIFT", ["Plan: 9 to add"])}, "a" * 40, now)
+        results = {"cloudflare": ("IN_SYNC", []), "nexus": ("DRIFT", ["Plan: 9 to add"]), "github": ("SKIPPED", [])}
+        payload = drift.alerts(results, "a" * 40, now)
         by_root = {alert["labels"]["root"]: alert for alert in payload}
         self.assertEqual(by_root["cloudflare"]["endsAt"], by_root["cloudflare"]["startsAt"])
         self.assertGreater(by_root["nexus"]["endsAt"], by_root["nexus"]["startsAt"])
         self.assertEqual({alert["labels"]["alertname"] for alert in payload}, {"OpenTofuDrift"})
+        self.assertNotIn("github", by_root)  # not enrolled: no alert either way
 
     def test_run_exit_code_and_mail_only_on_anomaly(self):
         cases = (
             ({"cloudflare": ("IN_SYNC", [])}, 0, ""),
+            ({"cloudflare": ("IN_SYNC", []), "github": ("SKIPPED", ["credentials missing: github.env"])}, 0, ""),
             ({"cloudflare": ("DRIFT", ["Plan: 1 to change"])}, 2, "DRIFT"),
             ({"cloudflare": ("DRIFT", []), "github": ("NOT_RUN", ["credentials missing: github.env"])}, 1, "NOT_RUN"),
         )
@@ -195,66 +206,50 @@ class Reporting(TestCase):
             drift.main(["--run", "--alertmanager-url", "file:///etc/passwd"])
 
 
-class NativeCronContract(TestCase):
-    def test_cron_is_disabled_daily_read_only(self):
-        self.assertFalse(cron.JOB["enabled"])
-        self.assertEqual(cron.JOB["user"], "root")
-        self.assertIn("opentofu-drift-check.py --run", cron.JOB["command"])
-        self.assertIn("opentofu@1.12.5 terragrunt@0.97.0", cron.JOB["command"])
-        self.assertNotIn("apply", cron.JOB["command"])
-        self.assertTrue(cron.JOB["stdout"])  # hidden: only stderr anomalies are mailed
-        self.assertFalse(cron.JOB["stderr"])
+class HourlyCronContract(TestCase):
+    """The drift check rides the existing hourly TrueNAS cron, not a second job."""
+
+    def body(self) -> str:
+        source = CRON.read_text(encoding="utf-8")
+        return source.split("run_daily_opentofu_drift() {", 1)[1].split("\n}\n", 1)[0]
+
+    def test_cron_runs_the_read_only_check_daily_after_sync(self):
+        body = self.body()
+        self.assertIn('"$(date +%H)" != 09', body)
+        self.assertIn("opentofu-drift-check.py", body)
+        self.assertIn("--run --alertmanager-url", body)
+        self.assertIn("sudo -n env PATH=", body)
+        self.assertNotIn("apply", body)
+        source = CRON.read_text(encoding="utf-8")
+        synced = source.index('if [[ "${synced}" == true ]]; then')
+        self.assertGreater(source.index("run_daily_opentofu_drift || status=1"), synced)
 
     def test_cron_pins_match_ci(self):
+        self.assertIn("opentofu@1.12.5 terragrunt@0.97.0", self.body())
         workflow = (REPO / ".github/workflows/terragrunt-ci.yaml").read_text(encoding="utf-8")
         self.assertIn("tofu_version: 1.12.5", workflow)
         self.assertIn('TERRAGRUNT_VERSION: "0.97.0"', workflow)
 
-    def test_check_has_no_midclt_call(self):
-        with (
-            mock.patch.object(sys, "argv", ["cron", "--check"]),
-            mock.patch.object(cron, "middleware", side_effect=AssertionError("live access")),
-            contextlib.redirect_stdout(StringIO()),
-        ):
-            self.assertEqual(cron.main(), 0)
 
-    def test_apply_creates_only_disabled_job(self):
-        calls = []
-        with (
-            mock.patch.object(sys, "argv", ["cron", "--apply"]),
-            mock.patch.object(cron, "require_environment"),
-            mock.patch.object(cron, "existing_job", return_value=None),
-            mock.patch.object(cron, "middleware", side_effect=lambda *v: calls.append(v)),
-            contextlib.redirect_stdout(StringIO()),
-        ):
-            self.assertEqual(cron.main(), 0)
-        self.assertEqual(calls[0][0], "cronjob.create")
-        self.assertFalse(calls[0][1]["enabled"])
+class GarageKeyBridge(TestCase):
+    """Temporary copy of the current opentofu-state key into common.env."""
 
-    def test_enable_requires_explicit_approval_and_material(self):
-        for environ, material in (({}, None), ({"OPENTOFU_DRIFT_APPROVED": "YES"}, RuntimeError("no key"))):
-            with (
-                mock.patch.object(sys, "argv", ["cron", "--enable"]),
-                mock.patch.object(cron, "require_environment"),
-                mock.patch.object(cron, "existing_job", return_value={**cron.JOB, "id": 1}),
-                mock.patch.object(cron.os, "environ", environ),
-                mock.patch.object(cron, "require_run_material", side_effect=material),
-                mock.patch.object(cron, "middleware") as mutation,
-                self.assertRaises(RuntimeError),
-            ):
-                cron.main()
-            mutation.assert_not_called()
+    def test_writes_the_file_the_check_reads_without_echoing_the_secret(self):
+        source = KEY_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(f'ENV_DIR="{drift.ENV_DIR}"', source)
+        self.assertIn('DEST="${ENV_DIR}/common.env"', source)
+        self.assertIn('mktemp "${ENV_DIR}/', source)
+        self.assertNotIn("set -x", source)
+        for line in source.splitlines():
+            if "${secret}" in line:
+                self.assertFalse(line.lstrip().startswith(("echo", "logger")), line)
+        written = set(re.findall(r"(GARAGE_\w+)=%s", source))
+        self.assertTrue(written)
+        self.assertLessEqual(written, drift.COMMON_KEYS)
 
-    def test_refuse_ownership_drift(self):
-        with (
-            mock.patch.object(sys, "argv", ["cron", "--disable"]),
-            mock.patch.object(cron, "require_environment"),
-            mock.patch.object(cron, "existing_job", return_value={**cron.JOB, "id": 9, "command": "other"}),
-            mock.patch.object(cron, "middleware") as mutation,
-            self.assertRaises(RuntimeError),
-        ):
-            cron.main()
-        mutation.assert_not_called()
+    def test_usage_without_mode(self):
+        result = subprocess.run(["bash", str(KEY_SCRIPT)], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 2)
 
 
 if __name__ == "__main__":

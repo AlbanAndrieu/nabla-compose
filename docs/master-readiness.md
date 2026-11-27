@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 94 ; actives : 65 ; planifiées : 24.
+Apps : 94 ; actives : 66 ; planifiées : 23.
 
 ## Écarts par type
 
@@ -13,7 +13,7 @@ Apps : 94 ; actives : 65 ; planifiées : 24.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 26 |
-| `NO_DEPLOY_PATH` | 17 |
+| `NO_DEPLOY_PATH` | 16 |
 | `SECRETS_LEGACY_PATH` | 9 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
@@ -38,7 +38,7 @@ Apps : 94 ; actives : 65 ; planifiées : 24.
 | `cyberbro` | active | custom-apps.yml | `cpool/cyberbro` (app-state) | manifest | ✅ | — | — | diagnose-cyberbro.sh | bootstrap-cyberbro-env.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ddns-updater` | disabled | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `dependency-track` | planned | ❌ | `cpool/dependency-track` (app-state)<br>`cpool/secrets` (critical) | manifest | ✅ | dependency-track-api | ✅ dependencytrack | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `dependency-track` | active | custom-apps.yml | `cpool/dependency-track` (app-state)<br>`cpool/secrets` (critical) | manifest | ✅ | dependency-track-api | ✅ dependencytrack | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `docker-socket-proxy` | active | custom-apps.yml | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `dockhand` | active | custom-apps.yml | `cpool/dockhand` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `docling` | active | custom-apps.yml | — | n/a | ✅ | docling | — | diagnose-docling-readiness.py | — | ✅ |

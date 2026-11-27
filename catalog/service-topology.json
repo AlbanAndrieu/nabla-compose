@@ -601,7 +601,7 @@
       "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -627,7 +627,7 @@
       "sourcePath": "apps/dependency-track/compose.yml",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -4040,7 +4040,7 @@
       "type": "storesIn",
       "strength": "required",
       "evidence": [
-        "apps/dependency-track/compose.yml:ALPINE_DATABASE_URL"
+        "apps/dependency-track/compose.yml:DT_DATASOURCE_URL"
       ]
     },
     {
@@ -4050,7 +4050,7 @@
       "strength": "optional",
       "description": "Prometheus scrapes the Dependency-Track API server metrics endpoint.",
       "evidence": [
-        "apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED"
+        "apps/dependency-track/compose.yml:DT_METRICS_ENABLED"
       ]
     },
     {
