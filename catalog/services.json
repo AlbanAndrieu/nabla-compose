@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:d0135e0fdef491ae8b465a4288c449cd67aae2777ab6e288492e73d2694a4bed",
+  "catalogRevision": "sha256:33850db3e2c2baf96b2dbd31f227e17d087027890f33cea08cb8b97f5f1607f8",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -30,7 +30,7 @@
       "composeService": "akvorado-console",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -56,7 +56,7 @@
       "composeService": "akvorado-inlet",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -85,7 +85,7 @@
       "composeService": "akvorado-orchestrator",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -107,7 +107,7 @@
       "composeService": "akvorado-outlet",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"

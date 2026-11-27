@@ -11,16 +11,6 @@
     "port": 30081
   },
   {
-    "id": "akvorado-console",
-    "type": "http",
-    "name": "Akvorado Console",
-    "description": "UI for historical network-flow search and analysis.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:31056/api/v0/console/healthcheck"
-  },
-  {
     "id": "alloy",
     "type": "http",
     "name": "Grafana Alloy",

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c0624707fc8c22eca1041008717107934c71c24be9048ab8b40b0183d79b1ff2",
+  "catalogRevision": "sha256:18fd3f49a7d7bc5b9d88d4feabe3ed0c9d201168621d68eecc7563a4fb974772",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -201,7 +201,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -229,7 +229,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -250,7 +250,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -278,7 +278,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -3599,7 +3599,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:d0135e0fdef491ae8b465a4288c449cd67aae2777ab6e288492e73d2694a4bed",
+  "operatorRevision": "sha256:33850db3e2c2baf96b2dbd31f227e17d087027890f33cea08cb8b97f5f1607f8",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -7297,7 +7297,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7326,7 +7326,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7348,7 +7348,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7377,7 +7377,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",

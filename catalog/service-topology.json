@@ -42,7 +42,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -67,7 +67,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -95,7 +95,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -116,7 +116,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"

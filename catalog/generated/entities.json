@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c0624707fc8c22eca1041008717107934c71c24be9048ab8b40b0183d79b1ff2",
+  "catalogRevision": "sha256:18fd3f49a7d7bc5b9d88d4feabe3ed0c9d201168621d68eecc7563a4fb974772",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -193,7 +193,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "links": [
           {
@@ -252,7 +252,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "akvorado-inlet",
         "tags": [
@@ -306,7 +306,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "akvorado-orchestrator",
         "tags": [
@@ -344,7 +344,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "akvorado-outlet",
         "tags": [

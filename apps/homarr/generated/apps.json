@@ -27,7 +27,7 @@
       "composeService": "akvorado-console",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31056/",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "UI for historical network-flow search and analysis."
     },
     {
