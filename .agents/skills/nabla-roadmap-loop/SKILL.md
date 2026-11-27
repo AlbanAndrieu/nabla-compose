@@ -121,7 +121,13 @@ Every third pass, run a reconciliation cycle, in this order:
 - The owner's untracked files (even inside a submodule) also block the gate:
   gate a `git clone --shared` of the exact SHA in the scratchpad instead, with
   `pre-commit install --hook-type pre-push --config .pre-commit-pre-push.yaml`
-  (a hook guard blocks copying into `.git/hooks`).
+  (a hook guard blocks copying into `.git/hooks`). Clone under `umask 022`
+  (contract tests check world-exec bits), run `mise trust mise.toml` (the
+  `tofu` shim refuses an untrusted config) and `mkdir -p .git/info` before
+  excluding a `.venv` symlink (28/11: three gate runs lost).
+- Never `git stash` then `git stash pop` to test a clean tree: with nothing to
+  stash, `pop` applies the owner's old `stash@{0}` (28/11). Read
+  `git show origin/master:<path>` instead.
 - Git hooks run `python3` from `PATH`: export `VIRTUAL_ENV` and prepend
   `.venv/bin`, or the catalog hooks fail on `import yaml`.
 - CI does not run the whole test suite, so `master` can be red: after merging
