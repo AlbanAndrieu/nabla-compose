@@ -122,6 +122,22 @@ class WafPlanGuardTests(unittest.TestCase):
         p["resource_changes"][0]["change"]["after"]["project_id"] = "other"
         self.assertRaises(guard.Rejected, guard.check_plan, p)
 
+    def alban_import(self, actions):
+        state = {"project_id": "prj_x6leAdsVXdHRcoG1zsSiy5pngEYa", "team_id": guard.TEAM}
+        return {"address": "vercel_firewall_config.alban", "type": "vercel_firewall_config",
+                "mode": "managed", "change": {"actions": actions, "before": state,
+                                              "after": state, "importing": {"id": "x"}}}
+
+    def test_unchanged_alban_import_ignored(self):
+        p = sample()
+        p["resource_changes"].append(self.alban_import(["no-op"]))
+        guard.check_plan(p)
+
+    def test_alban_import_with_changes_rejected(self):
+        p = sample()
+        p["resource_changes"].append(self.alban_import(["update"]))
+        self.assertRaises(guard.Rejected, guard.check_plan, p)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "terraform/vercel-waf/main.tf"
 TERRAGRUNT = ROOT / "infrastructure/vercel-waf/terragrunt.hcl"
 RUNBOOK = ROOT / "terraform/vercel-waf/README.md"
+ALBAN = ROOT / "terraform/vercel-waf/alban.tf"
 
 
 class BababouWafContract(unittest.TestCase):
@@ -70,6 +71,23 @@ class BababouWafContract(unittest.TestCase):
         for required in ("terragrunt-safe.sh", "import", "NOT APPLIED", "rollback"):
             self.assertIn(required.lower(), self.runbook.lower())
         self.assertNotRegex(self.config, r'(?i)(api_token|access_key|secret_key)\s*=')
+
+
+class AlbanWafContract(unittest.TestCase):
+    """nabla-site-alban is adopted at its live baseline: import, no custom rule."""
+
+    def test_alban_baseline_is_imported_not_created(self):
+        config = ALBAN.read_text(encoding="utf-8")
+        self.assertRegex(
+            config,
+            r'import\s*\{\s*to\s*=\s*vercel_firewall_config\.alban\s*'
+            r'id\s*=\s*"team_3vukFMXCzaUZEyGAqLAGmXaf/prj_x6leAdsVXdHRcoG1zsSiy5pngEYa"',
+        )
+        self.assertRegex(config, r'bot_protection\s*\{\s*action\s*=\s*"challenge"\s*active\s*=\s*true')
+        self.assertIn('gen  = { action = "log", active = true }', config)
+        self.assertEqual(config.count("local.owasp_attack_action"), 3)
+        self.assertRegex(config, r'prevent_destroy\s*=\s*true')
+        self.assertNotRegex(config, r'(?m)^\s*rules\s*\{')
 
 
 if __name__ == "__main__":

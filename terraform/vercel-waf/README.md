@@ -1,8 +1,16 @@
-# Vercel WAF — Bababou (owner: nabla-compose)
+# Vercel WAF — Bababou and nabla-site-alban (owner: nabla-compose)
 
 **CODED / IMPORT REPORTED, NOT APPLIED** (26 November 2026). This unit declares the Vercel firewall of the existing `nabla-site-bababou` project. The Next.js application, tests and deployments remain in `nabla-site-bababou`. Production has NOT been modified by this PR.
 
 **Incident du 22/11 :** la roadmap [H04](../../docs/roadmap.md) confirme que l'import du WAF a été effectué dans l'état Terraform et que l'apply initial a retourné `payment_required` (règles OWASP managées hors forfait). **Ne pas recommencer l'import** : l'import est attesté par la roadmap, mais l'état Garage n'a pas été consulté dans cette session. Vérifier avec `state list` avant toute modification. Le connecteur Vercel confirme le 26/11 que le WAF de production est inchangé (SQLi/XSS/RCE toujours en `log`, aucune règle de rate limiting).
+
+## nabla-site-alban (added 27 November 2026)
+
+[`alban.tf`](alban.tf) adopts the firewall of `nabla-site-alban` (`prj_x6leAdsVXdHRcoG1zsSiy5pngEYa`, same team) exactly as the Vercel API returned it on 27/11: firewall enabled, `bot_protection=challenge`, `gen/rce/xss/sqli=log`, no custom rule, no IP rule. Its `import` block adopts it into the same Garage state, so the first plan must read `1 to import, 0 to add, 0 to change, 0 to destroy`; anything else is a stop. The plan gate ignores that no-op import and still checks the Bababou rate-only change. No rate-limit rule yet for this site: its served hosts are `www.albanandrieu.com`, `www.dr-alban.com` and four `www.*` brand domains, and a rule is a separate reviewed change.
+
+```bash
+python3 scripts/security/check_vercel_waf.py --site alban --phase baseline --live
+```
 
 ## Live configuration observed before this PR
 

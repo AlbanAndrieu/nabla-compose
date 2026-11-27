@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Reject unsafe Bababou WAF Terraform plans without printing plan contents.
+"""Reject unsafe Vercel WAF Terraform plans without printing plan contents.
 
 Reads `tofu show -json` from stdin; no network, Terraform state or secrets.
 The only allowed operation is adding the one approved rate-limit rule to an
-already imported WAF resource. No plan file or JSON is stored or printed.
+already imported Bababou WAF resource; an unchanged firewall being imported
+(nabla-site-alban) plans as a no-op and is ignored. No plan file or JSON is
+stored or printed.
 """
 
 import json
@@ -74,7 +76,12 @@ def check_rule(value: object) -> None:
 def check_plan(plan: object) -> None:
     ensure(isinstance(plan, dict), "INVALID_PLAN")
     changes = plan.get("resource_changes")
-    ensure(isinstance(changes, list) and len(changes) == 1, "EXPECTED_ONE_RESOURCE_CHANGE")
+    ensure(isinstance(changes, list), "INVALID_PLAN")
+    # Only real changes count: importing an identical firewall plans as a no-op.
+    changes = [c for c in changes
+               if not (isinstance(c, dict) and isinstance(c.get("change"), dict)
+                       and c["change"].get("actions") == ["no-op"])]
+    ensure(len(changes) == 1, "EXPECTED_ONE_RESOURCE_CHANGE")
     change = changes[0]
     ensure(isinstance(change, dict) and change.get("address") == ADDRESS
            and change.get("type") == "vercel_firewall_config"

@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Bababou Vercel WAF static checks
+name: Vercel WAF static checks (Bababou, Alban)
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bababou-waf-static-${{ github.event.pull_request.number || github.ref }}
+  group: vercel-waf-static-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,14 +44,13 @@ jobs:
           tofu_version: 1.12.5
           tofu_wrapper: false
 
+      # One run covers both firewalls: Bababou (main.tf) and nabla-site-alban (alban.tf).
       - name: Python syntax and offline policy tests
         shell: bash
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/security/check_vercel_waf.py scripts/security/check_vercel_waf_plan.py tests/test_vercel_waf_preflight.py tests/test_vercel_waf_contract.py tests/test_vercel_waf_plan.py
-          python3 -m unittest tests.test_vercel_waf_contract -v
-          python3 -m unittest discover -s tests -p 'test_vercel_waf_preflight.py' -v
-          python3 -m unittest discover -s tests -p 'test_vercel_waf_plan.py' -v
+          python3 -m unittest tests.test_vercel_waf_contract tests.test_vercel_waf_preflight tests.test_vercel_waf_plan -v
 
       - name: OpenTofu formatting
         run: tofu fmt -check -diff terraform/vercel-waf

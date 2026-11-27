@@ -130,6 +130,20 @@ class WafPreflightTests(unittest.TestCase):
     def test_parse_from_json_bytes(self):
         self.passes(json.loads(json.dumps(enforced())), "enforced")
 
+    def test_alban_baseline(self):
+        data = baseline()
+        data["projectKey"] = waf.SITES["alban"][0] + "#active"
+        self.assertIsNone(waf.evaluate(data, "baseline", "alban"))
+        with self.assertRaises(waf.PolicyViolation):
+            waf.evaluate(data, "baseline")  # Bababou's project is not Alban's
+
+    def test_alban_has_no_rate_rule_yet(self):
+        data = enforced()
+        data["projectKey"] = waf.SITES["alban"][0] + "#active"
+        for phase in ("rate-only", "enforced"):
+            with self.assertRaises(waf.PolicyViolation):
+                waf.evaluate(data, phase, "alban")
+
 
 if __name__ == "__main__":
     unittest.main()
