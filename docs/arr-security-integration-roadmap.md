@@ -28,6 +28,7 @@ These links are analysis inputs, not configuration sources of truth. Image tags,
 
 - CVE MCP server: https://github.com/mukul975/cve-mcp-server
 - CyberStrike: https://github.com/CyberStrikeus/CyberStrike
+- ARTEX (community continuation): https://github.com/BaaRai/ARTEX
 - SysWarden: https://syswarden.io/
 - World Intelligence MCP: https://github.com/marc-shade/world-intel-mcp
 
@@ -138,6 +139,14 @@ Recommended deployment options, in order:
 3. never host-networked on TrueNAS.
 
 Use explicit target allowlists, no automatic Internet-facing UI, dedicated LLM credentials, outbound controls, and retain operator approval for intrusive actions. Cloudflare Tunnel can protect its web UI transport, but it does not provide execution isolation.
+
+### ARTEX
+
+Repository: https://github.com/BaaRai/ARTEX (AGPL-3.0, community continuation of the unreachable `Autumn-27/ARTEX`).
+
+**Fit:** purple-team measurement only. It is an autonomous AI penetration-testing system (planner and workers, nmap/nuclei/ffuf, MITM recorder), the tool Microsoft tied to the Storm-0940 campaign in October 2026.
+
+**Decision (owner, 2026-11-28):** time-boxed proof of concept in a disposable Workstation VM, never a TrueNAS App. The single target is `fastapi-sample-public` behind `crowdsec-appsec@file`; egress is locked to Traefik and LiteLLM; a self-expiring LiteLLM key caps spend. Procedure, go/no-go and measures: [`runbooks/artex-purple-team-poc.md`](runbooks/artex-purple-team-poc.md). Known gap: scenario bans cannot fire for a private source IP (`crowdsecurity/whitelists`).
 
 ### SysWarden
 
