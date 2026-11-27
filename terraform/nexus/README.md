@@ -49,20 +49,20 @@ avec `manage_rbac=true`.
 ## Identifiants (Vaultwarden, jamais affichés)
 
 Attendus par [`config/secrets/manifest.json`](../../config/secrets/manifest.json),
-**toujours absents de Vaultwarden au 27/11** :
+**présents dans Vaultwarden depuis le 27/11** :
 
 - `nabla/prod/nexus-infrastructure` : champs `NEXUS_USERNAME`, `NEXUS_PASSWORD`
-  (compte admin ou rôle avec `nx-repository-admin-*` et `nx-settings-read` ;
-  la lecture seule suffit pour un `plan`) ;
+  du compte de service Nexus `nabla-opentofu` (rôle `nabla-opentofu` =
+  `nx-repository-admin-*-*-*` + `nx-blobstores-read`). Il lit et écrit les
+  dépôts, mais `security/users` et `security/realms` lui répondent 403 :
+  `manage_realms` et `manage_rbac` exigent d'élargir ce rôle ;
 - `nabla/prod/infrastructure-bootstrap` : champs `AWS_ACCESS_KEY_ID`,
-  `AWS_SECRET_ACCESS_KEY` de la clé Garage du bucket `opentofu-state` (seuls
-  `GARAGE_ADMIN_TOKEN` et `TRUENAS_INFRA_API_KEY` y sont présents).
+  `AWS_SECRET_ACCESS_KEY` de la clé Garage existante `opentofu` (bucket
+  `opentofu-state` en lecture/écriture).
 
-Le run du 27/11 a utilisé en mémoire le compte `admin` existant (hors
-Vaultwarden) et la clé Garage `opentofu` lue par l'API admin Garage, sans rien
-écrire ni afficher. **À faire par le propriétaire** : créer un compte de service
-Nexus et ces champs, puis changer le mot de passe `admin`. Sans eux, un `plan`
-lancé par un agent reste `NOT_RUN`.
+Les `apply` N1–N3 du 27/11 ont utilisé en mémoire le compte `admin`, avant la
+création de ces champs. **À faire par le propriétaire** : changer le mot de
+passe `admin`.
 
 ## Plan en lecture seule (workstation)
 
@@ -73,12 +73,11 @@ export NEXUS_PASSWORD="$(bw get item nabla/prod/nexus-infrastructure | jq -r '.f
 export GARAGE_OPENTOFU_AWS_ACCESS_KEY_ID="$(bw get item nabla/prod/infrastructure-bootstrap | jq -r '.fields[]|select(.name=="AWS_ACCESS_KEY_ID").value')"
 export GARAGE_OPENTOFU_AWS_SECRET_ACCESS_KEY="$(bw get item nabla/prod/infrastructure-bootstrap | jq -r '.fields[]|select(.name=="AWS_SECRET_ACCESS_KEY").value')"
 unset BW_SESSION
-curl -sS --max-time 10 -K <(printf 'user = "%s:%s"\n' "$NEXUS_USERNAME" "$NEXUS_PASSWORD") \
-  https://nexus.int.albandrieu.com/service/rest/v1/security/realms/active
 env -u TF_VAR_enabled_formats scripts/infra/terragrunt-safe.sh infrastructure/nexus plan -lock=false -detailed-exitcode -no-color
 ```
 
-Attendu depuis le 27/11 : `No changes` (code 0). Un `destroy` sur `npm-*` ou
+Attendu : `No changes` (code 0), vérifié le 27/11 avec `nabla-opentofu` sur les
+13 ressources (7 APT, 3 npm, 3 PyPI). Un `destroy` sur `npm-*` ou
 `pypi-*` signale un `TF_VAR_enabled_formats` encore exporté ou une régression de
 l'unité. Pour un nouveau lot (N4 Docker), ajouter `-out=nexus-n4.tfplan` et
 n'attendre que des créations du format ajouté, aucun
