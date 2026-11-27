@@ -24,6 +24,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | 5 | 21/11 | 21/11 | après la passe 6 ; questions posées à l'issue de cette passe |
 | 6 | 21/11 | 21/11 | fait le 22/11 (passe 7) : skill, contrats de test cassés par #437, rapport `master-readiness` |
 | 7 | 22/11 | 22/11 | après la passe 9 |
+| 8 | 27/11 | en cours | après la passe 9 |
 
 ## Journal
 
@@ -107,6 +108,7 @@ cinq passes, cycle de réconciliation toutes les trois passes
 | H18 : diagnostics en lecture | constaté | `diagnose-homeassistant.sh` : aucune anomalie ; `diagnose-homeassistant-usb.sh` : seul dongle Sonoff Zigbee (pas d'EnOcean USB300), ZHA sur `/dev/ttyUSB0` ; sans jeton HA, états d'intégration non vérifiés |
 | H18/H19 : radio Zigbee dans le Compose de Home Assistant | CODED | 31115550 : la Custom App ne mappait aucun device, la bascule H19 aurait coupé ZHA ; mapping `/dev/serial/by-id/…Sonoff…` → `/dev/ttyUSB0` |
 | 27/11 H12 : chatbot de support du site (Open WebUI) | ACCEPTED (backend), widget NOT_VERIFIED | Objets Open WebUI par `reconcile-site-support.py --apply` (groupe, compte, base, modèle `site-support` sur `gpt-4.1-mini`) ; v0.11.0 a remplacé `access_control` par `access_grants` et l'appartenance aux groupes par `/users/add`, et lit `ENABLE_API_KEYS` (le Compose déclarait `ENABLE_API_KEY`, ignoré : clés API désactivées, d'où le 403 de la clé admin) ; jeton Access `site-support-vercel` (id dans `access-application-ids.auto.tfvars`), widget Turnstile `site-support`, clé du compte : Vaultwarden `nabla/prod/site-support` puis env Vercel ; webhook Slack dans `nabla/prod/cron-notify`, installé sur TrueNAS. Politique Access appliquée depuis a3be0557 (`TOFU_FROM_HEAD`). Réception : le Browser Integrity Check de Cloudflare refuse l'UA `Python-urllib` (1010) mais laisse passer `node` ; v0.11 vérifie la lecture du modèle de base chaîné (sans ligne en base, réservé aux admins) et n'injecte la base d'un modèle dans un appel API qu'en `function_calling: legacy` ; ensuite HTTP 200 avec une source. Widget du preview non testé : checkpoint anti-bot Vercel |
+| 27/11 passe 8 : cron « Disk temperature guard » versionné | TESTED | `scripts/truenas/disk-temperature-guard.py` remplace `/mnt/cpool/scripts/check-disk-temperature.sh` (non versionné, root, toutes les 5 min, stderr mailé brut) : mêmes seuils 60/65/57 °C et même dossier d'état (pas de nouvelle alerte à l'adoption), disques choisis par type `HDD` et non plus en excluant le nom `sde` (les noms `/dev/sdX` changent au reboot), mail `mail.send -j` à OpenClaw, état écrit après l'envoi. `reconcile-cron-jobs.py` adopte le job sous `cron-notify` ; `cron-notify` supprime le journal vide d'un succès (sinon environ 8 600 fichiers par mois). DEPLOYED au merge par le cron horaire ; l'ancien script reste sur disque, inutilisé |
 | Réconciliation après la passe 6 | CODED | skill : gate dans un clone `--shared` quand le checkout porte des fichiers du propriétaire, venv des hooks, suite complète après merge de `master`, git en root sur TrueNAS, init PostgreSQL |
 
 Leçons (à reporter dans le skill au cycle de réconciliation) :
