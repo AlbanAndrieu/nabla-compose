@@ -199,7 +199,7 @@ def issue_key(api: Api, user: dict, out: Path) -> None:
     fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(key)
-    print(f"ISSUED: API key of {NAME} written to {out}")
+    print(f"ISSUED: API key of {NAME} written to output file")
 
 
 def main() -> int:
