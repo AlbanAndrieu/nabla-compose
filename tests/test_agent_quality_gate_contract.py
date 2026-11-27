@@ -719,16 +719,19 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertEqual(prettier[0]["language"], "node")
         self.assertRegex(prettier[0]["additional_dependencies"][0], r"^prettier@\d+\.\d+\.\d+$")
 
-    def test_duplicate_contract_workflows_are_manual_only(self) -> None:
-        for path in (
-            ".github/workflows/compose-validate.yml",
-            ".github/workflows/mega-linter.yml",
-            ".github/workflows/service-consumers.yml",
-            ".github/workflows/secret-contract.yml",
-        ):
-            workflow = (ROOT / path).read_text(encoding="utf-8")
-            self.assertNotIn("  pull_request:", workflow, path)
-            self.assertIn("workflow_dispatch:", workflow, path)
+    def test_duplicate_contract_workflows_stay_removed(self) -> None:
+        # Pre-commit runs these contracts (compose-config, check-service-consumers,
+        # test_secrets_renderer) and MegaLinter replaces Super-Linter (27/11/2026).
+        for name in ("compose-validate", "service-consumers", "secret-contract", "linter"):
+            self.assertFalse((ROOT / f".github/workflows/{name}.yml").exists(), name)
+        workflow = (ROOT / ".github/workflows/mega-linter.yml").read_text(encoding="utf-8")
+        self.assertNotIn("  pull_request:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+
+    def test_ctem_contracts_never_push_to_pull_request_branches(self) -> None:
+        workflow = (ROOT / ".github/workflows/ctem-contracts.yml").read_text(encoding="utf-8")
+        self.assertNotIn("git push", workflow)
+        self.assertNotIn("contents: write", workflow)
 
     def test_heavy_specialized_jobs_skip_drafts_and_resume_when_ready(self) -> None:
         for path in (
