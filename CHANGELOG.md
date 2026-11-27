@@ -1,3 +1,10 @@
+# [0.120.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.119.0...0.120.0) (2026-11-27)
+
+
+### Features
+
+* OpenClaw coder budget, site-support model, disk temperature guard, Dependency-Track probes ([#453](https://github.com/AlbanAndrieu/nabla-compose/issues/453)) ([04ce655](https://github.com/AlbanAndrieu/nabla-compose/commit/04ce65509157c927b05a4aa258325547fc453323)), closes [#339](https://github.com/AlbanAndrieu/nabla-compose/issues/339)
+
 # [0.119.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.118.0...0.119.0) (2026-11-27)
 
 
