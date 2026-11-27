@@ -83,7 +83,10 @@ class FakeApi:
 def run(api, *argv):
     out = StringIO()
     with mock.patch.object(site, "Api", lambda url, token: api), mock.patch.object(sys, "argv", ["x", *argv]), \
-            mock.patch.dict("os.environ", {"OPEN_WEBUI_API_KEY": "admin"}, clear=False), contextlib.redirect_stdout(out):
+            mock.patch.dict("os.environ", {"OPEN_WEBUI_API_KEY": "admin",
+                                           # an operator shell exporting the admin login would add a signin POST
+                                           "OPEN_WEBUI_EMAIL": "", "OPEN_WEBUI_PASSWORD": ""}, clear=False), \
+            contextlib.redirect_stdout(out):
         assert site.main() == 0
     return out.getvalue()
 
