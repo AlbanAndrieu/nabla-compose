@@ -7,7 +7,8 @@
 - knowledge base `support-site`, readable by that user only, holding the
   Markdown files of --knowledge-dir (uploaded when missing or changed);
 - model `site-support`: --base-model, the support system prompt, the knowledge
-  base attached, readable by that user only.
+  base attached, readable by that user only; the user also gets read access
+  on the base model, which Open WebUI 0.11 checks along the chain.
 
 --check is read-only and lists the base models. --apply converges. With
 --api-key-out FILE, --apply also gives the user a fresh API key (the admin sets
@@ -169,7 +170,9 @@ def ensure_knowledge(api: Api, user: dict, directory: Path) -> dict:
 def ensure_model(api: Api, user: dict, knowledge: dict, base_model: str) -> None:
     payload = {
         "id": NAME, "name": "Support du site", "base_model_id": base_model, "is_active": True,
-        "params": {"system": SYSTEM_PROMPT, "temperature": 0.2, "max_tokens": 600},
+        # legacy: Open WebUI 0.11 injects model knowledge into API calls only in this mode
+        # (native mode reaches it through builtin tools, which only UI sessions get).
+        "params": {"system": SYSTEM_PROMPT, "temperature": 0.2, "max_tokens": 600, "function_calling": "legacy"},
         "meta": {"description": "Public support chat of www.albanandrieu.com.",
                  "knowledge": [{"id": knowledge["id"], "name": KNOWLEDGE, "type": "collection"}],
                  "capabilities": {"citations": False}},
@@ -187,6 +190,23 @@ def ensure_model(api: Api, user: dict, knowledge: dict, base_model: str) -> None
             or (current.get("meta") or {}).get("knowledge") != payload["meta"]["knowledge"]:
         api.call("POST", f"/api/v1/models/model/update?id={NAME}", payload)
         print(f"UPDATED: model {NAME}")
+
+
+def ensure_base_access(api: Api, user: dict, base_model: str) -> None:
+    """Open WebUI 0.11 also checks read access on the chained base model, admin-only without a model row.
+
+    The access update replaces the whole grant list: keep the grants already there.
+    """
+    try:
+        current = api.call("GET", "/api/v1/models/model?" + urllib.parse.urlencode({"id": base_model})) or {}
+    except RuntimeError:
+        current = {}
+    if ("user", user["id"], "read") in grants(current):
+        return
+    kept = [{"principal_type": t, "principal_id": i, "permission": p} for t, i, p in grants(current)]
+    api.call("POST", "/api/v1/models/model/access/update",
+             {"id": base_model, "name": current.get("name") or base_model, "access_grants": kept + only(user["id"])})
+    print(f"UPDATED: read access on base model {base_model} for {NAME}")
 
 
 def issue_key(api: Api, user: dict, out: Path) -> None:
@@ -233,6 +253,8 @@ def main() -> int:
     user = ensure_user(api, ensure_group(api))
     knowledge = ensure_knowledge(api, user, args.knowledge_dir)
     ensure_model(api, user, knowledge, args.base_model)
+    ensure_base_access(api, user, args.base_model)
+    api.call("GET", "/api/models")  # chat completions read a model cache that only this call refreshes
     if args.api_key_out:
         issue_key(api, user, args.api_key_out)
     return 0
