@@ -270,7 +270,7 @@ scrape_configs:
           - dependency-track-api:9000
         labels:
           platform: truenas
-          operational_state: planned
+          operational_state: active
           role: software-supply-chain
 
   # NetBox (METRICS_ENABLED) on its LAN web port.

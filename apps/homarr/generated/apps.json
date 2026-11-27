@@ -319,7 +319,7 @@
       "composeService": "dependency-track",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31084",
-      "syncEligible": false,
+      "syncEligible": true,
       "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform."
     },
     {
