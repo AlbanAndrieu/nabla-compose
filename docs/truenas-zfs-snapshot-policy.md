@@ -24,7 +24,7 @@ toutes une durée de vie.
 | `backup-targets` | 1×/j gardé 14 j, 1×/sem gardé 8 sem | `backup`, `garage` | Un client NFS/S3 peut effacer son propre dépôt ; seul le snapshot côté TrueNAS le protège |
 | `app-state` | 1×/j gardé 30 j, 1×/sem gardé 12 sem | `traefik`, `pihole`, `grafana`, `homarr`, `keycloak`… | Configuration et petit état applicatif |
 | `user-data` | 1×/j gardé 30 j, 1×/mois gardé 12 mois | `bababou` | Documents et médias ; ajouter photo/musique/www après l'audit |
-| `recreatable` | 1×/mois gardé 3 mois, 1×/an gardé 1 an | `nexus3` | Données reconstructibles depuis l'amont (artefacts proxifiés) : points rares pour ne pas retenir les blobs purgés (10/11). Les anciennes tâches horaires/quotidiennes de `cpool/nexus3` ne sont **pas** supprimées par la réconciliation : `midclt call pool.snapshottask.query '[["dataset","=","cpool/nexus3"]]'` puis `pool.snapshottask.delete <id>` |
+| `recreatable` | 1×/mois gardé 3 mois, 1×/an gardé 1 an | `nexus3` | Données reconstructibles depuis l'amont (artefacts proxifiés) : points rares pour ne pas retenir les blobs purgés (10/11). Exclu des tâches historiques 17-19 de `cpool` le 28/11 (41 snapshots, 896 Mio purgés) |
 | `resync-shortcut` | 1×/mois gardé 1 mois | `bitcoind` | Nœud élagué : un seul point évite plusieurs jours de synchronisation initiale en ne retenant qu'un mois de blocs tournants (des snapshots fréquents en retenaient plus de 100 Go) |
 
 Le prune Restic de la workstation doit rester hebdomadaire : il réécrit des
@@ -57,11 +57,21 @@ Tout se lance sur TrueNAS, depuis le checkout canonique.
    modifié ni supprimé.
 4. Tâches qui couvrent un dataset sans snapshot : les corriger dans l'interface
    TrueNAS, puis relancer le plan jusqu'à `covering-no-snapshot=0`.
+   La ligne `doubled` liste les datasets classés qu'une tâche récursive
+   parente (17-19 sur `cpool`) snapshotte en plus de leur classe : exclure le
+   dataset de la tâche **et** purger ses `auto-` historiques (étape 5), car une
+   tâche qui ne couvre plus un dataset n'élague plus ses snapshots.
 5. Purge de l'existant, dataset par dataset, jamais globalement : simuler avec
    `sudo zfs destroy -nv <dataset>@<premier>%<dernier>`, faire valider, puis
    exécuter sans `-n`.
 
 ## Reste à faire
+
+- Doublons (28/11) : les 62 datasets classés sont aussi couverts par les tâches
+  17-19. `cpool/nexus3` et `cpool/bitcoind` (classe à points rares, 39,1 Go de
+  snapshots sur bitcoind) sont exclus et purgés, leur dernière `auto-` gardée
+  jusqu'au premier point mensuel du 01/12 ; les autres classes restent doublées
+  tant que l'arbitrage classe par classe n'est pas fait.
 
 - Alertes Prometheus sur le nombre de snapshots, le ratio `usedbysnapshots` par
   dataset et l'occupation du pool.
