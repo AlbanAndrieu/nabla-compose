@@ -7,6 +7,8 @@ resource "cloudflare_bot_management" "albandrieu" {
   zone_id                     = var.zone_id
   fight_mode                  = false
   bot_preference_sync_enabled = true
+  # Provider 5.28.1 plans it false when unset, turning the managed robots.txt off.
+  is_robots_txt_managed = true
 
   lifecycle {
     prevent_destroy = true
