@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:91e64fc10ebf30d7cfd1478e66d15bc8cd780d8be82cc555fed5a95538dcecac",
+  "catalogRevision": "sha256:d0135e0fdef491ae8b465a4288c449cd67aae2777ab6e288492e73d2694a4bed",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -595,7 +595,7 @@
       "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -622,7 +622,7 @@
       "composeService": "dependency-track-api",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"

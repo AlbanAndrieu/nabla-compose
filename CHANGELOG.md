@@ -1,3 +1,10 @@
+# [0.119.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.118.0...0.119.0) (2026-11-27)
+
+
+### Features
+
+* **defectdojo:** opt-in private native ZAP XML with endpoint evidence ([#451](https://github.com/AlbanAndrieu/nabla-compose/issues/451)) ([d66e313](https://github.com/AlbanAndrieu/nabla-compose/commit/d66e313ae35a7a64ce1ccea6f8da3cd88b9071fb)), closes [#446](https://github.com/AlbanAndrieu/nabla-compose/issues/446)
+
 # [0.118.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.117.0...0.118.0) (2026-11-23)
 
 

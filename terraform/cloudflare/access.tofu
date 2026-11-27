@@ -331,6 +331,27 @@ resource "cloudflare_zero_trust_access_policy" "freshrss_site" {
   }
 }
 
+# nabla-site-alban's support chat reaches Open WebUI's API from Vercel with its own
+# service token (SUPPORT_CF_ACCESS_CLIENT_ID/SECRET). The token is created outside
+# OpenTofu so its secret never lands in the state; only its id is declared here.
+resource "cloudflare_zero_trust_access_policy" "site_support" {
+  count      = var.site_support_service_token_id == "" ? 0 : 1
+  account_id = var.account_id
+  decision   = "non_identity"
+  include = [
+    {
+      service_token = {
+        token_id = var.site_support_service_token_id
+      }
+    },
+  ]
+  name = "site-support-service-auth"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "cloudflare_zero_trust_access_application" "freshrss" {
   account_id           = var.account_id
   app_launcher_visible = true

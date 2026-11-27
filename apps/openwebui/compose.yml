@@ -110,8 +110,8 @@ services:
       - ENABLE_OPENAI_API=true
       # To use litellm
       - ENABLE_OLLAMA_API=false
-      - ENABLE_API_KEY=true
-      - ENABLE_API_KEY_AUTH=true
+      # v0.11 reads ENABLE_API_KEYS; the former ENABLE_API_KEY(_AUTH) names are ignored.
+      - ENABLE_API_KEYS=true
       # qwen3.5:2b
       - DEFAULT_MODELS=qwen
       - DEFAULT_PINNED_MODELS=qwen
