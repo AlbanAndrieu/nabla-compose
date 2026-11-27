@@ -346,6 +346,10 @@ resource "cloudflare_zero_trust_access_policy" "site_support" {
     },
   ]
   name = "site-support-service-auth"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "cloudflare_zero_trust_access_application" "freshrss" {
