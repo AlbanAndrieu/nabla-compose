@@ -82,14 +82,16 @@ class CtemMailGitHubArtifactTests(unittest.TestCase):
     def test_existing_scope_and_store_no_public_publish(self):
         runner = MOD["run"]
         api_calls = []
+        # run() checks freshness against the real clock: a run dated from T went stale on 27/11.
+        fresh = scan_run(created_at=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat())
         def fake_meta(route, token):
             api_calls.append(route)
             if "/workflows/" in route:
-                return {"workflow_runs": [scan_run()]}
+                return {"workflow_runs": [fresh]}
             if route.endswith("/artifacts"):
                 return {"artifacts": [{"name": "public-mail-deep-42",
                     "expired": False, "id": 9, "size_in_bytes": 400}]}
-            return scan_run()
+            return fresh
         def fake_api(route, token):
             api_calls.append(route)
             return artifact_zip()
