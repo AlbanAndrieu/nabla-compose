@@ -229,7 +229,7 @@ locals {
         [local.access_policy_nabla_id, local.access_policy_temporary_access_id, local.access_policy_fastapi_sample_monitor_id],
         [for policy in cloudflare_zero_trust_access_policy.site_support : policy.id],
       )
-      tags     = []
+      tags = []
     }
     "clickhouse" = {
       domain = "clickhouse.albandrieu.com"
