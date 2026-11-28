@@ -1,3 +1,10 @@
+## [0.121.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.0...0.121.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **vercel-waf:** Hobby-safe rate limit, OWASP entitlement gate and read-only preflight ([#450](https://github.com/AlbanAndrieu/nabla-compose/issues/450)) ([b0b2c79](https://github.com/AlbanAndrieu/nabla-compose/commit/b0b2c7935a0ab7589e299f68b0defd771f8aec9f))
+
 # [0.121.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.120.0...0.121.0) (2026-11-27)
 
 
