@@ -44,3 +44,28 @@ jamais `0 finding` ni `DOWN`.
 Le code et les tests sont hors ligne. **Aucun import ni accès TrueNAS
 n'a été réalisé par cette contribution.** Le cron reste désactivé
 par défaut et aucune auto-approbation n'est ajoutée.
+
+## H13 — Vérification réelle, explicite et en lecture seule
+
+`scripts/security/verify-defectdojo-test.py --check` valide le contrat **hors
+ligne**. Le mode privé `--verify --source ... --kind ... --run-id ...`
+est seulement possible sur TrueNAS (root, approbation
+`DEFECTDOJO_LIVE_VERIFY_APPROVED=YES`, reçu local et jeton privé `0600`).
+Il n'est **pas exécuté automatiquement** par le cron.
+
+Le vérificateur utilise exclusivement le hostname HTTPS/SNI
+`defectdojo.int.albandrieu.com` épinglé à l'adresse LAN de TrueNAS :
+`GET /api/v2/tests/<id>/`, puis, uniquement si le Test est `Processed`,
+`GET /api/v2/findings/?test=<id>&limit=1`. Les redirects/proxies,
+autres destinations, réponses volumineuses et identifiants hors contexte sont
+refusés. Le Test doit correspondre au même Engagement que le reçu import.
+
+La sortie ne contient que l'état `LIVE_TEST_PROCESSED`, le nombre de
+findings **du Test filtré** et les identifiants, sans body du scan. Elle
+distingue `PENDING`, `IMPORT_FAILED`, `FINDINGS_UNVERIFIED` et
+`INTEGRITY_MISMATCH`. Un `0` issu d'une réponse API correctement filtrée
+n'est pas assimilé à un scan complet ni à un succès CTEM global. La
+**déduplication entre réimports n'est pas encore démontrée**.
+
+Sources de référence : [API v2 DefectDojo](https://docs.defectdojo.com/automation/api/api-v2-docs/)
+et [Findings](https://docs.defectdojo.com/asset_modelling/engagements_tests/os__findings/).
