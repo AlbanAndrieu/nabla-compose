@@ -1,3 +1,10 @@
+## [0.122.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.122.0...0.122.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **homelab:** memory right-sizing and support bot budget/WAF controls ([#455](https://github.com/AlbanAndrieu/nabla-compose/issues/455)) ([47c36f1](https://github.com/AlbanAndrieu/nabla-compose/commit/47c36f164979f2dd21297bdb8f891ff5c46c2934))
+
 # [0.122.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.2...0.122.0) (2026-11-28)
 
 
