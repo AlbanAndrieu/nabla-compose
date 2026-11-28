@@ -1,6 +1,6 @@
 name: External attack surface (homelab)
 
-# Outside-in Nuclei scan of the homelab names that reach the pfSense HAProxy.
+# Outside-in scans of approved public names; pfSense WAN IP retired.
 # Scheduled and manual only: it hits production, so it is never a PR gate.
 on:
   # checkov:skip=CKV_GHA_7:Manual reconnaissance uses allowlisted scan profiles and explicit WAN/CDN authorization, never build parameters.
@@ -24,6 +24,10 @@ on:
         required: true
         type: boolean
         default: false
+      wan_ipv4:
+        description: "Current, explicitly owned public IPv4 for optional direct-WAN probes"
+        required: false
+        type: string
       confirm_wan:
         description: "Confirm that the declared WAN IP is still owned and authorized for direct scanning"
         required: true
@@ -40,8 +44,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  WAN_ADDRESS: 82.66.4.247
-  WAN_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_wan == true }}
+  WAN_ADDRESS: ${{ inputs.wan_ipv4 || '' }}
+  WAN_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_wan == true && inputs.wan_ipv4 != '' }}
 
 jobs:
   nuclei:
@@ -55,11 +59,32 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install pinned Nuclei with checksum verification
+      - name: Checkout pinned Nuclei HTTP template corpus
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: projectdiscovery/nuclei-templates
+          ref: 573b82acea30711be3ecfbbb472ec8ad7734c895
+          path: .ctem/nuclei-templates
+          persist-credentials: false
+
+      - name: Install pinned Nuclei and validate template corpus
         shell: bash
         run: |
+          set -euo pipefail
           bash scripts/security/install-pinned-nuclei.sh "${RUNNER_TEMP}/nuclei"
-          "${RUNNER_TEMP}/nuclei" -ut
+          "${RUNNER_TEMP}/nuclei" -version
+          template_dir="${GITHUB_WORKSPACE}/.ctem/nuclei-templates"
+          actual="$(git -C "$template_dir" rev-parse HEAD)"
+          if [[ "$actual" != "573b82acea30711be3ecfbbb472ec8ad7734c895" ]]; then
+            echo "::error::NUCLEI_TEMPLATES_REVISION_MISMATCH"
+            exit 1
+          fi
+          count="$(find "$template_dir" -type f \( -name '*.yaml' -o -name '*.yml' \) | wc -l)"
+          if (( count < 1000 )); then
+            echo "::error::NUCLEI_TEMPLATES_UNAVAILABLE"
+            exit 1
+          fi
+          echo "NUCLEI_TEMPLATE_DIR=$template_dir" >> "$GITHUB_ENV"
 
       - name: Read the declared targets and pin the HAProxy-only aliases
         shell: bash
@@ -68,16 +93,17 @@ jobs:
           : > "${RUNNER_TEMP}/targets.txt"
           while read -r url pin; do
             [[ -z "${url}" || "${url}" == \#* ]] && continue
-            if [[ ! "${url}" =~ ^https://(82\.66\.4\.247|[a-z0-9-]+(\.[a-z0-9-]+)*\.albandrieu\.com)(:[0-9]{1,5})?$ ]]; then
+            if [[ ! "${url}" =~ ^https://[a-z0-9-]+(\.[a-z0-9-]+)*\.albandrieu\.com(:[0-9]{1,5})?$ ]]; then
               echo "::error::target outside the homelab scope"
               exit 2
             fi
             # After router replacement an old address must not be probed by default.
-            if [[ "${WAN_CONFIRMED}" != "true" && ( "${pin}" == "@wan" || "${url}" == "https://${WAN_ADDRESS}" ) ]]; then
+            if [[ "${pin}" == "@wan" && "${WAN_CONFIRMED}" != "true" ]]; then
               echo "Skipping direct WAN target: ownership not reconfirmed"
               continue
             fi
             if [[ "${pin}" == "@wan" ]]; then
+              python3 scripts/security/validate-ctem-wan.py "${WAN_ADDRESS}"
               host="${url#https://}"
               echo "${WAN_ADDRESS} ${host%%:*}" | sudo tee -a /etc/hosts >/dev/null
             elif [[ -n "${pin}" ]]; then
@@ -100,6 +126,7 @@ jobs:
           # Doors only (login panels, exposed files, misconfigurations); no fuzzing, OAST, brute
           # force or default-login attempts. 20 req/s keeps ~3000 templates x 14 names under 30 min.
           "${RUNNER_TEMP}/nuclei" \
+            -t "${NUCLEI_TEMPLATE_DIR}" \
             -l "${RUNNER_TEMP}/targets.txt" \
             -pt http -ni \
             -tags panel,exposure,misconfig \
@@ -190,13 +217,14 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install --no-install-recommends -y nmap
       - name: Scan reviewed WAN IP only; no raw banner or UDP scanning
-        if: inputs.confirm_wan == true
+        if: inputs.confirm_wan == true && inputs.wan_ipv4 != ''
         run: |
+          python3 scripts/security/validate-ctem-wan.py "${WAN_ADDRESS}"
           # 1-1024 plus homelab app ports (8081 Nexus, 30000+ TrueNAS Apps) and the
           # Freebox OS remote-access ports (52190 HTTPS, 60146 HTTP), ~1100 ports at 10/s.
           nmap -sT -Pn -n --max-retries 1 --max-rate 10 --host-timeout 300s \
             -p 1-1024,2375,2376,3000,3100,3306,3389,4000,5432,5601,6379,6443,7000,8000,8080,8081,8082,8085,8091,8443,9090,9200,9922,10443,11434,18789,30059,30068,31085,31086,31087,31090,52190,60146 \
-            -oX ports.xml 82.66.4.247
+            -oX ports.xml "${WAN_ADDRESS}"
       - name: Confirm public certificates and produce minimal JSON
         shell: bash
         run: |

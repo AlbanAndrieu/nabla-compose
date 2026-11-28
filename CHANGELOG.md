@@ -1,3 +1,10 @@
+# [0.122.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.2...0.122.0) (2026-11-28)
+
+
+### Features
+
+* **ctem:** reconcile private DefectDojo import evidence and retire stale WAN scan target ([#457](https://github.com/AlbanAndrieu/nabla-compose/issues/457)) ([e17ec84](https://github.com/AlbanAndrieu/nabla-compose/commit/e17ec84ed5fd3fc8a2a7343d904874915486aaab))
+
 ## [0.121.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.1...0.121.2) (2026-11-28)
 
 
