@@ -86,8 +86,8 @@ sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonn
   embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir avec un indexeur Wazuh 3.x.
 - Le levier restant (≈ 4 Gio) est la pause d'OpenRAG (Langflow, Docling, OpenSearch).
-- **Plafonds mémoire 28/11 — CODED / NOT_RUN** : 5 réduits (Nexus, Sentry, Langfuse,
-  LanguageTool), 2 ajoutés (Dependency-Track) ; valider `memory.peak × 1,5` par App.
+- **Plafonds mémoire 28/11 — pics OBSERVED / CODED** : cibles #455 corrigées ;
+  validation par App, budget hôte et `--memory-events` avant déploiement NOT_RUN.
   [Runbook](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
 
 

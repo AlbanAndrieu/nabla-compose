@@ -11,12 +11,13 @@ nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 # expensive, nonessential scans on memory- or I/O-constrained TrueNAS hosts.
 DIAGNOSTIC_MODE=full
 case "${1:-}" in
-  "") [[ "$#" -eq 0 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; } ;;
-  --quick) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=quick ;;
-  --full) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; } ;;
-  --memory-peaks) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=memory-peaks ;;
-  --help|-h) printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0"; exit 0 ;;
-  *) printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2 ;;
+  "") [[ "$#" -eq 0 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2; } ;;
+  --quick) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=quick ;;
+  --full) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2; } ;;
+  --memory-peaks) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=memory-peaks ;;
+  --memory-events) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=memory-events ;;
+  --help|-h) printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0"; exit 0 ;;
+  *) printf 'Usage: %s [--quick|--full|--memory-peaks|--memory-events]\n' "$0" >&2; exit 2 ;;
 esac
 
 section() {
@@ -62,13 +63,54 @@ container_memory_peaks() {
   if [[ "${unverified}" == 1 ]]; then return 2; fi
 }
 
-if [[ "${DIAGNOSTIC_MODE}" == memory-peaks ]]; then
+# memory.events counters are cumulative for the cgroup lifetime (not rates).
+# A missing counter is unknown, not zero. Do not reset or write cgroup files.
+container_memory_events() {
+  local id name dir events found unverified=0
+  while read -r id name; do
+    [[ -n "${id}" ]] || continue
+    if [[ ! "${id}" =~ ^[0-9a-f]{64}$ || -z "${name}" ]]; then
+      unverified=1
+      continue
+    fi
+    found=0
+    for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
+      [[ -r "${dir}/memory.events" ]] || continue
+      events="$(awk '
+        $1 ~ /^(high|max|oom|oom_kill)$/ {
+          if (NF != 2 || $2 !~ /^[0-9]+$/ || $1 in values) invalid = 1
+          values[$1] = $2
+        }
+        END {
+          if (invalid || !("high" in values) || !("max" in values) ||
+              !("oom" in values) || !("oom_kill" in values)) exit 2
+          printf "%s %s %s %s", values["high"], values["max"], values["oom"], values["oom_kill"]
+        }
+      ' "${dir}/memory.events" 2>/dev/null)" || continue
+      printf '%s %s\n' "${events}" "${name}"
+      found=1
+      break
+    done
+    if [[ "${found}" == 0 ]]; then
+      printf 'UNVERIFIED UNVERIFIED UNVERIFIED UNVERIFIED %s\n' "${name}"
+      unverified=1
+    fi
+  done
+  if [[ "${unverified}" == 1 ]]; then return 2; fi
+}
+
+if [[ "${DIAGNOSTIC_MODE}" == memory-peaks || "${DIAGNOSTIC_MODE}" == memory-events ]]; then
   if ! have docker || ! container_names="$(list_running_containers)"; then
     printf 'UNVERIFIED: running-container inventory unavailable\n' >&2
     exit 2
   fi
-  printf 'peak_MiB current_MiB limit_bytes name\n'
-  container_memory_peaks <<<"${container_names}" | sort -rn
+  if [[ "${DIAGNOSTIC_MODE}" == memory-peaks ]]; then
+    printf 'peak_MiB current_MiB limit_bytes name\n'
+    container_memory_peaks <<<"${container_names}" | sort -rn
+  else
+    printf 'high max oom oom_kill name\n'
+    container_memory_events <<<"${container_names}" | sort -k4,4nr -k3,3nr -k2,2nr
+  fi
   exit 0
 fi
 

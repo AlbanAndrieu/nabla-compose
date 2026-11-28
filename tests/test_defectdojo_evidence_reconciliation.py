@@ -80,6 +80,38 @@ class PrivateEvidenceTests(unittest.TestCase):
             self.assertEqual(mod.private_zap(folder),
                              ("INTEGRITY_MISMATCH", "NOT_VERIFIED"))
 
+    def test_archived_async_zap_status_is_bound_to_original_test(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "20261128T120000Z-0a0b0c0d"
+            folder.mkdir(mode=0o700)
+            xml = folder / "report-full.xml"
+            xml.write_bytes(b"<OWASPZAPReport/>")
+            xml.chmod(0o600)
+            save(folder / "manifest.json", {
+                "run_id": folder.name, "scan_state": "COMPLETE",
+                "import_state": "CONFIRMED",
+                "last_import_receipt": "defectdojo-response.json",
+                "outputs": {"report-full.xml": {
+                    "sha256": sha256(xml.read_bytes()).hexdigest()}},
+            })
+            save(folder / "defectdojo-response.json", {
+                "test_id": 321, "status": "Processing",
+                "background_import": True,
+            })
+            status = folder / "defectdojo-test-status-1234abcd-1.json"
+            save(status, {"id": 321, "status": "Processed",
+                          "processing": False})
+            self.assertEqual(mod.private_zap(folder),
+                             ("COMPLETE", "ARCHIVED_PROCESSING_CONFIRMED"))
+            save(status, {"id": 322, "status": "Processed",
+                          "processing": False})
+            self.assertEqual(mod.private_zap(folder),
+                             ("COMPLETE", "INTEGRITY_MISMATCH"))
+            save(status, {"id": 321, "status": "Failed",
+                          "processing": False})
+            self.assertEqual(mod.private_zap(folder),
+                             ("COMPLETE", "IMPORT_FAILED"))
+
     def test_report_contains_no_paths_or_findings(self):
         with tempfile.TemporaryDirectory() as temp:
             report = mod.inventory(Path(temp), NOW)

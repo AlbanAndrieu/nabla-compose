@@ -73,6 +73,8 @@ services:
             control: narrow-access-bypass-to-webhook-path
             reviewAfter: null
     restart: unless-stopped
+    # Candidate for the versioned workload; validate representative executions.
+    mem_limit: 2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5678/healthz" ]
       interval: 30s

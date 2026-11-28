@@ -13,6 +13,8 @@ services:
     image: docker.io/pihole/pihole:2026.07.2
     container_name: pihole
     restart: unless-stopped
+    # Conservative initial cap; validate DNS and gravity refresh.
+    mem_limit: 512m
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/pihole
     x-nabla:
