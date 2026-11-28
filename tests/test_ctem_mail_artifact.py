@@ -63,6 +63,19 @@ class CtemMailGitHubArtifactTests(unittest.TestCase):
                     Exception, "MAIL_PRODUCER_NOT_VERIFIED"):
                 MOD["verified_mail_job"](jobs, 42)
 
+    def test_exact_run_job_route_is_allowlisted_but_not_broadened(self):
+        from github_actions_artifact_api import _RUNS
+        allowed = "repos/AlbanAndrieu/nabla-compose/actions/runs/42/jobs?per_page=100"
+        self.assertIsNotNone(_RUNS.fullmatch(allowed))
+        for route in (
+            allowed.replace("per_page=100", "per_page=1000"),
+            allowed.replace("/jobs?", "/jobs/123?"),
+            allowed.replace("/jobs?", "/secrets?"),
+            allowed.replace("nabla-compose", "unapproved-repository"),
+        ):
+            with self.subTest(route=route):
+                self.assertIsNone(_RUNS.fullmatch(route))
+
     def test_refuses_stale_branch_or_wrong_workflow(self):
         for example in (
             dict(scan_run(), head_branch="feature"),
