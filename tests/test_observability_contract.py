@@ -373,7 +373,8 @@ class ObservabilityContractTests(unittest.TestCase):
             ROOT / "apps" / "prometheus" / "prometheus.yml"
         ).read_text(encoding="utf-8")
         rules = (
-            ROOT / "apps" / "prometheus" / "rules" / "akvorado.rules.yml"
+            # Disabled with the App (27/11/2026): kept out of the *.rules.yml glob.
+            ROOT / "apps" / "prometheus" / "rules" / "akvorado.rules.disabled.yml"
         ).read_text(encoding="utf-8")
         dashboard = json.loads(
             (
@@ -405,9 +406,9 @@ class ObservabilityContractTests(unittest.TestCase):
             ("akvorado_inlet", "172.17.0.24:31057"),
             ("akvorado_outlet", "172.17.0.24:31058"),
         ):
-            self.assertIn(f"- job_name: {job}", prometheus)
-            self.assertIn(target, prometheus)
-        self.assertGreaterEqual(prometheus.count("metrics_path: /api/v0/metrics"), 2)
+            # Not scraped while Akvorado is disabled: re-add the job with the App.
+            self.assertNotIn(f"- job_name: {job}", prometheus)
+            self.assertNotIn(target, prometheus)
 
         for metric in (
             "nabla:telemetry:akvorado_inlet_up",

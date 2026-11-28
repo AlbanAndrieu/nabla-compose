@@ -194,25 +194,8 @@ scrape_configs:
   # pfsense_exporter job: removed while pfSense is disabled in the catalog
   # (19/11/2026); 172.17.0.1 is now the R7000. Re-enable: docs/pfsense/README.md.
 
-  - job_name: akvorado_inlet
-    metrics_path: /api/v0/metrics
-    scrape_interval: 15s
-    static_configs:
-      - targets:
-          - 172.17.0.24:31057
-        labels:
-          platform: truenas
-          role: network-flow-inlet
-
-  - job_name: akvorado_outlet
-    metrics_path: /api/v0/metrics
-    scrape_interval: 15s
-    static_configs:
-      - targets:
-          - 172.17.0.24:31058
-        labels:
-          platform: truenas
-          role: network-flow-outlet
+  # akvorado_inlet/akvorado_outlet jobs: removed while Akvorado is disabled in the
+  # catalog (27/11/2026, no flow exporter since pfSense left). Re-enable from git history.
 
   # Hermes LiteLLM cost + usage: scrape ONLY its key alias, drop personal
   # identity/IP labels before remote_write to Mimir. No prompt or response content.

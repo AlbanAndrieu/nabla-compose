@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c0624707fc8c22eca1041008717107934c71c24be9048ab8b40b0183d79b1ff2",
+  "catalogRevision": "sha256:55d4f200ef5a602095c470208cab3c35674cd034f3f4667103d3bdb3b07daed3",
   "identityBindings": {
     "2fauth": "component:default/2fauth",
     "akvorado-console": "component:default/akvorado-console",
@@ -201,7 +201,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -229,7 +229,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -250,7 +250,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -278,7 +278,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -2930,7 +2930,8 @@
       "runtime": {
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ],
         "provider": "truenas-app"
       },
@@ -2939,7 +2940,7 @@
         "detect"
       ],
       "sourcePath": "apps/scanopy/compose.yml",
-      "url": "http://172.17.0.24:60072"
+      "url": "https://scanopy.int.albandrieu.com"
     },
     {
       "category": "network",
@@ -3599,7 +3600,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:d0135e0fdef491ae8b465a4288c449cd67aae2777ab6e288492e73d2694a4bed",
+  "operatorRevision": "sha256:618c15dc5d0da028eaad470cbe7a9c9f914978cb51083fc403c898dfebcebc05",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -6574,6 +6575,16 @@
       "type": "consumesApi"
     },
     {
+      "description": "Traefik serves the UI as scanopy.int.albandrieu.com; Pi-hole DNS Sync publishes the record.",
+      "evidence": [
+        "apps/scanopy/compose.yml:traefik.http.routers.scanopy"
+      ],
+      "source": "scanopy",
+      "strength": "optional",
+      "target": "traefik",
+      "type": "exposedBy"
+    },
+    {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/scanopy/compose.yml:scanopy-daemon.x-nabla.runtime.containerService"
@@ -7297,7 +7308,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7326,7 +7337,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7348,7 +7359,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -7377,7 +7388,7 @@
         "detect"
       ],
       "sourcePath": "apps/akvorado/compose.yml",
-      "status": "active"
+      "status": "disabled"
     },
     {
       "category": "observability",
@@ -9869,7 +9880,8 @@
       "runtime": {
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ],
         "provider": "truenas-app"
       },
@@ -9878,7 +9890,7 @@
         "detect"
       ],
       "sourcePath": "apps/scanopy/compose.yml",
-      "url": "http://172.17.0.24:60072"
+      "url": "https://scanopy.int.albandrieu.com"
     },
     {
       "category": "network",

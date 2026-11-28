@@ -70,6 +70,7 @@ services:
       start_period: 60s
     # RRD time series of interface 0 and of the system interface (-1) in RAM: they made 424 small
     # writes/s on the raidz2 even at recordsize=16K (21/11). History is lost on restart (accepted).
+    # The SQLite alert store (0/alerts) shares this tmpfs: the entrypoint keeps flow alerts off.
     tmpfs:
       - /var/lib/ntopng/0:size=384m
       - /var/lib/ntopng/-1:size=64m

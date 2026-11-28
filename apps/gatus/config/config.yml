@@ -14,16 +14,6 @@ endpoints:
   url: tcp://172.17.0.24:30081
   conditions:
   - '[CONNECTED] == true'
-- name: Akvorado Console
-  group: network
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: akvorado-console
-    nabla_service_id: akvorado-console
-    nabla_entity_ref: component:default/akvorado-console
-  url: http://172.17.0.24:31056/api/v0/console/healthcheck
-  conditions:
-  - '[STATUS] == 200'
 - name: Grafana Alloy
   group: observability
   interval: 60s

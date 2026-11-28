@@ -12,7 +12,8 @@ apps:
   - name: akvorado
     include:
       - apps/akvorado/compose.yml
-    state: running
+    state: stopped
+    note: disabled by the owner on 2026-11-27, no flow exporter since pfSense left on 2026-11-18
   - name: autokuma
     include:
       - apps/autokuma/compose.yml

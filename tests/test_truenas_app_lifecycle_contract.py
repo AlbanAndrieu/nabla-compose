@@ -362,6 +362,12 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             wrapper.index("exec ntopng /etc/ntopng/nabla.conf"),
         )
         self.assertIn("redis-cli SET ntopng.prefs.admin_password_changed 1", wrapper)
+        # Flow alerts filled the RRD tmpfs at ~700/s: they stay off at every start.
+        self.assertLess(
+            wrapper.index("redis-cli SET ntopng.prefs.emit_flow_alerts 0"),
+            wrapper.index("exec ntopng /etc/ntopng/nabla.conf"),
+        )
+        self.assertIn("- /var/lib/ntopng/0:size=384m", compose)
         wrapper_mode = (ROOT / "apps/ntopng/entrypoint.sh").stat().st_mode
         self.assertTrue(wrapper_mode & stat.S_IXUSR)
 

@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "terraform/vercel-waf/main.tf"
 TERRAGRUNT = ROOT / "infrastructure/vercel-waf/terragrunt.hcl"
 RUNBOOK = ROOT / "terraform/vercel-waf/README.md"
+ALBAN = ROOT / "terraform/vercel-waf/alban.tf"
 
 
 class BababouWafContract(unittest.TestCase):
@@ -17,12 +18,17 @@ class BababouWafContract(unittest.TestCase):
         cls.terragrunt = TERRAGRUNT.read_text(encoding="utf-8")
         cls.runbook = RUNBOOK.read_text(encoding="utf-8")
 
-    def test_sqli_xss_rce_are_blocking_and_enabled(self):
+    def test_enterprise_owasp_is_explicit_opt_in(self):
+        self.assertRegex(
+            self.config,
+            r'variable "enable_owasp_blocking"\s*\{[^}]*default\s*=\s*false',
+        )
+        self.assertIn('var.enable_owasp_blocking ? "deny" : "log"', self.config)
         for group in ("sqli", "xss", "rce"):
             with self.subTest(group=group):
                 self.assertRegex(
                     self.config,
-                    rf'\b{group}\s*=\s*\{{\s*action\s*=\s*"deny",\s*active\s*=\s*true\s*\}}',
+                    rf'\b{group}\s*=\s*\{{\s*action\s*=\s*local.owasp_attack_action,\s*active\s*=\s*true\s*\}}',
                 )
         self.assertRegex(
             self.config,
@@ -46,7 +52,7 @@ class BababouWafContract(unittest.TestCase):
         self.assertRegex(self.config, r'\bwindow\s*=\s*60\b')
         self.assertIn('keys   = ["ip"]', self.config)
         self.assertIn('algo   = "fixed_window"', self.config)
-        self.assertIn('action_duration = "1m"', self.config)
+        self.assertNotRegex(self.config, r'(?m)^\s*action_duration\s*=')
         self.assertIn('action = "deny"', self.config)
 
     def test_only_verified_custom_domains_no_preview(self):
@@ -65,6 +71,23 @@ class BababouWafContract(unittest.TestCase):
         for required in ("terragrunt-safe.sh", "import", "NOT APPLIED", "rollback"):
             self.assertIn(required.lower(), self.runbook.lower())
         self.assertNotRegex(self.config, r'(?i)(api_token|access_key|secret_key)\s*=')
+
+
+class AlbanWafContract(unittest.TestCase):
+    """nabla-site-alban is adopted at its live baseline: import, no custom rule."""
+
+    def test_alban_baseline_is_imported_not_created(self):
+        config = ALBAN.read_text(encoding="utf-8")
+        self.assertRegex(
+            config,
+            r'import\s*\{\s*to\s*=\s*vercel_firewall_config\.alban\s*'
+            r'id\s*=\s*"team_3vukFMXCzaUZEyGAqLAGmXaf/prj_x6leAdsVXdHRcoG1zsSiy5pngEYa"',
+        )
+        self.assertRegex(config, r'bot_protection\s*\{\s*action\s*=\s*"challenge"\s*active\s*=\s*true')
+        self.assertIn('gen  = { action = "log", active = true }', config)
+        self.assertEqual(config.count("local.owasp_attack_action"), 3)
+        self.assertRegex(config, r'prevent_destroy\s*=\s*true')
+        self.assertNotRegex(config, r'(?m)^\s*rules\s*\{')
 
 
 if __name__ == "__main__":
