@@ -36,6 +36,10 @@ on:
       - "scripts/security/validate-defectdojo-report.py"
       - "scripts/security/run-site-alban-zap-private.py"
       - "scripts/security/import-scan-defectdojo.sh"
+      - "scripts/security/poll-defectdojo-gh-artifacts.py"
+      - "tests/test_defectdojo_generic_import_receipts.py"
+      - "scripts/security/verify-defectdojo-test.py"
+      - "tests/test_defectdojo_live_verification.py"
       - "scripts/security/zap-site-alban-rate-limit-hook.py"
       - "config/security/zap/site-alban-rules.tsv"
       - "tests/test_zap_private_pipeline.py"
@@ -86,6 +90,8 @@ jobs:
             scripts/security/validate-defectdojo-report.py \
             scripts/security/run-site-alban-zap-private.py \
             scripts/security/reconcile-defectdojo-evidence.py \
+            scripts/security/poll-defectdojo-gh-artifacts.py \
+            scripts/security/verify-defectdojo-test.py \
             scripts/security/validate-ctem-wan.py \
             scripts/security/zap-site-alban-rate-limit-hook.py \
             scripts/truenas/reconcile-site-support-budget.py
@@ -109,6 +115,10 @@ jobs:
             tests.test_zap_private_pipeline \
             tests.test_site_support_budget \
             tests.test_defectdojo_evidence_reconciliation \
+            tests.test_defectdojo_generic_import_receipts \
+            tests.test_defectdojo_live_verification \
+            tests.test_defectdojo_fastapi_handoff \
+            tests.test_defectdojo_four_repo_handoff \
             tests.test_ctem_wan_validation \
             tests.test_external_attack_surface_contract \
             tests.test_honeypot_contract \
@@ -118,6 +128,7 @@ jobs:
           python3 scripts/security/run-site-alban-zap-private.py --check
           python3 scripts/truenas/reconcile-site-support-budget.py --check
           python3 scripts/security/reconcile-defectdojo-evidence.py --check
+          python3 scripts/security/verify-defectdojo-test.py --check
           bash scripts/security/run-ctem-amass-truenas.sh --check
           python3 scripts/security/pull-ctem-mail-artifact.py --check
           python3 scripts/security/pull-ctem-amass-artifact.py --check
