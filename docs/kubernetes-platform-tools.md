@@ -3,6 +3,25 @@
 This wave prepares the next Talos/Kubernetes platform layer without coupling it
 to the TrueNAS Docker/Apps IPAM migration.
 
+## Mise à jour de conception — 28 novembre 2026
+
+Le bloc ci-dessous est une **photographie historique du 11 septembre**,
+et non un état déployé actuel. Le [relevé runtime du 25 novembre](roadmap-kubernetes-security.md)
+confirme désormais **Falco 3/3, Cilium et TrueNAS CSI**, sans Ingress
+Kubara et sans NetworkPolicy créée. N'interprétez pas le « Falco NOT_INSTALLED »
+historique comme un diagnostic en date du 28/11.
+
+La [nouvelle proposition Kubara](architecture/kubara-talos-dual-traefik.md)
+versionne un **candidat non activé** dans
+`config/kubara/config.candidate.yaml` et un audit
+`scripts/talos/audit-kubara-integration.py`.
+Elle permet de conserver TrueNAS Traefik côté edge et d'utiliser le Traefik
+généré par Kubara dans Talos, sans remplacer Cilium/TrueNAS CSI pendant
+le bootstrap. Le `config.yaml` réellement approuvé et l'activation
+des services restent **NOT_RUN**. Un `bootstrap` effectif requiert une
+revue du schéma/Helm, une VIP privée réellement réservée et des
+preuves de refus WAN.
+
 ## Current acceptance state · 2026-09-11
 
 The persistent operator CLI and Talos/Kubernetes base were revalidated after the

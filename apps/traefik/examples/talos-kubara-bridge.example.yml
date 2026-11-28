@@ -1,0 +1,37 @@
+# TEMPLATE ONLY: apps/traefik/examples is NOT mounted as a dynamic provider.
+# Do not move into apps/traefik/dynamic until the private VIP, TLS cert/CA,
+# positive LAN probe and negative Cloudflare/WAN probe are all accepted.
+# This is a TrueNAS edge -> Kubara Traefik upstream route; no Kubernetes
+# Docker bridge or Pod CIDR is exposed to TrueNAS.
+http:
+  routers:
+    talos-private-canary:
+      rule: "Host(`test.int.albandrieu.com`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - talos-bridge-lan-only
+      service: talos-kubara-canary
+  middlewares:
+    talos-bridge-lan-only:
+      ipAllowList:
+        # Socket peer, not X-Forwarded-For from an arbitrary client.
+        sourceRange:
+          - 172.17.0.0/24
+  services:
+    talos-kubara-canary:
+      loadBalancer:
+        passHostHeader: true
+        serversTransport: talos-kubara-verified
+        servers:
+          - url: "https://REPLACE_WITH_RESERVED_TALOS_LB_IP"
+  serversTransports:
+    talos-kubara-verified:
+      # This hostname must be in the certificate served by Kubara Traefik.
+      serverName: "test.int.albandrieu.com"
+      rootCAs:
+        - "/etc/traefik/certs/REPLACE_WITH_PRIVATE_CA_CERT.pem"
+      # REQUIRED: TrueNAS Traefik has a legacy global insecureSkipVerify=true.
+      # This per-service override must enforce verification, not inherit it.
+      insecureSkipVerify: false

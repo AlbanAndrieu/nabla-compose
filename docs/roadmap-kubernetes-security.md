@@ -4,6 +4,27 @@
 
 **Relevé du 25/11** : cluster `taloscp01`, `taloswk01`, `taloswk02` Ready en **Talos v1.13.9 / Kubernetes v1.36.3** ; seuls Falco (3 pods), `truenas-csi` et Cilium tournent ; **0 NetworkPolicy, 0 Ingress, 0 PVC** ; namespace `keycloak` vide. Sur TrueNAS : CrowdSec, DefectDojo, DSOMM, honeypot, Suricata et Wazuh `RUNNING` ; `keycloak` et `hermes-agent` `STOPPED` ; aucun Vault déployé.
 
+## Décision de conception — 28 novembre 2026 : Kubara et deux Traefik
+
+**CODED, NOT_DEPLOYED** : profil candidat Kubara `v0.14.0`, audit
+statique/read-only et exemple de pont HTTPS strict TrueNAS→Talos.
+Voir [l'ADR Kubara / Cilium / TrueNAS CSI / Traefik](architecture/kubara-talos-dual-traefik.md).
+
+- **Cilium conserve le CNI**. MetalLB Kubara n'est pas un CNI. Le LB IPAM/L2
+  Cilium nécessite une revue `kubeProxyReplacement` : la configuration
+  actuelle est à `false`. MetalLB reste **désactivé** en attendant
+  l'inventaire VIP/DHCP et les tests ARP.
+- **TrueNAS CSI reste responsable de `nabla-truenas-nfs` (RWX)**. Longhorn
+  peut seulement être évalué comme stockage bloc complémentaire (extensions
+  Talos iSCSI/util-linux, volumes dédiés, sizing et restauration).
+- **Deux Traefik** : l'edge TrueNAS sert Cloudflare/CrowdSec ; Kubara produit
+  l'ingress Kubernetes interne. Pont HTTPS réchiffré, CA/SNI vérifiés,
+  routeur LAN explicite. Aucun changement de la configuration active
+  TrueNAS ni du cluster.
+- Les preuves du **25/11** restent l'observation runtime la plus récente
+  citée dans cette roadmap. La présence d'un manifeste ou d'une CLI
+  n'est pas une installation Kubara.
+
 ## Kubernetes Talos (rattachement H01, sauf mention)
 
 | Item | État constaté le 25/11 | Preuve attendue |
