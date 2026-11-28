@@ -1,3 +1,10 @@
+# [0.125.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.124.1...0.125.0) (2026-11-28)
+
+
+### Features
+
+* **ntopng,talos:** ntopng piloté par code, Talos à l'arrêt par défaut ([#462](https://github.com/AlbanAndrieu/nabla-compose/issues/462)) ([fb86d0a](https://github.com/AlbanAndrieu/nabla-compose/commit/fb86d0a9d7dfb91f3f4b9690dfafa84405538035)), closes [#450](https://github.com/AlbanAndrieu/nabla-compose/issues/450) [#455](https://github.com/AlbanAndrieu/nabla-compose/issues/455)
+
 ## [0.124.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.124.0...0.124.1) (2026-11-28)
 
 
