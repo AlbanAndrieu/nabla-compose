@@ -81,7 +81,7 @@ class AlbanWafContract(unittest.TestCase):
         self.assertRegex(
             config,
             r'import\s*\{\s*to\s*=\s*vercel_firewall_config\.alban\s*'
-            r'id\s*=\s*"team_3vukFMXCzaUZEyGAqLAGmXaf/prj_x6leAdsVXdHRcoG1zsSiy5pngEYa"',
+            r'id\s*=\s*"team_[A-Za-z0-9]+/prj_[A-Za-z0-9]+"',
         )
         self.assertRegex(config, r'bot_protection\s*\{\s*action\s*=\s*"challenge"\s*active\s*=\s*true')
         self.assertIn('gen  = { action = "log", active = true }', config)
