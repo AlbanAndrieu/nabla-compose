@@ -9,12 +9,10 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import importlib.util
-import ipaddress
 import json
 import os
 from pathlib import Path
 import re
-import stat
 import subprocess
 import tempfile
 
@@ -143,15 +141,14 @@ def get_json(path: str, config: Path) -> dict:
 
 
 def verify_live(source: str, kind: str, run_id: int,
-                *, get=None, root: Path = ROOT) -> dict:
+                *, get, root: Path = ROOT) -> dict:
     test_id, engagement = validated_receipt(source, kind, run_id, root)
-    getter = get or get_json
-    payload = getter(f"/api/v2/tests/{test_id}/")
+    payload = get(f"/api/v2/tests/{test_id}/")
     status = test_state(payload, test_id, engagement)
     observed = None
     if status == "LIVE_TEST_PROCESSED":
         observed = indexed_count(
-            getter(f"/api/v2/findings/?test={test_id}&limit=1"), test_id
+            get(f"/api/v2/findings/?test={test_id}&limit=1"), test_id
         )
         if observed is None:
             status = "FINDINGS_UNVERIFIED"
