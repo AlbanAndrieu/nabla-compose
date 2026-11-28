@@ -36,9 +36,11 @@ case "$*" in
 esac
 """,
     "curl": r"""#!/usr/bin/env bash
-printf '%s\n' "$*" > "${FAKE_STATE}/curl.args"
+printf '%s\n' "$*" >> "${FAKE_STATE}/curl.args"
 cat > "${FAKE_STATE}/curl.body"
-for ((i = 1; i <= $#; i++)); do [[ "${!i}" == -K ]] && { j=$((i + 1)); cat "${!j}" > "${FAKE_STATE}/curl.config"; }; done
+jq -c . "${FAKE_STATE}/curl.body" >> "${FAKE_STATE}/curl.bodies"
+for ((i = 1; i <= $#; i++)); do [[ "${!i}" == -K ]] && { j=$((i + 1)); cat "${!j}" >> "${FAKE_STATE}/curl.config"; }; done
+printf '{"ok":true,"ts":"1700000000.000100"}'
 """,
     "logger": "#!/usr/bin/env bash\nexit 0\n",
     "sudo": '#!/usr/bin/env bash\n[[ "$1" == -n ]] && shift\nexec "$@"\n',
@@ -104,6 +106,57 @@ def test_failure_sends_one_short_summary(env, tmp_path):
     assert "hooks.slack.com" not in (state / "curl.args").read_text()  # credential kept out of argv
     assert "hooks.slack.com/services/T/B/x" in (state / "curl.config").read_text()
     assert "9× LibClamAV" in json.loads((state / "curl.body").read_text())["text"]
+
+
+# The 28/11 nabla-hourly-sync failure: container names that contain "errors" and
+# the `logger -s` echo of the real error used to fill the Slack message.
+HOURLY_SYNC = """\
+  ix-sentry-sentry-post-process-forwarder-errors-1: TrueNAS App sentry, started 13:39, restarts=1
+  ix-sentry-snuba-errors-consumer-1: TrueNAS App sentry, started 13:39, restarts=147
+[doco-cd-update] ERROR: reconcile-mail-settings.py: REJECTED: TrueNAS middleware alertservice.update failed
+<13>Nov 28 14:01:22 doco-cd-update: ERROR: reconcile-mail-settings.py: REJECTED: TrueNAS middleware alertservice.update failed
+[doco-cd-update] FastAPI Sample: up to date at a18d929a3d79.
+"""
+
+
+def fail_hourly_sync(env, tmp_path, notify_env):
+    (tmp_path / "notify.env").write_text(notify_env)
+    script = f"cat <<'EOF'\n{HOURLY_SYNC}EOF\nexit 1"
+    result = run(["bash", str(NOTIFY), "nabla-hourly-sync", "--", "bash", "-c", script], env)
+    assert result.returncode == 1
+    state = tmp_path / "state"
+    bodies = [json.loads(b) for b in (state / "curl.bodies").read_text().splitlines() if b]
+    return json.loads((state / "mail.json").read_text(encoding="utf-8")), bodies, state
+
+
+def test_bot_token_posts_a_headline_and_the_detail_in_its_thread(env, tmp_path):
+    mail, bodies, state = fail_hourly_sync(
+        env, tmp_path, "NABLA_CRON_SLACK_BOT_TOKEN=xoxb-not-a-real-token\nNABLA_CRON_SLACK_CHANNEL=C0TEST\n"
+        "NABLA_CRON_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/T/B/x'\n")
+    headline, thread = bodies  # two chat.postMessage calls, no webhook
+    assert headline["channel"] == thread["channel"] == "C0TEST" and "thread_ts" not in headline
+    assert headline["text"].splitlines() == [
+        "❌ *nabla-hourly-sync* a échoué sur " + headline["text"].split(" sur ", 1)[1].splitlines()[0],
+        "> [doco-cd-update] ERROR: reconcile-mail-settings.py: REJECTED: TrueNAS middleware alertservice.update failed",
+    ]
+    assert thread["thread_ts"] == "1700000000.000100"
+    assert thread["text"].startswith("```") and "Journal complet" in thread["text"]
+    # Container names are not errors and the syslog echo is not a second error.
+    assert "snuba" not in thread["text"] and "&lt;13&gt;" not in thread["text"]
+    assert thread["text"].count("REJECTED") == 1
+    assert "REJECTED" in mail["subject"] and "FastAPI Sample" not in mail["subject"]
+    args = (state / "curl.args").read_text()
+    assert "xoxb-" not in args and "hooks.slack.com" not in args  # credentials stay out of argv
+    config = (state / "curl.config").read_text()
+    assert config.count("https://slack.com/api/chat.postMessage") == 2 and "Bearer xoxb-not-a-real-token" in config
+
+
+def test_webhook_only_sends_headline_then_detail_in_one_message(env, tmp_path):
+    _, bodies, _ = fail_hourly_sync(env, tmp_path, "NABLA_CRON_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/T/B/x'\n")
+    (message,) = bodies
+    lines = message["text"].splitlines()
+    assert lines[0].startswith("❌ *nabla-hourly-sync* a échoué") and lines[1].startswith("> [doco-cd-update] ERROR")
+    assert lines[2] == "```" and "Journal complet" in lines[-1]
 
 
 @needs_root
