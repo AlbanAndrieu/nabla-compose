@@ -87,7 +87,7 @@ sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonn
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir avec un indexeur Wazuh 3.x.
 - Le levier restant (≈ 4 Gio) est la pause d'OpenRAG (Langflow, Docling, OpenSearch).
 - **Plafonds mémoire 28/11 — pics OBSERVED / CODED** : cibles #455 corrigées ;
-  validation par App et budget hôte avant déploiement NOT_RUN.
+  validation par App, budget hôte et `--memory-events` avant déploiement NOT_RUN.
   [Runbook](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
 
 

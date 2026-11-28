@@ -145,6 +145,24 @@ des tâches variables (Docling, ClickHouse, Ollama, etc.).
 
 ### Cgroup au plafond et Apps natives
 
+Pour distinguer la saturation d'un plafond d'un simple pic de cache,
+collecter les événements et la pression hôte sans scan disque :
+
+```bash
+sudo env DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-performance.sh --memory-events
+cat /proc/pressure/memory
+free -h
+```
+
+`high` compte les passages en throttling/reclaim liés à `memory.high` ;
+`max` les tentatives de dépassement de `memory.max`, `oom` les
+allocations en situation OOM, `oom_kill` les processus tués. Ces compteurs
+sont cumulatifs (voir [cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html#memory-interface-files)),
+pas des taux : comparer deux relevés sur les mêmes cgroups
+pendant une charge représentative (une recréation peut remettre à zéro).
+Un compteur absent ou invalide est `UNVERIFIED` (code 2), pas zéro.
+La collecte ne doit pas être publiée dans le catalogue public.
+
 Les pics de Traefik, MinIO et MongoDB atteignent le plafond (arrondi
 au Mio supérieur). Ce n'est pas une preuve d'OOM : le pic est censuré
 par la limite et peut inclure du cache. Traefik et MinIO ont des cibles
@@ -167,6 +185,16 @@ Ne pas réduire ces plafonds sur un relevé inactif. Scrutiny et son
 collecteur ont des limites versionnées mais étaient non plafonnés dans
 le relevé : réconcilier la dérive, pas ajouter une deuxième définition.
 Ollama conserve 6 Gio : le pic observé justifie l'écart avec le courant.
+
+**Immich ML** : la reconnaissance des visages et la recherche sémantique
+utilisent le service ML d'Immich, pas LiteLLM nativement. Vérifier l'URL
+dans Administration → Settings → Machine Learning. Ne pas réduire le
+plafond ML sur un pic hors indexation. Pour libérer de la RAM TrueNAS,
+tester d'abord le [ML distant](https://docs.immich.app/guides/remote-machine-learning/)
+sur la workstation GPU (même version Immich, réseau de confiance sans
+exposition WAN ; des aperçus sont envoyés au service). Garder un retour
+à l'URL interne, vérifier les tâches et la qualité avant de retirer la
+charge ML locale. Aucun changement runtime ni migration ML n'est appliqué.
 
 Après approbation et réconciliation depuis les sources versionnées, un
 seul App à la fois : vérifier la santé avant/après, les accès réels
