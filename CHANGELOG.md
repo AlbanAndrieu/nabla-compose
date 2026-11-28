@@ -1,3 +1,10 @@
+## [0.121.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.1...0.121.2) (2026-11-28)
+
+
+### Bug Fixes
+
+* **nexus,snapshots:** pin Nexus formats, report doubled snapshot classes, roadmap pass 28/11 ([#454](https://github.com/AlbanAndrieu/nabla-compose/issues/454)) ([221d1a2](https://github.com/AlbanAndrieu/nabla-compose/commit/221d1a2ef8b81b9edfd44e9450e48a03850252bd)), closes [#450](https://github.com/AlbanAndrieu/nabla-compose/issues/450)
+
 ## [0.121.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.121.0...0.121.1) (2026-11-28)
 
 
