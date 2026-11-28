@@ -115,6 +115,16 @@ def test_memory_peaks_is_bounded_and_unavailable_cgroup_is_not_zero(tmp_path: Pa
     assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]
 
 
+def _fixture_cgroup_script(tmp_path: Path, root: Path) -> Path:
+    script = tmp_path / "scripts" / "truenas" / SCRIPT.name
+    script.parent.mkdir(parents=True)
+    script.write_text(SCRIPT.read_text(encoding="utf-8").replace("/sys/fs/cgroup", str(root)), encoding="utf-8")
+    lib = script.parent.parent / "lib"
+    lib.mkdir()
+    shutil.copyfile(ROOT / "scripts/lib/diagnostic.sh", lib / "diagnostic.sh")
+    return script
+
+
 def test_memory_peaks_reads_and_rounds_cgroup_charges(tmp_path: Path) -> None:
     # Substitute only the cgroup root in the fixture, never on TrueNAS.
     root = tmp_path / "cgroup"
@@ -123,13 +133,47 @@ def test_memory_peaks_reads_and_rounds_cgroup_charges(tmp_path: Path) -> None:
     (group / "memory.peak").write_text(str(1024 * 2**20 + 1), encoding="utf-8")
     (group / "memory.current").write_text(str(512 * 2**20 + 1), encoding="utf-8")
     (group / "memory.max").write_text("max", encoding="utf-8")
-    script = tmp_path / "scripts" / "truenas" / SCRIPT.name
-    script.parent.mkdir(parents=True)
-    script.write_text(SCRIPT.read_text(encoding="utf-8").replace("/sys/fs/cgroup", str(root)), encoding="utf-8")
-    lib = script.parent.parent / "lib"
-    lib.mkdir()
-    shutil.copyfile(ROOT / "scripts/lib/diagnostic.sh", lib / "diagnostic.sh")
+    script = _fixture_cgroup_script(tmp_path, root)
     result, calls = _invoke(tmp_path, "--memory-peaks", script=script)
     assert result.returncode == 0, result.stderr
     assert "1025 513 max fixture-container" in result.stdout
+    assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]
+
+
+
+@pytest.mark.parametrize("layout", ["docker", "systemd"])
+def test_memory_events_reports_cumulative_counts_with_one_inventory(
+    tmp_path: Path, layout: str,
+) -> None:
+    root = tmp_path / "cgroup"
+    if layout == "docker":
+        group = root / "docker" / ("0" * 64)
+    else:
+        group = root / "system.slice" / ("docker-" + "0" * 64 + ".scope")
+    group.mkdir(parents=True)
+    (group / "memory.events").write_text(
+        "low 0\nhigh 7\nmax 123\noom 2\noom_kill 1\noom_group_kill 0\n",
+        encoding="utf-8",
+    )
+    result, calls = _invoke(tmp_path, "--memory-events", script=_fixture_cgroup_script(tmp_path, root))
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["high max oom oom_kill name", "7 123 2 1 fixture-container"]
+    assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]
+
+
+@pytest.mark.parametrize("events", [
+    None,
+    "high 0\nmax 0\noom 0\n",
+    "high 0\nmax invalid\noom 0\noom_kill 0\n",
+    "high 0\nmax 0\nmax 1\noom 0\noom_kill 0\n",
+])
+def test_memory_events_unavailable_is_not_zero(tmp_path: Path, events: str | None) -> None:
+    root = tmp_path / "cgroup"
+    group = root / "docker" / ("0" * 64)
+    group.mkdir(parents=True)
+    if events is not None:
+        (group / "memory.events").write_text(events, encoding="utf-8")
+    result, calls = _invoke(tmp_path, "--memory-events", script=_fixture_cgroup_script(tmp_path, root))
+    assert result.returncode == 2
+    assert "UNVERIFIED UNVERIFIED UNVERIFIED UNVERIFIED fixture-container" in result.stdout
     assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]

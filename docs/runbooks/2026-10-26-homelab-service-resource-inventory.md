@@ -88,24 +88,33 @@ la capture doit aider le diagnostic, pas l'aggraver.
 
 ## Ajustement des plafonds mémoire (28 novembre 2026)
 
-Le relevé du collecteur et les deux `docker stats` restent ponctuels, pas
-des pics. Le lot suivant est **CODED / réception runtime NOT_RUN** :
-candidats à valider, ni économies de RAM observées ni consigne de
-redéploiement global. Les plafonds Docker ne réservent pas la RAM.
+Le relevé initial du collecteur était ponctuel. La sortie privée de
+`--memory-peaks` fournie par l'opérateur le 28/11 (worktree #455,
+`c7bad865`) permet de confronter les cibles aux pics cgroup.
+**PICS OBSERVÉS / CODED / réception runtime NOT_RUN** : aucune
+économie de RAM observée. Les plafonds Docker ne réservent pas la RAM.
 
-| Service | Ancien plafond | Cible pilote | Pic maximal acceptable avant baisse (Mio) |
+| Service | Plafond observé avant application | Cible révisée | Pic maximal acceptable (Mio) |
 | --- | ---: | ---: | ---: |
 | Nexus | 5 Gio | 4608 Mio | 3072 |
-| Sentry Web | 2304 Mio | 2048 Mio | 1365 |
-| Sentry Taskworker | 1536 Mio | 1280 Mio | 853 |
-| Langfuse Web | 1792 Mio | 1536 Mio | 1024 |
+| Sentry Web | 2304 Mio | 2304 Mio | 1536 |
+| Sentry Taskworker | 1536 Mio | 1664 Mio | 1109 |
+| Langfuse Web | 1792 Mio | 1664 Mio | 1109 |
+| Langfuse Worker | 960 Mio | 832 Mio | 554 |
 | LanguageTool | 1792 Mio | 1536 Mio | 1024 |
+| Loki | 768 Mio | 640 Mio | 426 |
 | Dependency-Track API | non plafonné | 4 Gio | 2730 |
 | Dependency-Track frontend | non plafonné | 256 Mio | 170 |
+| Traefik | 256 Mio | 448 Mio | 298 |
+| MinIO | 448 Mio | 704 Mio | 469 |
+| Pi-hole | non plafonné | 512 Mio | 341 |
+| Dozzle | non plafonné | 256 Mio | 170 |
+| n8n | 4 Gio (App native) | 2 Gio (Compose) | 1365 |
 
-Les seuils appliquent le contrat historique `mem_limit >= memory.peak × 1,5`
-arrondi à la baisse pour le pic admissible. Les cinq baisses représentent
-1536 Mio de plafonds cumulés, **pas** de RAM libérée. Nexus et LanguageTool
+Les seuils appliquent le contrat historique `mem_limit >= memory.peak × 1,5`,
+arrondi à la baisse pour le pic admissible. Les baisses initiales de Sentry
+Web/Taskworker et Langfuse Web dans #455 ne respectaient pas cette règle :
+cibles corrigées. Nexus et LanguageTool satisfont le seuil. Nexus et LanguageTool
 gardent leurs heaps ; Nexus garde également 2 Gio de mémoire directe,
 avec au moins 512 Mio pour le reste. Il s'agit d'un compromis Homelab
 hors dimensionnement [Sonatype](https://help.sonatype.com/en/nexus-repository-memory-overview.html),
@@ -133,6 +142,59 @@ le cgroup a déjà atteint son plafond, conserver l'ancien réglage ou
 revoir la cible. Ne pas réduire OpenSearch, Wazuh Indexer, NetBox ou
 les autres services sans marge mesurée ; conserver aussi les plafonds
 des tâches variables (Docling, ClickHouse, Ollama, etc.).
+
+### Cgroup au plafond et Apps natives
+
+Pour distinguer la saturation d'un plafond d'un simple pic de cache,
+collecter les événements et la pression hôte sans scan disque :
+
+```bash
+sudo env DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-performance.sh --memory-events
+cat /proc/pressure/memory
+free -h
+```
+
+`high` compte les passages en throttling/reclaim liés à `memory.high` ;
+`max` les tentatives de dépassement de `memory.max`, `oom` les
+allocations en situation OOM, `oom_kill` les processus tués. Ces compteurs
+sont cumulatifs (voir [cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html#memory-interface-files)),
+pas des taux : comparer deux relevés sur les mêmes cgroups
+pendant une charge représentative (une recréation peut remettre à zéro).
+Un compteur absent ou invalide est `UNVERIFIED` (code 2), pas zéro.
+La collecte ne doit pas être publiée dans le catalogue public.
+
+Les pics de Traefik, MinIO et MongoDB atteignent le plafond (arrondi
+au Mio supérieur). Ce n'est pas une preuve d'OOM : le pic est censuré
+par la limite et peut inclure du cache. Traefik et MinIO ont des cibles
+pilotes plus hautes, à déployer séparément **uniquement après** revue
+des compteurs `memory.events` (max, oom, oom_kill), de MemAvailable,
+PSI et du budget global. MongoDB reste à 1536 Mio : examiner les
+événements et le cache WiredTiger avant d'augmenter sa limite
+(antécédent de forte consommation). OpenSearch, LiteLLM, ntopng,
+Wazuh Indexer, NetBox et Kafka sont aussi proches de leur plafond ;
+ne pas augmenter tous les plafonds simultanément sur l'hôte 64 Go.
+Si la pression hôte est forte, optimiser le workload d'abord.
+
+Le plafond n8n versionné est une cible du Compose, pas une modification
+de l'App native ou une migration des services associés. Vérifier la
+provenance effective avant de réconcilier et exécuter des workflows
+représentatifs. Les gros plafonds natifs (LocalAI, Immich, PostgreSQL)
+et OpenClaw nécessitent une revue de leur propre configuration et des
+charges représentatives (modèles, indexation, requêtes, tâches agents).
+Ne pas réduire ces plafonds sur un relevé inactif. Scrutiny et son
+collecteur ont des limites versionnées mais étaient non plafonnés dans
+le relevé : réconcilier la dérive, pas ajouter une deuxième définition.
+Ollama conserve 6 Gio : le pic observé justifie l'écart avec le courant.
+
+**Immich ML** : la reconnaissance des visages et la recherche sémantique
+utilisent le service ML d'Immich, pas LiteLLM nativement. Vérifier l'URL
+dans Administration → Settings → Machine Learning. Ne pas réduire le
+plafond ML sur un pic hors indexation. Pour libérer de la RAM TrueNAS,
+tester d'abord le [ML distant](https://docs.immich.app/guides/remote-machine-learning/)
+sur la workstation GPU (même version Immich, réseau de confiance sans
+exposition WAN ; des aperçus sont envoyés au service). Garder un retour
+à l'URL interne, vérifier les tâches et la qualité avant de retirer la
+charge ML locale. Aucun changement runtime ni migration ML n'est appliqué.
 
 Après approbation et réconciliation depuis les sources versionnées, un
 seul App à la fois : vérifier la santé avant/après, les accès réels
