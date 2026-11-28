@@ -33,6 +33,11 @@ unset password
 redis-cli SET ntopng.user.admin.password "${hash}" >/dev/null
 redis-cli SET ntopng.prefs.admin_password_changed 1 >/dev/null
 unset hash
+# setDefaults also skips the rest of the admin user, so write it here: without
+# group, admin logs in but is not an administrator (REST writes refused, 28/11).
+redis-cli SET ntopng.user.admin.group administrator >/dev/null
+redis-cli SETNX ntopng.user.admin.full_name "ntopng Administrator" >/dev/null
+redis-cli SETNX ntopng.user.admin.allowed_nets "0.0.0.0/0,::/0" >/dev/null
 # Flow alerts (unidirectional traffic, TCP no data, probing on br0) reached ~700/s and filled
 # the /var/lib/ntopng/0 tmpfs in 13 minutes (27/11): the SQLite store is only pruned hourly.
 # Flow scores are still computed and host alerts stay on.
