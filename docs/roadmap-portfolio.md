@@ -2,6 +2,16 @@
 
 > **Arbitrage actualisé le 22 novembre 2026** : l'opérateur décide **H17 d'abord**, puis **Dependency-Track + outils CTEM**, pendant que l'étude **H18 EnOcean/Somfy** devient active ; **H08 autres Apps / Nexus non urgent**. Le précédent ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 est conservé ci-dessous comme **séquence historique du 14/11**, sans priver les tests d'une référence. H01/H02 sont déjà réceptionnés sur leur gate principale. Les 21 IDs restent conservés.
 
+## Delta vérifié au 28 novembre 2026 — ne pas rouvrir les acquis
+
+- **H01/H02** : gates CSI/NFS et backup PostgreSQL reçues le 21/11 ; seuls leurs reliquats sont repris dans H03/H09/H10/H16.
+- **H03** : matérialisation des secrets Keycloak, Joplin, Homarr et `postgres_exporter` observée le 28/11 ; recette de chaque consommateur et rotation restent distinctes.
+- **H08** : Nexus APT/npm/PyPI déployé le 27/11 ; HTTPS privé, clients et restauration préalable à upgrade restent ouverts. Les optimisations de snapshots et leurs points de vigilance sont consignés dans [le journal 28/11](runbooks/2026-11-28-roadmap-loop-state.md).
+- **H12 — support site** : la [PR #461](https://github.com/AlbanAndrieu/nabla-compose/pull/461) restaure la consigne de citation dans le prompt v8. Évaluation live mentionnée : 20/20 sur bornage/langue/sécurité et citations insuffisantes (1/10 réponses factuelles). **Ne pas déclarer la réception RAG terminée avant un test de liens sur le site et de provenance effective**.
+- **H17 puis H13/H05** : ordre inchangé ; les critères de clôture demeurent la parité runtime V2, les preuves CTEM/SBOM, puis la qualité des observations. Étude H18 en parallèle. IPv6 Freebox/R7000 reporté en dernier.
+
+La table H01–H21 ci-dessous reste **l'unique backlog**. Le [plan actif](roadmap.md) résume uniquement l'ordre et les gates ; les [runbooks](runbooks/README.md) décrivent les opérations. Les observations datées ne prouvent pas l'état actuel.
+
 ## Autorités et règles
 
 - **Infrastructure** : [roadmap nabla-compose](roadmap.md), source pour TrueNAS, Talos, CSI, pfSense, Cloudflare, sauvegardes et secrets.
