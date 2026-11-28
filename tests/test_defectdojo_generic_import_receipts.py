@@ -134,7 +134,7 @@ class GenericImportReceiptsTest(unittest.TestCase):
 
     def test_readonly_inventory_never_calls_api_or_outputs_secrets(self):
         with tempfile.TemporaryDirectory() as temp:
-            report = self.make_report(Path(temp) / "imports/nabla-compose")
+            _unused_report = self.make_report(Path(temp) / "imports/nabla-compose")
             data = reconcile.inventory(Path(temp), reconcile.datetime.now(
                 reconcile.timezone.utc))
             matched = [x for x in data["records"] if x.get("run_id") == 77]
