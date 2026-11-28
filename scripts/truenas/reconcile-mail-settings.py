@@ -26,7 +26,11 @@ def middleware(method: str, *arguments: object, job: bool = False) -> object:
     argv = ["midclt", "call", *(["-j"] if job else []), method, *(json.dumps(v) for v in arguments)]
     result = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=120)
     if result.returncode:
-        raise RuntimeError(f"TrueNAS middleware {method} failed")
+        # Validation errors ("[EINVAL] alert_service_update.name: Field required") name
+        # fields, not values: show them, so the hourly alert says what was refused.
+        reasons = [line.strip() for line in result.stderr.splitlines() if line.lstrip().startswith("[E")]
+        detail = f": {'; '.join(reasons)[:300]}" if reasons else ""
+        raise RuntimeError(f"TrueNAS middleware {method} failed{detail}")
     if job:
         return None
     try:
@@ -83,8 +87,16 @@ def apply(config: dict, stale_users: list[dict], stale_services: list[tuple[dict
         middleware("user.update", user["id"], {"email": RECIPIENT})
         print(f"UPDATED: user {user['username']}")
     for service, attributes in stale_services:
-        middleware("alertservice.update", service["id"], {"attributes": {**attributes, "email": RECIPIENT}})
-        print(f"UPDATED: alert service {service.get('name')}")
+        # The v27 API refuses a partial update (name and level required, 28/11/2026).
+        # A service named after its old address is renamed with the new one.
+        name = RECIPIENT if service.get("name") == attributes["email"] else service.get("name")
+        middleware("alertservice.update", service["id"], {
+            "name": name,
+            "level": service.get("level", "WARNING"),
+            "enabled": service.get("enabled", True),
+            "attributes": {**attributes, "email": RECIPIENT},
+        })
+        print(f"UPDATED: alert service {name}")
 
 
 def main() -> int:

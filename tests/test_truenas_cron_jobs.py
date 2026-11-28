@@ -99,7 +99,10 @@ def run_mail(mode, send_fails=False):
     users = [{"id": 1, "username": "root", "email": "old@example.org"},
              {"id": 3, "username": "albandrieu", "email": mail.RECIPIENT}]
     services = [{"id": 4, "name": "mail", "type": "Mail", "attributes": {"email": "old@example.org"}},
-                {"id": 5, "name": "default", "type": "Mail", "attributes": {"email": ""}}]
+                {"id": 5, "name": "default", "type": "Mail", "attributes": {"email": ""}},
+                # Live v27 shape (28/11): the type sits in attributes, named after its address.
+                {"id": 6, "name": "old2@example.org", "level": "INFO", "enabled": False,
+                 "attributes": {"type": "Mail", "email": "old2@example.org"}}]
 
     def fake(method, *arguments, job=False):
         calls.append((method, *arguments))
@@ -131,7 +134,11 @@ def test_mail_apply_sets_sender_tests_then_retargets_recipients():
     assert ("mail.update", {"fromemail": mail.SENDER, "fromname": mail.SENDER_NAME}) in calls
     assert ("user.update", 1, {"email": mail.RECIPIENT}) in calls
     assert not any(c[0] == "user.update" and c[1] == 3 for c in calls)
-    assert ("alertservice.update", 4, {"attributes": {"email": mail.RECIPIENT}}) in calls
+    # v27 refuses a partial update: name, level and enabled always go with the attributes.
+    assert ("alertservice.update", 4, {"name": "mail", "level": "WARNING", "enabled": True,
+                                       "attributes": {"email": mail.RECIPIENT}}) in calls
+    assert ("alertservice.update", 6, {"name": mail.RECIPIENT, "level": "INFO", "enabled": False,
+                                       "attributes": {"type": "Mail", "email": mail.RECIPIENT}}) in calls
     assert not any(c[0] == "alertservice.update" and c[1] == 5 for c in calls)
 
 
@@ -165,3 +172,12 @@ def test_mail_apply_without_sender_change_sends_no_test_mail():
     ):
         mail.main()
     assert "mail.send" not in calls and "mail.update" not in calls
+
+
+def test_middleware_error_names_the_refused_fields():
+    refused = mail.subprocess.CompletedProcess([], 1, "", "Traceback...\n[EINVAL] alert_service_update.name: Field required\n"
+                                          "[EINVAL] alert_service_update.level: Field required\n")
+    with mock.patch.object(mail.subprocess, "run", return_value=refused), pytest.raises(RuntimeError) as error:
+        mail.middleware("alertservice.update", 3, {})
+    assert str(error.value) == ("TrueNAS middleware alertservice.update failed: [EINVAL] alert_service_update.name: "
+                                "Field required; [EINVAL] alert_service_update.level: Field required")
