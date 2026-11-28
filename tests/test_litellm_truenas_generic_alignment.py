@@ -74,10 +74,20 @@ class TrueNASGenericLiteLLMTests(unittest.TestCase):
         # Another num_ctx would reload the model on the TrueNAS CPU.
         self.assertIn("num_ctx: 8192", routes["qwen-cpu"])
         self.assertIn("OLLAMA_CONTEXT_LENGTH=8192", ollama)
-        # The auto router only picks free local routes, never a paid model.
+        # Simple prompts stay free and local; only harder tiers use the paid mini model.
         self.assertIn("model: auto_router/complexity_router", routes["auto"])
-        tiers = re.findall(r"(?m)^          [A-Z]+: (\S+)$", routes["auto"])
-        self.assertEqual(set(tiers), {"qwen", "qwen-think"})
+        tiers = dict(re.findall(r"(?m)^          ([A-Z]+): (\S+)$", routes["auto"]))
+        self.assertEqual(tiers["SIMPLE"], "qwen")
+        self.assertEqual(set(tiers.values()), {"qwen", "gpt-4.1-mini"})
+        # The paid tier degrades to local models, also on provider content filters.
+        self.assertEqual(SOURCE.count('- { "gpt-4.1-mini": ["qwen", "qwen-cpu"] }'), 2)
+        self.assertIn("content_policy_fallbacks:", SOURCE)
+
+    def test_langfuse_logged_once(self):
+        section = SOURCE.split("\nlitellm_settings:", 1)[1].split("\nrouter_settings:", 1)[0]
+        self.assertIn("    - langfuse_otel", section)
+        self.assertNotIn("success_callback", section)
+        self.assertNotIn("failure_callback", section)
 
     def test_optional_paid_generic_providers_not_active(self):
         routes = dict(active_models())

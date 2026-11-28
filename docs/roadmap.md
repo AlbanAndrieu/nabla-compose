@@ -73,23 +73,23 @@ Ce travail ne modifie pas l'ordre H17 → H13 → H05.
 **H10 — RAM TrueNAS (23/11/2026)** — le message Slack « TrueNAS : RAM 9x % » venait du
 heartbeat OpenClaw, qui ignorait l'ARC ZFS récupérable : corrigé et déployé
 ([nabla-openclaw#34](https://github.com/AlbanAndrieu/nabla-openclaw/pull/34), même
-expression que `TrueNASHostOutOfMemory`). En régime normal : 84 %, PSI mémoire ≈ 0,
-pas de swap. Mesuré le 23/11 sur 62 Gio : conteneurs ≈ 37,5 Gio (Sentry
-`errors-only` 6,2, gateway OpenClaw 2,5, Wazuh 2,4, Nexus 2,1, OpenSearch 2,1),
-3 VM Talos ≈ 9,5 Gio (H01), noyau ≈ 3,4 Gio. **Reste ouvert** : entre 01h et 06h,
+expression que `TrueNASHostOutOfMemory`). Régime normal : 84 %, PSI mémoire ≈ 0,
+pas de swap ([répartition du 23/11](runbooks/2026-10-26-homelab-service-resource-inventory.md#répartition-mesurée-le-23-novembre-2026)).
+**Reste ouvert** : entre 01h et 06h,
 l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit à 2,6 Gio),
-sans conteneur dominant (pics cgroup : ClickHouse +1 Gio, gateway +0,8, mongo +0,5,
-docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions du
-24/11 :
+sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonnés depuis le 06/11. Décisions du 24/11 :
 - **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`) ;
-  remonter à 4096 MiB pour H01. **DEPLOYED le 25/11** : apply `infrastructure/truenas`
-  (2 changements), workers redémarrés un par un, RSS QEMU ≈ 2 Gio chacun ; RAM
+  remonter à 4096 MiB pour H01. **DEPLOYED le 25/11** : apply `infrastructure/truenas`,
+  workers redémarrés un par un, RSS QEMU ≈ 2 Gio chacun ; RAM
   84,6 → 83,4 %, pic nocturne à re-mesurer.
 - **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
   embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
-  4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir quand Wazuh publiera
-  un indexeur 3.x.
-- Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
+  4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir avec un indexeur Wazuh 3.x.
+- Le levier restant (≈ 4 Gio) est la pause d'OpenRAG (Langflow, Docling, OpenSearch).
+- **Plafonds mémoire 28/11 — CODED / NOT_RUN** : 5 réduits (Nexus, Sentry, Langfuse,
+  LanguageTool), 2 ajoutés (Dependency-Track) ; valider `memory.peak × 1,5` par App.
+  [Runbook](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
+
 
 **K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
 

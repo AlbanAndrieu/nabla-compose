@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 JVM_IMAGE = re.compile(
     r"opensearch|elasticsearch:|wazuh-indexer|nexus3|cp-kafka|keycloak/keycloak"
-    r"|graylog/graylog|neo4j|sonarqube"
+    r"|graylog/graylog|neo4j|sonarqube|dependencytrack/apiserver"
 )
 UNITS = {"k": 2**10, "m": 2**20, "g": 2**30}
 
@@ -53,7 +53,7 @@ def _max_heap(service: dict) -> int | None:
 
 def test_jvm_services_are_discovered() -> None:
     names = {name for _, name, _ in _jvm_services()}
-    assert {"opensearch", "opensearch-security", "wazuh.indexer", "kafka", "keycloak"} <= names
+    assert {"opensearch", "opensearch-security", "wazuh.indexer", "kafka", "keycloak", "dependency-track-api"} <= names
 
 
 def test_every_jvm_service_has_a_memory_cap() -> None:
@@ -68,3 +68,16 @@ def test_explicit_heap_leaves_off_heap_headroom() -> None:
             continue
         limit = _bytes(service["mem_limit"])
         assert limit - heap >= 512 * 2**20, f"{path}:{name} heap too close to mem_limit"
+
+
+def test_nexus_heap_and_direct_memory_leave_native_headroom() -> None:
+    compose = yaml.safe_load((ROOT / "apps/nexus/compose.yml").read_text(encoding="utf-8"))
+    service = compose["services"]["nexus"]
+    heap = _max_heap(service)
+    direct = [
+        _bytes(match.group(1))
+        for value in service["environment"]
+        for match in re.finditer(r"-XX:MaxDirectMemorySize=(\d+[kKmMgG])", str(value))
+    ]
+    assert heap is not None and direct
+    assert _bytes(service["mem_limit"]) - heap - max(direct) >= 512 * 2**20

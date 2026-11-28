@@ -86,6 +86,64 @@ avec limites et délais par commande. Si TrueNAS est encore
 en forte pression/OOM, remettre cette opération à plus tard :
 la capture doit aider le diagnostic, pas l'aggraver.
 
+## Ajustement des plafonds mémoire (28 novembre 2026)
+
+Le relevé du collecteur et les deux `docker stats` restent ponctuels, pas
+des pics. Le lot suivant est **CODED / réception runtime NOT_RUN** :
+candidats à valider, ni économies de RAM observées ni consigne de
+redéploiement global. Les plafonds Docker ne réservent pas la RAM.
+
+| Service | Ancien plafond | Cible pilote | Pic maximal acceptable avant baisse (Mio) |
+| --- | ---: | ---: | ---: |
+| Nexus | 5 Gio | 4608 Mio | 3072 |
+| Sentry Web | 2304 Mio | 2048 Mio | 1365 |
+| Sentry Taskworker | 1536 Mio | 1280 Mio | 853 |
+| Langfuse Web | 1792 Mio | 1536 Mio | 1024 |
+| LanguageTool | 1792 Mio | 1536 Mio | 1024 |
+| Dependency-Track API | non plafonné | 4 Gio | 2730 |
+| Dependency-Track frontend | non plafonné | 256 Mio | 170 |
+
+Les seuils appliquent le contrat historique `mem_limit >= memory.peak × 1,5`
+arrondi à la baisse pour le pic admissible. Les cinq baisses représentent
+1536 Mio de plafonds cumulés, **pas** de RAM libérée. Nexus et LanguageTool
+gardent leurs heaps ; Nexus garde également 2 Gio de mémoire directe,
+avec au moins 512 Mio pour le reste. Il s'agit d'un compromis Homelab
+hors dimensionnement [Sonatype](https://help.sonatype.com/en/nexus-repository-memory-overview.html),
+dont le heap minimal publié est supérieur au heap existant.
+Dependency-Track 5.2 fixe aussi le heap à 2560 Mio via
+[`EXTRA_JAVA_OPTIONS`](https://github.com/DependencyTrack/dependency-track/blob/5.2.0/apiserver/src/main/docker/Dockerfile)
+et doit passer une synchronisation des vulnérabilités et une analyse SBOM
+(voir les [besoins amont](https://docs.dependencytrack.org/getting-started/deploy-docker/)).
+
+Avant toute mise en service, mesurer le pic depuis la création du cgroup
+sur un cycle de charge représentatif (notamment tâches nocturnes,
+ingestions Sentry/Langfuse, règles LanguageTool et cache froid Nexus) :
+
+```bash
+sudo env DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-performance.sh --memory-peaks
+```
+
+Cette collecte ne lance qu'un inventaire Docker borné puis lit les cgroups
+v2. Elle n'effectue ni `docker stats`, ni scan disque, ni redémarrage.
+Le pic et la mémoire courante incluent le cache ; `memory.max` est en
+octets (ou `max`). Un cgroup indisponible donne `UNVERIFIED` et le code 2.
+Un pic récent après redémarrage n'est pas représentatif : attendre un
+cycle complet. Si un seuil est dépassé, si les données manquent, ou si
+le cgroup a déjà atteint son plafond, conserver l'ancien réglage ou
+revoir la cible. Ne pas réduire OpenSearch, Wazuh Indexer, NetBox ou
+les autres services sans marge mesurée ; conserver aussi les plafonds
+des tâches variables (Docling, ClickHouse, Ollama, etc.).
+
+Après approbation et réconciliation depuis les sources versionnées, un
+seul App à la fois : vérifier la santé avant/après, les accès réels
+APT/npm/PyPI/Maven pour Nexus, les ingestions et les analyses pour les
+autres services. Surveiller la pression mémoire, les événements OOM,
+les redémarrages et les pics pendant un cycle complet. En cas de
+régression, rétablir le Compose précédent puis réconcilier l'App
+concernée ; ne toucher ni aux datasets ni aux autres Apps.
+Les limites effectives doivent correspondre aux sources avant de
+déclarer `DEPLOYED`. Le rapport brut reste privé.
+
 ## GPU de la workstation
 
 Si le GPU est sur `172.17.0.57`, collecter sur **cet hôte** :
@@ -224,3 +282,10 @@ la seule base `defectdojo` vérifié et une approbation explicite ; il
 conserve le rôle, les clés de chiffrement et les secrets Vaultwarden.
 Pour un problème de connexion admin, synchroniser plutôt le mot de passe
 avec `scripts/truenas/reconcile-defectdojo-admin-password.py`.
+
+## Répartition mesurée le 23 novembre 2026
+
+Sur 62 Gio : conteneurs ≈ 37,5 Gio (Sentry `errors-only` 6,2, gateway OpenClaw 2,5,
+Wazuh 2,4, Nexus 2,1, OpenSearch 2,1), 3 VM Talos ≈ 9,5 Gio (H01), noyau ≈ 3,4 Gio.
+Pics cgroup nocturnes (01h–06h) : ClickHouse +1 Gio, gateway +0,8, mongo +0,5, docling +0,4.
+Contexte et décisions : H10 dans [la roadmap active](../roadmap.md).
