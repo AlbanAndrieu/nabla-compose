@@ -79,8 +79,8 @@ pas de swap ([répartition du 23/11](runbooks/2026-10-26-homelab-service-resourc
 l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit à 2,6 Gio),
 sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonnés depuis le 06/11. Décisions du 24/11 :
 - **Talos à l'arrêt par défaut (28/11, DEPLOYED)** : l'OOM global de 05:38 a tué
-  `taloscp01`, les workers tournaient seuls ; VM arrêtées, `autostart=false` dans le code,
-  +4 Gio disponibles. Relance : `TALOS_VM_AUTOSTART=true` ; workers 2048 MiB, 4096 pour H01.
+  `taloscp01` ; VM arrêtées, `autostart=false` dans le code, +4 Gio.
+  Relance : `TALOS_VM_AUTOSTART=true`.
 - **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
   embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir avec un indexeur Wazuh 3.x.
@@ -89,19 +89,7 @@ sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonn
   validation par App, budget hôte et `--memory-events` avant déploiement NOT_RUN.
   [Runbook](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
 
-
-**Kubara / Talos (28/11)** : [ADR double Traefik et CSI/Cilium](architecture/kubara-talos-dual-traefik.md),
-[candidat v0.14.0](../config/kubara/config.candidate.yaml) et
-[préflight read-only](../scripts/talos/audit-kubara-integration.py) **CODED**
-dans la PR #456. Cilium CNI et TrueNAS CSI conservés ; pilote
-[MetalLB L2](runbooks/kubara-metallb-l2-pilot.md) **CODED** avec
-configuration rendue sur VIP réservée, sans annonce active ; Longhorn
-désactivé. L'edge TrueNAS active la vérification TLS backend par défaut
-**dans Git**, avant réception réelle Proxmox et Talos.
-Le pont HTTPS TrueNAS→Kubara reste un exemple non chargé.
-Réception runtime **NOT_RUN**.
-
-**K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
+**K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, PSA, alertes Falco ; OpenCRE en attente. Kubara (#456) : [ADR](architecture/kubara-talos-dual-traefik.md) et pilote MetalLB L2 **CODED**, runtime **NOT_RUN**.
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
