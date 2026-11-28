@@ -12,7 +12,10 @@ Dans [External attack surface](https://github.com/AlbanAndrieu/nabla-compose/act
 après fusion et validation du workflow :
 - `mail` : audit DNS natif et job indépendant checkdmarc 6.0.3 / Nuclei DNS (templates épinglés SPF et DMARC, DKIM uniquement sur sélecteurs renseignés) ; compléter la liste depuis les zones Cloudflare réellement possédées et confirmer les fournisseurs. Pas de découverte par dictionnaire de sélecteurs ni de données TXT publiées.
 - `nuclei` : HTTP borné, résultats minimisés; les alias épinglés et IP
-  directes nécessitent `confirm_wan=true` après vérification de la propriété.
+  directes nécessitent `confirm_wan=true`, une valeur `wan_ipv4` publique
+  valide et une nouvelle confirmation de propriété. L'ancienne adresse
+  pfSense n'est plus utilisée automatiquement. Les alias `@wan` restent
+  exclus des campagnes hebdomadaires sans IP manuelle approuvée.
 - `network` : TCP sur ports sélectionnés uniquement; confirmer le WAN,
   sinon le résultat ports est NOT_RUN_OR_INCOMPLETE; les observations
   TLS de base et HEAD peuvent rester utiles.
