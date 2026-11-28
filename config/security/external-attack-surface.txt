@@ -1,11 +1,10 @@
-# Homelab names reachable from the Internet through the pfSense HAProxy (WAN 82.66.4.247),
+# Reviewed owned public names. The former pfSense/HAProxy WAN IP is retired.
 # scanned weekly by .github/workflows/external-attack-surface.yml with bounded Nuclei templates.
-# One https URL per line. "@wan" pins a name to the WAN address, as an attacker forging the
-# Host header would: those HAProxy aliases have no public DNS record.
+# One https URL per line. "@wan" requires manual confirmation of a new owned WAN IP.
+# Existing aliases have no public DNS record; they are skipped on schedules.
 # Retired names stay listed: an empty scan proves the door is closed.
 
-# Default backend: any unknown Host or the bare address lands on prod_back (Heimdall login).
-https://82.66.4.247
+# The old bare-WAN backend is retired. Never probe an old address by default.
 https://manager.albandrieu.com @wan
 https://truenas.albandrieu.com @wan
 
