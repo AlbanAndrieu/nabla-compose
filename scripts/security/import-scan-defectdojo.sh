@@ -88,9 +88,16 @@ unset token
 # Preserve API response on TrueNAS: HTTP accepted is not necessarily processed.
 RECEIPT_FILE="$(printenv DEFECTDOJO_IMPORT_RECEIPT_FILE || true)"
 if [[ -n "${RECEIPT_FILE}" ]]; then
-  [[ "${ZAP_IMPORT_PROFILE}" == private-native ]] || fail "receipt mode reserved for private-native ZAP"
-  if [[ ! "${RECEIPT_FILE}" =~ ^/mnt/cpool/defectdojo/private-zap/site-alban/runs/[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}/defectdojo-response(-retry-[a-f0-9]{8})?[.]json$ ]]; then
-    fail "receipt path outside the private archive"
+  if [[ "${ZAP_IMPORT_PROFILE}" == private-native ]]; then
+    [[ "${RECEIPT_FILE}" =~ ^/mnt/cpool/defectdojo/private-zap/site-alban/runs/[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}/defectdojo-response(-retry-[a-f0-9]{8})?[.]json$ ]] ||
+      fail "native ZAP receipt path outside the dedicated archive"
+  else
+    # The receipt is bound to the exact reviewed staged report, never a caller-
+    # selected path. No arbitrary filesystem output and no raw GitHub artifact.
+    [[ "${REPORT}" =~ ^/mnt/cpool/defectdojo/imports/(nabla-compose/compose-[1-9][0-9]*-trivy[.]json|fastapi-sample/fastapi-[1-9][0-9]*-trivy[.]json|site-alban/site-alban-[1-9][0-9]*-(trivy|nuclei)[.]json|site-alban/site-alban-[1-9][0-9]*-zap[.]xml|site-bababou/site-bababou-[1-9][0-9]*-zap[.]xml)$ ]] ||
+      fail "receipt requires a reviewed GitHub Actions inbox report"
+    [[ "${RECEIPT_FILE}" == "${REPORT%.*}.import-response.json" ]] ||
+      fail "receipt filename must match its staged report"
   fi
   [[ ! -e "${RECEIPT_FILE}" && ! -L "${RECEIPT_FILE}" ]] || fail "receipt already exists"
   receipt_dir="$(dirname -- "${RECEIPT_FILE}")"
@@ -117,6 +124,7 @@ http="$(curl --config "${config}" --silent --show-error \
 
 if [[ -n "${RECEIPT_FILE}" ]]; then
   [[ -s "${response_tmp}" ]] || fail "empty DefectDojo response; report retained"
+  (( $(stat -c %s "${response_tmp}") <= 1048576 )) || fail "DefectDojo receipt exceeds private size limit"
   cp --no-clobber -- "${response_tmp}" "${RECEIPT_FILE}"
   chmod 0600 "${RECEIPT_FILE}"
 fi
