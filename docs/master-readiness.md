@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 94 ; actives : 66 ; planifiées : 23.
+Apps : 94 ; actives : 65 ; planifiées : 23.
 
 ## Écarts par type
 
@@ -23,7 +23,7 @@ Apps : 94 ; actives : 66 ; planifiées : 23.
 | App | État | Déploiement | Datasets (snapshot) | Secrets | Sonde | Métriques | Sauvegarde BD | Diagnostic | Config as code | Écarts |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `2fauth` | active | ❌ | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
-| `akvorado` | active | custom-apps.yml | `cpool/akvorado` (none (noSnapshot)) | legacy | ✅ | — | — | diagnose-akvorado-config.sh<br>diagnose-akvorado-flow.py | apps/akvorado/config/ | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `akvorado` | disabled | custom-apps.yml | `cpool/akvorado` (none (noSnapshot)) | legacy | ✅ | — | — | diagnose-akvorado-config.sh<br>diagnose-akvorado-flow.py | apps/akvorado/config/ | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `apisix` | planned | ❌ | — | n/a | — | — | — | générique | apps/apisix/config/ | `NO_DEPLOY_PATH` |
 | `autokuma` | planned | custom-apps.yml | `cpool/autokuma` (app-state) | manifest | — | — | — | générique | bootstrap-autokuma-token.sh<br>render-autokuma-monitors.py | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |

@@ -42,7 +42,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -67,7 +67,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -95,7 +95,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -116,7 +116,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "active",
+      "status": "disabled",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2776,7 +2776,7 @@
       "kind": "network-topology-management",
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
-      "url": "http://172.17.0.24:60072",
+      "url": "https://scanopy.int.albandrieu.com",
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
@@ -2788,7 +2788,8 @@
         "provider": "truenas-app",
         "containerService": "scanopy",
         "networks": [
-          "intranet"
+          "intranet",
+          "traefik_network"
         ]
       },
       "monitoring": {
@@ -6395,6 +6396,16 @@
       "description": "Scanopy consumes discovery data from its integrated daemon.",
       "evidence": [
         "apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL"
+      ]
+    },
+    {
+      "source": "scanopy",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik serves the UI as scanopy.int.albandrieu.com; Pi-hole DNS Sync publishes the record.",
+      "evidence": [
+        "apps/scanopy/compose.yml:traefik.http.routers.scanopy"
       ]
     },
     {

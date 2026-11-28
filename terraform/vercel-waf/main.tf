@@ -12,20 +12,32 @@ variable "vercel_team_id" {
   default     = "team_3vukFMXCzaUZEyGAqLAGmXaf"
 }
 
+# OWASP Core managed ruleset requires Enterprise. On Hobby/Pro, keep the
+# previously observed LOG baseline so rate limiting can be reviewed separately.
+variable "enable_owasp_blocking" {
+  type        = bool
+  description = "Enable managed SQLi/XSS/RCE deny only after confirming Vercel Enterprise entitlement"
+  default     = false
+}
+
+locals {
+  owasp_attack_action = var.enable_owasp_blocking ? "deny" : "log"
+}
+
 resource "vercel_firewall_config" "bababou" {
   project_id = var.bababou_project_id
   team_id    = var.vercel_team_id
   enabled    = true
 
   # Observed on 2026-11-21: gen was LOG and the three attack groups were LOG.
-  # Desired policy: BLOCK only SQLi/XSS/RCE; retain generic detection in LOG
+  # Enterprise opt-in: BLOCK SQLi/XSS/RCE; otherwise keep existing LOG baseline.
   # while checking false positives. Preserve existing bot challenges.
   managed_rulesets {
     owasp {
       gen  = { action = "log", active = true }
-      sqli = { action = "deny", active = true }
-      xss  = { action = "deny", active = true }
-      rce  = { action = "deny", active = true }
+      sqli = { action = local.owasp_attack_action, active = true }
+      xss  = { action = local.owasp_attack_action, active = true }
+      rce  = { action = local.owasp_attack_action, active = true }
     }
 
     bot_protection {
@@ -41,7 +53,7 @@ resource "vercel_firewall_config" "bababou" {
   rules {
     rule {
       name        = "Bababou public traffic rate limit"
-      description = "Production custom domains: per-IP 300 requests/minute; block excess for 1m"
+      description = "Production custom domains: per-IP 300 requests/minute; fixed-window deny"
       active      = true
       condition_group = [
         {
@@ -76,7 +88,7 @@ resource "vercel_firewall_config" "bababou" {
           algo   = "fixed_window"
           action = "deny"
         }
-        action_duration = "1m"
+        # Persistent action_duration is Pro/Enterprise only; omit for Hobby.
       }
     }
   }

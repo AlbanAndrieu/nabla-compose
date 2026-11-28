@@ -20,7 +20,8 @@ locals {
   # Managed Transforms of albandrieu.com only (managed-transforms.tofu). "Zone
   # Transform Rules Write" is listed by the API spec yet GET managed_headers
   # answers 403 with it (22/11/2026): the dedicated group is required.
-  opentofu_home_zone_permissions = ["Managed headers Write"]
+  # Bot settings of albandrieu.com (bot-management.tofu, Bot Fight Mode off, 27/11/2026).
+  opentofu_home_zone_permissions = ["Managed headers Write", "Bot Management Write"]
   opentofu_missing_permissions = concat(
     [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
     [for name in concat(local.opentofu_zone_permissions, local.opentofu_home_zone_permissions) : name if !contains(keys(local.zone_group_ids), name)],

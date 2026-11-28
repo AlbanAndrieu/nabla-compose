@@ -89,6 +89,12 @@ import {
   id = var.zone_id
 }
 
+# Zone singleton: adopt the dashboard bot settings, never create them (27/11/2026).
+import {
+  to = cloudflare_bot_management.albandrieu
+  id = var.zone_id
+}
+
 # Route Access applications created in the dashboard: adopt them (22/11/2026).
 import {
   for_each = var.route_access_application_ids

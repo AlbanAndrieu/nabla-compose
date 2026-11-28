@@ -33,4 +33,8 @@ unset password
 redis-cli SET ntopng.user.admin.password "${hash}" >/dev/null
 redis-cli SET ntopng.prefs.admin_password_changed 1 >/dev/null
 unset hash
+# Flow alerts (unidirectional traffic, TCP no data, probing on br0) reached ~700/s and filled
+# the /var/lib/ntopng/0 tmpfs in 13 minutes (27/11): the SQLite store is only pruned hourly.
+# Flow scores are still computed and host alerts stay on.
+redis-cli SET ntopng.prefs.emit_flow_alerts 0 >/dev/null
 exec ntopng /etc/ntopng/nabla.conf

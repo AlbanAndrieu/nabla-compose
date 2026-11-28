@@ -28,7 +28,7 @@ services:
       category: observability
       presentationRole: support
       criticality: high
-      status: active
+      status: disabled
       securityFunctions:
         - identify
         - detect
@@ -64,7 +64,7 @@ services:
       category: observability
       presentationRole: support
       criticality: high
-      status: active
+      status: disabled
       securityFunctions:
         - identify
         - detect
@@ -103,7 +103,7 @@ services:
       category: observability
       presentationRole: support
       criticality: high
-      status: active
+      status: disabled
       securityFunctions:
         - identify
         - detect
@@ -153,7 +153,7 @@ services:
       category: observability
       presentationRole: service
       criticality: medium
-      status: active
+      status: disabled
       securityFunctions:
         - identify
         - detect

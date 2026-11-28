@@ -27,7 +27,7 @@
       "composeService": "akvorado-console",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31056/",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "UI for historical network-flow search and analysis."
     },
     {
@@ -1421,7 +1421,7 @@
       "sourcePath": "apps/scanopy/compose.yml",
       "composeService": "scanopy",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:60072",
+      "href": "https://scanopy.int.albandrieu.com",
       "syncEligible": true,
       "description": "Agentless network discovery and continuously updated topology documentation."
     },

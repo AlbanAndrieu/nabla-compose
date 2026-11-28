@@ -95,6 +95,14 @@ class CloudflareContract(unittest.TestCase):
         imports = (TF / "imports.tofu").read_text(encoding="utf-8")
         self.assertRegex(imports, r"to = cloudflare_managed_transforms\.albandrieu\n\s*id = var\.zone_id")
 
+    def test_bot_fight_mode_stays_off(self):
+        # Owner decision (27/11/2026): on the Free plan Bot Fight Mode cannot be skipped and it
+        # challenged the site support chat calling Open WebUI from Vercel (AWS) with a 403.
+        source = (TF / "bot-management.tofu").read_text(encoding="utf-8")
+        self.assertIn("fight_mode = false", source)
+        imports = (TF / "imports.tofu").read_text(encoding="utf-8")
+        self.assertRegex(imports, r"to = cloudflare_bot_management\.albandrieu\n\s*id = var\.zone_id")
+
     def test_mta_sts_is_testing_and_served_by_a_static_worker(self):
         # Owner decision (20/11/2026): testing first, enforce after clean TLS-RPT reports.
         mail = (TF / "mail.tofu").read_text(encoding="utf-8")

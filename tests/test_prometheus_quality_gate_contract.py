@@ -86,7 +86,6 @@ def test_akvorado_scrapes_have_bounded_exporter_recordings() -> None:
     config = (ROOT / "apps/prometheus/prometheus.yml").read_text(
         encoding="utf-8"
     )
-    assert "job_name: akvorado_inlet" in config
-    assert "job_name: akvorado_outlet" in config
-    assert "31057" in config
-    assert "31058" in config
+    # Akvorado is disabled (27/11/2026): its jobs come back with the App.
+    assert "job_name: akvorado_inlet" not in config
+    assert "job_name: akvorado_outlet" not in config
