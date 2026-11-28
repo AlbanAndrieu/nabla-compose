@@ -104,7 +104,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('target: 8080\n        published: "30238"\n        host_ip: 172.17.0.24', compose)
         self.assertIn('"172.17.0.24:30239:9000"', compose)
         self.assertIn('KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"', compose)
-        self.assertIn("/mnt/cpool/keycloak/.env.secrets", compose)
+        self.assertIn("/mnt/cpool/secrets/runtime/keycloak/.env.secrets", compose)
         self.assertIn("shared PostgreSQL", readme)
         self.assertIn("database keycloak", readme)
         self.assertIn("role     keycloak", readme)

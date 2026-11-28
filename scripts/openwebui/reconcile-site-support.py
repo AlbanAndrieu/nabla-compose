@@ -174,7 +174,10 @@ def ensure_model(api: Api, user: dict, knowledge: dict, base_model: str) -> None
         # (native mode reaches it through builtin tools, which only UI sessions get).
         "params": {"system": SYSTEM_PROMPT, "temperature": 0.2, "max_tokens": 600, "function_calling": "legacy"},
         "meta": {"description": "Public support chat of www.albanandrieu.com.",
-                 "knowledge": [{"id": knowledge["id"], "name": KNOWLEDGE, "type": "collection"}],
+                 # "full": inject the whole collection, not TOP_K=3 extracts, which missed
+                 # half the bilingual FAQ (~14 KB) on prices/services (live test 28/11).
+                 "knowledge": [{"id": knowledge["id"], "name": KNOWLEDGE, "type": "collection",
+                                "context": "full"}],
                  "capabilities": {"citations": False}},
         "access_grants": only(user["id"]),
     }

@@ -52,10 +52,10 @@ Matérialiser les secrets de **Dependency-Track/CTEM** dans les fichiers root:ro
 
 La [PR #438 Nexus](https://github.com/AlbanAndrieu/nabla-compose/pull/438), Joplin et les déploiements généraux restent suivis et sécurisés, mais ne prennent pas de capacité au chantier prioritaire H17/H13. NetBox était déjà en production le 21/11.
 
-**Nexus, cache de paquets** (relevé du 22/11) : 3.92.3 Community, 9 dépôts Maven et NuGet seulement ; les dépôts de `terraform/nexus` (`apt-ubuntu-26-04`, `npm-all`, `pypi-all`, `docker-all`, `terraform-proxy`…) répondent 404, **jamais appliqués**.
+**Nexus** 3.92.3 : APT, npm et PyPI **DEPLOYED** le 27/11 (plan final `No changes`, workstation 5 × 200) ; Docker/HF/Terraform hors périmètre.
 
 - [x] proxy séparé `apt-ubuntu-26-04-security` (`security.ubuntu.com`, `resolute-security`), `CODED` le 22/11 ;
-- [ ] `apply` de `terraform/nexus` : plan du 26/11 = 7 proxys APT (lot N1), **bloqué** : l'item Vaultwarden `nabla/prod/nexus-infrastructure` (`NEXUS_USERNAME`/`NEXUS_PASSWORD`) n'existe pas ;
+- [x] `apply` de `terraform/nexus` (27/11), compte `nabla-opentofu` dans Vaultwarden ; #454 fige `enabled_formats` ;
 - [ ] accès HTTPS privé `nexus.int` et route publique CI via Traefik + CrowdSec (`nexus_tunnel_via_traefik`), `CODED` le 22/11 ([apps/nexus](../apps/nexus/README.md)) ; puis 3.98.3 après test de restauration de `cpool/nexus3` ;
 - [ ] clients de la workstation (apt, npm, pip, uv) : `ansible-workstation`, `docs/workstation-nexus-package-cache.md`.
 
@@ -95,9 +95,9 @@ docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.
 
-**Dérive OpenTofu — CODED, cron restauré le 26/11** : `opentofu-drift-check.py` planifie `origin/master` contre la prod (`cloudflare`, `cloudflaretokens`, `nexus`, `github`), sans `apply`, alerte `OpenTofuDrift`, via `scripts/cron.sh` (09:00) et la clé Garage `opentofu` provisoire. Câblage du 24/11 non poussé avant la fusion de #446, rejoué dans #449. Plans du 26/11 : `cloudflare` 0 changement, `github` aucun, `nexus` +7 (bloqué, voir H08), `cloudflaretokens` non planifiable sans bootstrap ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
+**Dérive OpenTofu — CODED, cron restauré le 26/11** : `opentofu-drift-check.py` planifie `origin/master` contre la prod (`cloudflare`, `cloudflaretokens`, `nexus`, `github`), sans `apply`, alerte `OpenTofuDrift`, via `scripts/cron.sh` (09:00) et la clé Garage `opentofu` provisoire. Câblage du 24/11 non poussé avant la fusion de #446, rejoué dans #449. Plans du 26/11 : `cloudflare` 0 changement, `github` aucun, `nexus` enrôlé le 28/11 (lecture seule) : `DRIFT` jusqu'à la fusion de #454, `cloudflaretokens` non planifiable sans bootstrap ([procédure](infrastructure-bootstrap.md#drift-detection-read-only)).
 
-**À faire par le propriétaire — enrôler les racines** (sinon `SKIPPED`) : jetons en lecture seule par racine dans `/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env` (Cloudflare via `cloudflaretokens`, PAT GitHub fine-grained, rôle Nexus en lecture), clé Garage en lecture seule, puis premier verdict. `entra` et `defender-free` : `NOT_APPLIED` volontaire.
+**À faire par le propriétaire — enrôler les racines** (sinon `SKIPPED`) : jetons en lecture seule par racine dans `/mnt/cpool/secrets/runtime/opentofu-drift/<racine>.env` (Cloudflare via `cloudflaretokens`, PAT GitHub fine-grained ; Nexus fait le 28/11), clé Garage en lecture seule, puis premier verdict. `entra` et `defender-free` : `NOT_APPLIED` volontaire.
 
 **H16 / P1 — recette du POC verrouillage PostgreSQL à déléguer (NOT_RUN)** :
 un agent disposant réellement de la workstation doit exécuter le

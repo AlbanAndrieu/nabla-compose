@@ -78,7 +78,7 @@ class ReconcileOrphanVolumesTests(unittest.TestCase):
         path.write_text("#!/usr/bin/env bash\n" + body + "\n")
         path.chmod(0o755)
 
-    def run_script(self, *args: str, approved: bool = False) -> subprocess.CompletedProcess:
+    def run_script(self, *args: str, approved: bool = False, timeout: int = 30) -> subprocess.CompletedProcess:
         env = {
             **os.environ,
             "PATH": f"{self.bin}:{os.environ['PATH']}",
@@ -89,7 +89,7 @@ class ReconcileOrphanVolumesTests(unittest.TestCase):
             env["NABLA_VOLUME_PURGE_APPROVED"] = "yes"
         return subprocess.run(
             ["fakeroot", "bash", str(SCRIPT), *args],
-            env=env, text=True, capture_output=True, timeout=30, check=False,
+            env=env, text=True, capture_output=True, timeout=timeout, check=False,
         )
 
     def plan_rows(self) -> dict[str, str]:
@@ -117,7 +117,8 @@ class ReconcileOrphanVolumesTests(unittest.TestCase):
         extra = "".join(f"{i:064x}\t{self.volumes}/{i:064x}/_data\t\t\n" for i in range(1, 901))
         with (self.tmp / "listing.tsv").open("a") as listing:
             listing.write(extra)
-        result = self.run_script("--plan", str(self.plan))
+        # ~4 forks per row under fakeroot: 906 rows take ~27 s alone, over 30 s when a parallel gate runs.
+        result = self.run_script("--plan", str(self.plan), timeout=120)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("nothing removed", result.stdout + result.stderr)
         self.assertEqual(len(self.plan.read_text().splitlines()), 906)

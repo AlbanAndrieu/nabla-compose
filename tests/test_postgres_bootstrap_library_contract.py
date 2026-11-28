@@ -31,7 +31,7 @@ TABLE = {
     "netbox": ("netbox", "netbox", "DB_PASSWORD", f"{RUNTIME}/netbox/.env.secrets"),
     "dependency-track": ("dependencytrack", "dependencytrack", "DT_DATASOURCE_PASSWORD", f"{RUNTIME}/dependency-track/.env.secrets"),
     "defectdojo": ("defectdojo", "defectdojo", "DD_DATABASE_URL", f"{RUNTIME}/defectdojo/.env.secrets"),
-    "keycloak": ("keycloak", "keycloak", "KC_DB_PASSWORD", "/mnt/cpool/keycloak/.env.secrets"),
+    "keycloak": ("keycloak", "keycloak", "KC_DB_PASSWORD", "/mnt/cpool/secrets/runtime/keycloak/.env.secrets"),
 }
 FAKE_DOCKER = r"""#!/usr/bin/env bash
 # Hermetic docker stand-in: records argv, environment hand-off and stdin.

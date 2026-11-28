@@ -5,8 +5,9 @@
 # NABLA_SNAPSHOT_APPLY_APPROVED=yes and only CREATES missing tasks for datasets
 # that exist: no update, no delete, no snapshot destroyed.
 # A task matches on dataset + naming_schema; a differing lifetime/schedule is
-# reported as drift. An existing task covering a noSnapshot dataset is reported
-# for a manual fix (exclude it or delete the task after review).
+# reported as drift. An existing task covering a noSnapshot dataset, or a
+# recursive parent task also snapshotting a classed dataset, is reported for a
+# manual fix (exclude it or delete the task after review).
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -34,6 +35,7 @@ tasks="$(jq -c '
      | {dataset: $d, recursive: true} + $s[$k]]
   | .[]' "${desired}")"
 no_snapshot="$(jq -c '[.noSnapshot[].dataset]' "${desired}")"
+classed="$(jq -c '[.classes[].datasets[]]' "${desired}")"
 existing="$(midclt call pool.snapshottask.query)"
 datasets="$(zfs list -H -o name -t filesystem,volume | jq -R -s -c 'split("\n") | map(select(length > 0))')"
 
@@ -87,11 +89,27 @@ done < <(jq -r --argjson n "${no_snapshot}" --argjson ds "${datasets}" '
   | [$t.id, $t.dataset, $x] | @tsv' <<<"${existing}")
 ((covered > 0)) || ok "no existing task covers a noSnapshot dataset"
 
+# A parent task stacks its own schedule on the class: 41 extra snapshots on nexus3, 39 GB on bitcoind (27/11).
+section "Classed datasets also snapshotted by a parent task"
+doubled=0
+while IFS=$'\t' read -r task_id task_dataset classed_dataset; do
+  [[ -n "${task_id}" ]] || continue
+  doubled=$((doubled + 1))
+  warn "task ${task_id} on ${task_dataset} also snapshots ${classed_dataset} (add it to the task exclude list)"
+done < <(jq -r --argjson c "${classed}" --argjson ds "${datasets}" '
+  .[] as $t
+  | $c[] as $x
+  | select(any($ds[]; . == $x))
+  | select($t.recursive and ($x | startswith($t.dataset + "/"))
+      and (any(($t.exclude // [])[]; . == $x) | not))
+  | [$t.id, $t.dataset, $x] | @tsv' <<<"${existing}")
+((doubled > 0)) || ok "no parent task doubles a class"
+
 section "Summary"
-printf 'missing=%d absent=%d drift=%d covering-no-snapshot=%d\n' "${missing}" "${absent}" "${drift}" "${covered}"
+printf 'missing=%d absent=%d drift=%d covering-no-snapshot=%d doubled=%d\n' "${missing}" "${absent}" "${drift}" "${covered}" "${doubled}"
 if [[ "${mode}" == "--plan" && "${missing}" -gt 0 ]]; then
   warn "${missing} task(s) to create: NABLA_SNAPSHOT_APPLY_APPROVED=yes sudo bash $0 --apply"
-elif ((absent + drift + covered > 0)); then
+elif ((absent + drift + covered + doubled > 0)); then
   warn "policy reconciled with findings to review (${mode#--})"
 else
   ok "snapshot tasks reconciled (${mode#--})"

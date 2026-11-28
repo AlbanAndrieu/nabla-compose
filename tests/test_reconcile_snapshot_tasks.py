@@ -142,6 +142,13 @@ class ReconcileSnapshotTasksTests(unittest.TestCase):
         output = result.stdout + result.stderr
         self.assertIn("task 9 on cpool covers cpool/akvorado", output)
         self.assertNotIn("covers cpool/ollama", output)
+        self.assertIn("task 9 on cpool also snapshots cpool/backup", output)
+        self.assertIn("doubled=1", output)
+        parent["exclude"].append("cpool/backup")
+        result, _ = self.run_script(
+            [parent], datasets=("cpool", "cpool/backup", "cpool/akvorado", "cpool/ollama")
+        )
+        self.assertIn("doubled=0", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
