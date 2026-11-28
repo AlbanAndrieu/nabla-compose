@@ -65,7 +65,11 @@ services:
       - "--entrypoints.websecure.forwardedHeaders.trustedIPs=10.200.2.0/24"
       # Prometheus is separate from the admin API and LAN-bound on :8082.
       - "--entrypoints.metrics.address=:8082"
-      - "--serversTransport.insecureSkipVerify=true" # Or proxmox gives an error 500 due to its own self-signed cert
+      # Fail closed for every HTTPS backend by default. Existing self-signed
+      # origins (historically Proxmox) need a trusted CA and an explicit
+      # serversTransport rather than disabling certificate validation.
+      # This governs Traefik -> backend, NOT the inbound Let's Encrypt cert.
+      - "--serversTransport.insecureSkipVerify=false"
 
       #  - "--entrypoints.websecure.http.tls.certResolver=cloudflare"
       - "--entrypoints.websecure.http.tls.certresolver=letsencrypt"
