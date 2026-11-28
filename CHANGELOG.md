@@ -1,3 +1,10 @@
+# [0.124.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.123.0...0.124.0) (2026-11-28)
+
+
+### Features
+
+* **ctem:** DefectDojo per-run import receipts and opt-in live Test verification ([#458](https://github.com/AlbanAndrieu/nabla-compose/issues/458)) ([09d83b9](https://github.com/AlbanAndrieu/nabla-compose/commit/09d83b91063065f09a1f518e19c529e0a950c922))
+
 # [0.123.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.122.1...0.123.0) (2026-11-28)
 
 
