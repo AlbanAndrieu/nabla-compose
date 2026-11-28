@@ -90,6 +90,17 @@ sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonn
   [Runbook](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
 
 
+**Kubara / Talos (28/11)** : [ADR double Traefik et CSI/Cilium](architecture/kubara-talos-dual-traefik.md),
+[candidat v0.14.0](../config/kubara/config.candidate.yaml) et
+[préflight read-only](../scripts/talos/audit-kubara-integration.py) **CODED**
+dans la PR #456. Cilium CNI et TrueNAS CSI conservés ; pilote
+[MetalLB L2](runbooks/kubara-metallb-l2-pilot.md) **CODED** avec
+configuration rendue sur VIP réservée, sans annonce active ; Longhorn
+désactivé. L'edge TrueNAS active la vérification TLS backend par défaut
+**dans Git**, avant réception réelle Proxmox et Talos.
+Le pont HTTPS TrueNAS→Kubara reste un exemple non chargé.
+Réception runtime **NOT_RUN**.
+
 **K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
 
 **H09** PostgreSQL `verify-full` ; **H10/H11** TrueNAS, IO et scripts ; **H12** OpenRAG/Docling/LiteLLM ; **H14/H06** tableaux de bord et budget ; **H16/H20** Entra/YubiKey/PKI et GitHub ; **H19** bascule réelle Home Assistant et recorder PostgreSQL ; **H21** FreshRSS/Langfuse. **H07/H15** restent différés (pfSense retiré et pile média VPN). Les statuts H01–H21 et les critères précis sont dans le [portefeuille](roadmap-portfolio.md), unique backlog arbitrable.

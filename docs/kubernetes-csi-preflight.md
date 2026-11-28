@@ -3,6 +3,16 @@
 This is the first persistent-storage implementation for the Talos cluster. It
 is deliberately **NFS-only** and remains independent from Kubara/Traefik.
 
+## Compatibilité Kubara — 28 novembre 2026
+
+L'[ADR Kubara](architecture/kubara-talos-dual-traefik.md) conserve
+le pilote **officiel TrueNAS CSI** et la StorageClass NFS RWX `nabla-truenas-nfs`.
+Le catalogue Kubara peut proposer Longhorn, qui crée d'autres volumes
+bloc et nécessite des extensions iSCSI et des mounts Talos : il
+**ne reprend pas** les datasets ZFS/NFS, les permissions TrueNAS ni
+les PVC RWX existants. Longhorn n'est donc pas activé dans le profil
+candidat et ne peut pas devenir automatiquement la StorageClass par défaut.
+
 ## Architecture decision
 
 The repository now selects the official

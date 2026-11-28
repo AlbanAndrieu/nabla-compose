@@ -421,6 +421,7 @@ def import_report(kind: str, run_id: int, source: str = "alban") -> None:
     )
     env = {
         **os.environ,
+        "DEFECTDOJO_IMPORT_RECEIPT_FILE": str(output.with_suffix(".import-response.json")),
         "DEFECTDOJO_SERVICE_ID": (
             "nabla-compose" if source == "compose"
             else "fastapi-sample-image" if source == "fastapi-sample"
@@ -435,6 +436,89 @@ def import_report(kind: str, run_id: int, source: str = "alban") -> None:
     )
     if result.returncode:
         fail("DefectDojo reimport failed; response and secret contents suppressed")
+
+
+
+def import_reviewed_once(kind: str, run_id: int, source: str) -> str:
+    """At-most-once import of a verified staged GitHub report (never a retry loop).
+
+    A crash or timeout after submission leaves pending_review. That state
+    requires reconciliation with the DefectDojo API, not a second POST.
+    """
+    if source not in {"compose", "alban", "bababou"} or kind not in SOURCES[source]["workflows"]:
+        fail("unapproved producer or scanner")
+    if type(run_id) is not int or run_id <= 0:
+        fail("invalid source run ID")
+    prefix = {"compose": "COMPOSE", "alban": "SITE_ALBAN",
+              "bababou": "SITE_BABABOU"}[source]
+    engagement = os.environ.get(f"DEFECTDOJO_{prefix}_ENGAGEMENT_ID", "")
+    if not re.fullmatch(r"[1-9][0-9]*", engagement):
+        fail("approved existing engagement ID required")
+    suffix = "xml" if kind == "zap" else "json"
+    report = (COMPOSE_INBOX / f"compose-{run_id}-trivy.json" if source == "compose"
+              else Path("/mnt/cpool/defectdojo/imports") / f"site-{source}"
+                   / f"site-{source}-{run_id}-{kind}.{suffix}")
+    if (report.parent.is_symlink() or not report.parent.is_dir()
+            or report.parent.stat().st_uid != os.geteuid()
+            or report.parent.stat().st_mode & 0o077):
+        fail("private report inbox ownership or permissions invalid")
+    if (report.is_symlink() or not report.is_file()
+            or report.stat().st_uid != os.geteuid()
+            or report.stat().st_mode & 0o077
+            or not 0 < report.stat().st_size <= 10_000_000):
+        fail("staged report is not private or bounded")
+    with os.fdopen(os.open(report, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)), "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 10_000_000:
+            fail("staged report identity changed")
+        digest = sha256(stream.read(10_000_001)).hexdigest()
+    marker = report.with_suffix(".import.json")
+    record = {"run_id": run_id, "source": source, "kind": kind,
+              "sha256": digest, "engagement": engagement,
+              "state": "pending_review"}
+    try:
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                     | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        if marker.is_symlink() or not marker.is_file() or marker.stat().st_mode & 0o077:
+            fail("unsafe import marker")
+        try:
+            if marker.stat().st_size > 4096:
+                fail("import marker too large")
+            old = json.loads(marker.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError, OSError):
+            fail("import marker invalid; reconciliation required")
+        if old == {**record, "state": "acknowledged"}:
+            return "ALREADY_ACKNOWLEDGED"
+        if old == record:
+            return "PENDING_REVIEW"
+        fail("import marker differs from reviewed source; reconciliation required")
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump(record, stream, sort_keys=True)
+        stream.flush()
+        os.fsync(stream.fileno())
+        # Preserve the pending marker if subprocess fails or loses its response.
+        import_report(kind, run_id, source=source)
+        receipt = report.with_suffix(".import-response.json")
+        if (receipt.is_symlink() or not receipt.is_file()
+                or receipt.stat().st_uid != os.geteuid()
+                or receipt.stat().st_mode & 0o077
+                or not 0 < receipt.stat().st_size <= 1_048_576):
+            fail("import response missing or unsafe; reconcile before retry")
+        try:
+            with os.fdopen(os.open(receipt, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)), "rb") as body:
+                accepted = json.loads(body.read(1_048_577))
+        except (ValueError, UnicodeError, OSError):
+            fail("import response invalid; reconcile before retry")
+        test_id = accepted.get("test_id", accepted.get("test")) if isinstance(accepted, dict) else None
+        if type(test_id) is not int or test_id < 1:
+            fail("import Test ID absent; reconcile before retry")
+        stream.seek(0)
+        stream.truncate()
+        json.dump({**record, "state": "acknowledged"}, stream, sort_keys=True)
+        stream.flush()
+        os.fsync(stream.fileno())
+    return "ACKNOWLEDGED"
 
 
 def main() -> int:
@@ -502,9 +586,9 @@ def main() -> int:
             if args.pull_and_import and source == "fastapi-sample" and result in {"STAGED", "ALREADY_STAGED"}:
                 status = import_fastapi_staged(run_id)
                 print(f"{source}/{kind}: {status}; async parser acceptance required")
-            elif result == "STAGED" and args.pull_and_import:
-                import_report(kind, run_id, source=source)
-                print(f"{source}/{kind}: import_acknowledged; async parser acceptance required")
+            elif args.pull_and_import and result in {"STAGED", "ALREADY_STAGED"}:
+                outcome = import_reviewed_once(kind, run_id, source)
+                print(f"{source}/{kind}: {outcome}; async parser acceptance required")
     return 0
 
 if __name__ == "__main__":
