@@ -172,6 +172,27 @@ def private_zap(path: Path) -> tuple[str, str]:
     if (receipt.get("background_import") is False
             and isinstance(receipt.get("statistics"), dict)):
         return "COMPLETE", "ARCHIVED_PROCESSING_CONFIRMED"
+    # Async Test responses are preserved by run-site-alban-zap-private.py.
+    # Select the newest bounded status snapshot for this *same* Test ID.
+    # Do not mistake a successful HTTP POST for processed findings.
+    snapshots = [
+        item for item in path.iterdir()
+        if re.fullmatch(r"defectdojo-test-status-[0-9a-f]{8}-[1-8][.]json",
+                        item.name)
+    ]
+    if len(snapshots) > 64:
+        return "COMPLETE", "UNVERIFIED"
+    if snapshots:
+        newest = max(snapshots, key=lambda p: (p.lstat().st_mtime_ns, p.name))
+        status = read_json(newest)
+        if status is None or type(status.get("id")) is not int:
+            return "COMPLETE", "UNVERIFIED"
+        if status["id"] != test:
+            return "COMPLETE", "INTEGRITY_MISMATCH"
+        if status.get("status") == "Failed":
+            return "COMPLETE", "IMPORT_FAILED"
+        if status.get("status") == "Processed" and status.get("processing") is not True:
+            return "COMPLETE", "ARCHIVED_PROCESSING_CONFIRMED"
     return "COMPLETE", "API_ACKNOWLEDGED_UNVERIFIED"
 
 
