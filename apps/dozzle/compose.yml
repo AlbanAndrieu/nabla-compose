@@ -50,6 +50,7 @@ services:
           gatewayRef: resource:default/truenas
           backendPort: web
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - name: web
         target: 8080
