@@ -1,3 +1,10 @@
+## [0.124.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.124.0...0.124.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **truenas:** réconcilier les plafonds mémoire à partir des pics cgroup ([#459](https://github.com/AlbanAndrieu/nabla-compose/issues/459)) ([bdedae8](https://github.com/AlbanAndrieu/nabla-compose/commit/bdedae8b9f221c2d03a62cfbec3f76659449c6b7))
+
 # [0.124.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.123.0...0.124.0) (2026-11-28)
 
 
