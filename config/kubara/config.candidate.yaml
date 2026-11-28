@@ -1,0 +1,51 @@
+# Candidate for Kubara CLI v0.14.0; NOT an approved runtime config.yaml.
+# Validate against "kubara schema" from the pinned CLI before promotion.
+# Existing Talos VMs, Cilium and TrueNAS CSI are managed outside Kubara.
+bootstrapCatalog: oci://ghcr.io/kubara-io/catalogs/bootstrap:2.0.0
+clusters:
+  - name: nabla-talos
+    stage: homelab
+    type: hub
+    dnsName: talos.int.albandrieu.com
+    ssoOrg: none
+    ssoTeam: none
+    catalogs:
+      - oci://ghcr.io/kubara-io/catalogs/general:2.0.0
+    services:
+      # Start with exactly one new in-cluster ingress controller.
+      traefik:
+        status: enabled
+      # Kubara's MetalLB is a load balancer, not a Cilium CNI replacement.
+      # Reserve one non-DHCP IPv4 and validate the L2 path before enabling.
+      metallb:
+        status: disabled
+      # Longhorn is not a replacement for TrueNAS NFS RWX CSI.
+      longhorn:
+        status: disabled
+      # Do not let a bootstrap overwrite the Pi-hole / Cloudflare ownership.
+      external-dns:
+        status: disabled
+      # No unreviewed external secret provider or public certificate issuer.
+      external-secrets:
+        status: disabled
+      cert-manager:
+        status: disabled
+      oauth2-proxy:
+        status: disabled
+      # Defer resource-intensive services until cluster sizing is accepted.
+      kube-prometheus-stack:
+        status: disabled
+      loki:
+        status: disabled
+      metrics-server:
+        status: disabled
+      kyverno:
+        status: disabled
+      kyverno-policies:
+        status: disabled
+      kyverno-policy-reporter:
+        status: disabled
+      velero:
+        status: disabled
+      homer-dashboard:
+        status: disabled

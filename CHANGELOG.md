@@ -1,3 +1,10 @@
+# [0.123.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.122.1...0.123.0) (2026-11-28)
+
+
+### Features
+
+* **talos:** Kubara MetalLB L2 pilot, dual Traefik verified TLS and Cilium review ([#456](https://github.com/AlbanAndrieu/nabla-compose/issues/456)) ([af4b1e0](https://github.com/AlbanAndrieu/nabla-compose/commit/af4b1e0845e9e62e4a2e39df85492177c2658348))
+
 ## [0.122.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.122.0...0.122.1) (2026-11-28)
 
 
