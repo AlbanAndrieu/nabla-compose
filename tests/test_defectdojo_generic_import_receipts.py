@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
 
 SECURITY = Path(__file__).resolve().parents[1] / "scripts/security"
 sys.path.insert(0, str(SECURITY))
