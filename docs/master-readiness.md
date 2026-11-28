@@ -14,7 +14,7 @@ Apps : 94 ; actives : 65 ; planifiées : 23.
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 26 |
 | `NO_DEPLOY_PATH` | 16 |
-| `SECRETS_LEGACY_PATH` | 9 |
+| `SECRETS_LEGACY_PATH` | 8 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
@@ -58,7 +58,7 @@ Apps : 94 ; actives : 65 ; planifiées : 23.
 | `jellyfin` | planned | deploy-media-stack.sh | `cpool/jellyfin` (app-state)<br>`cpool/jellyfin-cache` (none (noSnapshot))<br>`cpool/media` (none (noSnapshot)) | n/a | ✅ | jellyfin | — | générique | config/media/settings.yml | ✅ |
 | `joplin` | planned | deploy-joplin.sh | — | manifest | ✅ | — | ✅ joplin | générique | bootstrap-joplin-postgres.sh | ✅ |
 | `kafka` | active | custom-apps.yml | `cpool/kafka` (none (noSnapshot)) | n/a | ✅ | kafka-exporter | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `keycloak` | active | custom-apps.yml | `cpool/secrets` (critical) | legacy | ✅ | keycloak | ✅ keycloak | générique | apply-keycloak-config.sh<br>apps/keycloak/config/ | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `keycloak` | active | custom-apps.yml | `cpool/secrets` (critical) | manifest | ✅ | keycloak | ✅ keycloak | générique | apply-keycloak-config.sh<br>apps/keycloak/config/ | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `langflow` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | bootstrap-openrag-langflow-key.sh | `NO_AVAILABILITY_PROBE` |
 | `langfuse` | active | custom-apps.yml | — | manifest | ❌ | — | ✅ langfuse | générique | — | `NO_AVAILABILITY_PROBE` |
 | `languagetool` | active | custom-apps.yml | `cpool/languagetool` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | ✅ |
