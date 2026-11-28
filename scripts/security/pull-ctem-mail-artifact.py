@@ -39,7 +39,8 @@ class CtemMailPullError(Exception):
     """Sanitized failure; do not expose connector response or private payload."""
 
 
-def selected_run(rows: list[dict], now: datetime | None = None) -> dict:
+def selected_run(rows: list[dict], now: datetime | None = None,
+                 *, allow_failed_workflow: bool = False) -> dict:
     if not isinstance(rows, list) or len(rows) > 10:
         raise CtemMailPullError("RUN_LIST_INVALID")
     candidates = [
@@ -54,7 +55,8 @@ def selected_run(rows: list[dict], now: datetime | None = None) -> dict:
     if not candidates:
         raise CtemMailPullError("NO_ELIGIBLE_MASTER_RUN")
     latest = max(candidates, key=lambda x: x["id"])
-    if latest.get("conclusion") != "success" or latest.get("status") != "completed":
+    allowed = {"success", "failure"} if allow_failed_workflow else {"success"}
+    if latest.get("conclusion") not in allowed or latest.get("status") != "completed":
         raise CtemMailPullError("LATEST_RUN_NOT_SUCCESSFUL")
     stamp = latest.get("created_at")
     try:
@@ -66,6 +68,28 @@ def selected_run(rows: list[dict], now: datetime | None = None) -> dict:
             <= timedelta(days=7)):
         raise CtemMailPullError("RUN_STALE")
     return latest
+
+
+MAIL_JOB_NAME = "Independent DNS mail policy evidence (checkdmarc and Nuclei)"
+
+
+def verified_mail_job(rows: list[dict], run_id: int) -> dict:
+    """The report producer must pass even if independent mail-auth detects risk.
+
+    A red parent workflow can represent a genuine SPF/DMARC policy violation,
+    but a failed or skipped *mail-deep* job never authorizes ingestion.
+    """
+    if not isinstance(rows, list) or len(rows) > 100:
+        raise CtemMailPullError("MAIL_JOB_LIST_INVALID")
+    matching = [
+        item for item in rows
+        if isinstance(item, dict) and item.get("name") == MAIL_JOB_NAME
+        and type(item.get("run_id")) is int and item["run_id"] == run_id
+        and item.get("status") == "completed" and item.get("conclusion") == "success"
+    ]
+    if len(matching) != 1:
+        raise CtemMailPullError("MAIL_PRODUCER_NOT_VERIFIED")
+    return matching[0]
 
 
 def chosen_artifact(rows: list[dict], run_id: int) -> dict:
@@ -156,12 +180,18 @@ def run(should_store: bool, *, report_root: Path = REPORT_ROOT) -> str:
         f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=master&per_page=10",
         token,
     ).get("workflow_runs")
-    run_info = selected_run(runs)
+    # The latest red workflow may still contain an independently completed
+    # mail-deep report; do not backtrack to an older green run.
+    run_info = selected_run(runs, allow_failed_workflow=True)
     run_id = run_info["id"]
     current_run = metadata(f"repos/{REPO}/actions/runs/{run_id}", token)
     if any(current_run.get(k) != run_info.get(k) for k in (
             "id", "head_sha", "head_branch", "name", "status", "conclusion")):
         raise CtemMailPullError("RUN_PROVENANCE_CHANGED")
+    jobs = metadata(
+        f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100", token
+    ).get("jobs")
+    verified_mail_job(jobs, run_id)
     artifact_rows = metadata(
         f"repos/{REPO}/actions/runs/{run_id}/artifacts", token
     ).get("artifacts")

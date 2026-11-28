@@ -48,6 +48,21 @@ class CtemMailGitHubArtifactTests(unittest.TestCase):
                 scan_run(41), scan_run(42, conclusion="failure")
             ], now=T)
 
+    def test_failed_parent_allowed_only_with_verified_mail_job(self):
+        failed = scan_run(42, conclusion="failure")
+        self.assertEqual(MOD["selected_run"](
+            [scan_run(41), failed], now=T,
+            allow_failed_workflow=True)["id"], 42)
+        good = {"name": MOD["MAIL_JOB_NAME"], "run_id": 42,
+                "status": "completed", "conclusion": "success"}
+        self.assertEqual(MOD["verified_mail_job"]([good], 42), good)
+        for jobs in ([], [dict(good, conclusion="failure")],
+                     [dict(good, conclusion="skipped")], [good, good],
+                     [dict(good, run_id=41)]):
+            with self.subTest(jobs=jobs), self.assertRaisesRegex(
+                    Exception, "MAIL_PRODUCER_NOT_VERIFIED"):
+                MOD["verified_mail_job"](jobs, 42)
+
     def test_refuses_stale_branch_or_wrong_workflow(self):
         for example in (
             dict(scan_run(), head_branch="feature"),
@@ -79,6 +94,31 @@ class CtemMailGitHubArtifactTests(unittest.TestCase):
         with self.assertRaises(Exception):
             MOD["extract_report"](buf.getvalue())
 
+    def test_red_parent_can_stage_only_successful_mail_producer(self):
+        runner = MOD["run"]
+        failed = dict(scan_run(), conclusion="failure",
+                      created_at=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat())
+        calls = []
+        def fake_meta(route, _token):
+            calls.append(route)
+            if "/workflows/" in route:
+                return {"workflow_runs": [failed]}
+            if route.endswith("/jobs?per_page=100"):
+                return {"jobs": [{"name": MOD["MAIL_JOB_NAME"], "run_id": 42,
+                                  "status": "completed", "conclusion": "success"}]}
+            if route.endswith("/artifacts"):
+                return {"artifacts": [{"name": "public-mail-deep-42",
+                                      "expired": False, "id": 9, "size_in_bytes": 400}]}
+            return failed
+        with patch.dict(runner.__globals__, {
+            "installation_token": lambda _repo: "fixture",
+            "metadata": fake_meta,
+            "api": lambda _route, _token: artifact_zip(),
+            "stage_report": lambda *args: "STAGED",
+        }):
+            self.assertEqual(runner(False), "STAGED")
+        self.assertTrue(any(x.endswith("/jobs?per_page=100") for x in calls))
+
     def test_existing_scope_and_store_no_public_publish(self):
         runner = MOD["run"]
         api_calls = []
@@ -88,6 +128,9 @@ class CtemMailGitHubArtifactTests(unittest.TestCase):
             api_calls.append(route)
             if "/workflows/" in route:
                 return {"workflow_runs": [fresh]}
+            if route.endswith("/jobs?per_page=100"):
+                return {"jobs": [{"name": MOD["MAIL_JOB_NAME"], "run_id": 42,
+                                  "status": "completed", "conclusion": "success"}]}
             if route.endswith("/artifacts"):
                 return {"artifacts": [{"name": "public-mail-deep-42",
                     "expired": False, "id": 9, "size_in_bytes": 400}]}
