@@ -86,7 +86,38 @@ def staged_state(path: Path, source: str, run_id: int) -> str:
     if not private_file(path):
         return "INVALID_EVIDENCE"
     if source != "fastapi-sample":
-        return "STAGED_NO_IMPORT_PROOF"
+        marker = path.with_suffix(".import.json")
+        if not marker.exists() and not marker.is_symlink():
+            return "STAGED_NO_IMPORT_PROOF"
+        data = read_json(marker)
+        if data is None or set(data) != {
+                "run_id", "source", "kind", "sha256", "engagement", "state"}:
+            return "INVALID_EVIDENCE"
+        expected_source = {
+            "compose": "compose", "site-alban": "alban",
+            "site-bababou": "bababou",
+        }.get(source)
+        if (type(data["run_id"]) is not int or data["run_id"] != run_id
+                or data["source"] != expected_source
+                or data["kind"] != path.stem.rsplit("-", 1)[-1]
+                or not isinstance(data["sha256"], str)
+                or data["sha256"] != digest(path)
+                or not isinstance(data["engagement"], str)
+                or re.fullmatch(r"[1-9][0-9]*", data["engagement"]) is None):
+            return "INTEGRITY_MISMATCH"
+        if data["state"] == "pending_review":
+            return "PENDING_REVIEW"
+        if data["state"] != "acknowledged":
+            return "INVALID_EVIDENCE"
+        # POST acknowledgement is only a provisional import outcome.
+        # It is *not* evidence of Celery completion, findings or deduplication.
+        response = read_json(path.with_suffix(".import-response.json"))
+        if response is None:
+            return "UNVERIFIED"
+        test_id = response.get("test_id", response.get("test"))
+        if type(test_id) is not int or test_id < 1:
+            return "UNVERIFIED"
+        return "API_ACKNOWLEDGED_UNVERIFIED"
     marker = path.with_suffix(".import.json")
     if not marker.exists() and not marker.is_symlink():
         return "STAGED_NO_IMPORT_PROOF"
