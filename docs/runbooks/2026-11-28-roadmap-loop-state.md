@@ -10,7 +10,7 @@ leurs périmètres ne sont pas repris ici.
 
 | Passe | Début | Fin | Réconciliation |
 |---|---|---|---|
-| 1 | 28/11 | en cours | après la passe 3 |
+| 1 | 28/11 | en cours (H03, H08, H10 faits ; nuit : pas d'action runtime) | après la passe 3 |
 
 ## Journal
 
@@ -25,6 +25,8 @@ leurs périmètres ne sont pas repris ici.
 | `cpool/dococd` : Doco-CD inutilisé (propriétaire, 28/11) | DEPLOYED | `noSnapshot` dans `config/truenas/snapshot-tasks.json`, tâches 62/63 supprimées, exclu de 17-19, 41 `auto-` purgées (1,83 Gio) ; dataset et `manual-2026-07-08` conservés |
 | H03 : secrets runtime Keycloak, Joplin, Homarr, `postgres-exporter` | DEPLOYED | `--verify` OK pour les trois derniers ; Keycloak différait de Vaultwarden hors mot de passe DB (les deux valeurs ouvrent la base `keycloak`) : réinstallé depuis Vaultwarden, Compose et scripts passés au chemin runtime, entrée retirée du cliquet legacy et de `debt-baseline.json` |
 | Fenêtre de nuit : 15 Apps `operational-schedule: night` démarrées en série à 01:00 (`nabla-night-window-start`, arrêt à 07:00) | constaté | conception voulue (`reconcile-night-window-cron.py`), pas un incident ; pendant les démarrages, PSI IO 86-90 % et un txg toutes les ~1-1,8 s (syncs forcés), worker de Sample 12 min en état D (session « LA roadmap ») ; à étudier : démarrages espacés ou paperless-ngx hors fenêtre |
+| H08 : ligne du portefeuille | CODED | Nexus APT/npm/PyPI `DEPLOYED` 27/11 reporté dans `roadmap-portfolio.md` (lien #438 remplacé) |
+| H10 : E/S de nuit, relevé de 02:16 | constaté | PSI IO 88 % pour ~10 Mio/s au total : latence raidz2, pas débit ; pas de scrub (dernier le 22/11) ni de test SMART ; premier lecteur `ix-kafka` (5,4 Mio/s, démarré à 01:00Z par la fenêtre de nuit), puis netdata hôte (3,2 Mio/s) ; un txg toutes les 1,5-2,4 s |
 
 ## Questions parquées
 
