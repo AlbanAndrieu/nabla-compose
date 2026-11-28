@@ -14,7 +14,8 @@ services:
     image: docker.io/traefik:v3.7.0
     container_name: traefik
     restart: unless-stopped
-    mem_limit: 256m
+    # Keep headroom for TLS/routing bursts; the previous cap was reached.
+    mem_limit: 448m
     x-nabla:
       id: traefik
       name: Traefik
