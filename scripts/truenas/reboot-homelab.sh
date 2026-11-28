@@ -198,8 +198,23 @@ diagnose_app_runtime() {
   fi
 }
 
+# Talos is parked when all three VMs have autostart=false (28/11/2026: an idle cluster
+# held RAM away from the ZFS ARC). Parked VMs stay STOPPED across the reboot and every
+# Talos/Kubernetes step is skipped; a mix of autostart values is refused below.
+talos_parked() {
+  midclt_bounded vm.query | jq -e '
+    [.[] | select(.name == "taloscp01" or .name == "taloswk01" or .name == "taloswk02")]
+    | length == 3 and all(.[]; .autostart == false)
+  ' >/dev/null
+}
+
 vm_policy_gate() {
   local payload name row shutdown_timeout
+  if talos_parked; then
+    talos_vms_all_in_state STOPPED || fail "Talos is parked (autostart=false) but a VM is not STOPPED"
+    ok "Talos parked: all VMs STOPPED with autostart=false; Talos and Kubernetes steps skipped"
+    return 0
+  fi
   payload="$(midclt_bounded vm.query)"
   for name in "${VM_NAMES[@]}"; do
     row="$(
@@ -795,13 +810,15 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   bash "${IPAM_CHECK}" --post-reboot-check
 
   vm_policy_gate
-  printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_START_WAIT}"
-  wait_talos_vms_running
-  for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
-    talos_api_check "${node}" 60 post-reboot || fail "Talos API not ready: ${node}"
-  done
-  run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
-  run_operator "${KUBECTL}" get nodes -o wide
+  if ! talos_parked; then
+    printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_START_WAIT}"
+    wait_talos_vms_running
+    for node in 172.17.0.50 172.17.0.51 172.17.0.52; do
+      talos_api_check "${node}" 60 post-reboot || fail "Talos API not ready: ${node}"
+    done
+    run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
+    run_operator "${KUBECTL}" get nodes -o wide
+  fi
   printf 'SUCCESS: post-reboot infrastructure gate passed; next: --resume\n'
   exit 0
 fi
@@ -811,12 +828,14 @@ if [[ "${MODE}" == --resume ]]; then
     fail "refusing resume before an actual reboot"
   truenas_ready || fail "TrueNAS is not ready"
   validate_or_record_resume_bundle_identity "${state_dir}"
-  run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
-  mapfile -t nodes < <(run_operator "${KUBECTL}" get nodes -o name)
-  for node in "${nodes[@]}"; do
-    run_operator "${KUBECTL}" uncordon "${node}" >/dev/null 2>&1 || true
-  done
-  run_operator "${KUBECTL}" get nodes
+  if ! talos_parked; then
+    run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
+    mapfile -t nodes < <(run_operator "${KUBECTL}" get nodes -o name)
+    for node in "${nodes[@]}"; do
+      run_operator "${KUBECTL}" uncordon "${node}" >/dev/null 2>&1 || true
+    done
+    run_operator "${KUBECTL}" get nodes
+  fi
 
   # app.start and DEPLOYING handling live in the idempotent reconciler.
   run_resume_reconciler "${state_dir}"
@@ -838,7 +857,7 @@ while IFS= read -r app; do
     warn "intentional pre-reboot STOPPED app ${app} is now ${state}"
 done <"${state_dir}/intentional-stopped.txt"
 vm_policy_gate
-run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=60s
+talos_parked || run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=60s
 [[ -f "${SERVICE_HEALTH_CHECK}" ]] || fail "service health check not found: ${SERVICE_HEALTH_CHECK}"
 bash "${SERVICE_HEALTH_CHECK}" || fail "post-resume service health gate failed"
 printf '%s\n' "${current_boot_id}" >"${state_dir}/boot-id-after"

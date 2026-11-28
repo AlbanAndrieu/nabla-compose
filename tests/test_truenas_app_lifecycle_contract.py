@@ -362,6 +362,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             wrapper.index("exec ntopng /etc/ntopng/nabla.conf"),
         )
         self.assertIn("redis-cli SET ntopng.prefs.admin_password_changed 1", wrapper)
+        # setDefaults skips the whole admin user once the password key exists.
+        self.assertIn("redis-cli SET ntopng.user.admin.group administrator", wrapper)
         # Flow alerts filled the RRD tmpfs at ~700/s: they stay off at every start.
         self.assertLess(
             wrapper.index("redis-cli SET ntopng.prefs.emit_flow_alerts 0"),

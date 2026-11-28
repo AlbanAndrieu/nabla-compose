@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
 
 MODE="${1:---check}"
-TARGET_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"
+TARGET_AUTOSTART="${TALOS_VM_AUTOSTART:-false}"
 TARGET_SHUTDOWN_TIMEOUT="${TALOS_VM_SHUTDOWN_TIMEOUT:-180}"
 VM_NAMES=(taloscp01 taloswk01 taloswk02)
 
@@ -18,8 +18,9 @@ esac
 require_root "run as root on TrueNAS"
 require_commands midclt jq
 
-[[ "${TARGET_AUTOSTART}" == "true" ]] ||
-  fail "steady-state Talos VM policy requires TALOS_VM_AUTOSTART=true"
+# false (default) keeps Talos parked; true runs the cluster at every TrueNAS boot.
+[[ "${TARGET_AUTOSTART}" == true || "${TARGET_AUTOSTART}" == false ]] ||
+  fail "TALOS_VM_AUTOSTART must be true or false"
 [[ "${TARGET_SHUTDOWN_TIMEOUT}" =~ ^[0-9]+$ ]] ||
   fail "TALOS_VM_SHUTDOWN_TIMEOUT must be an integer"
 ((TARGET_SHUTDOWN_TIMEOUT >= 5 && TARGET_SHUTDOWN_TIMEOUT <= 300)) ||
@@ -75,8 +76,8 @@ if [[ "${MODE}" == "--check" ]]; then
   if ((changes)); then
     fail "${changes} Talos VM(s) differ from the steady-state boot policy; run --apply after review"
   fi
-  printf 'SUCCESS: all Talos VMs have autostart=true and shutdown_timeout=%ss\n' \
-    "${TARGET_SHUTDOWN_TIMEOUT}"
+  printf 'SUCCESS: all Talos VMs have autostart=%s and shutdown_timeout=%ss\n' \
+    "${TARGET_AUTOSTART}" "${TARGET_SHUTDOWN_TIMEOUT}"
   exit 0
 fi
 
@@ -84,10 +85,11 @@ post="$(midclt call vm.query)"
 for name in "${VM_NAMES[@]}"; do
   jq -e \
     --arg name "${name}" \
+    --argjson autostart "${TARGET_AUTOSTART}" \
     --argjson timeout "${TARGET_SHUTDOWN_TIMEOUT}" '
       [.[] | select(
         .name == $name and
-        .autostart == true and
+        .autostart == $autostart and
         .shutdown_timeout == $timeout
       )] | length == 1
     ' <<<"${post}" >/dev/null ||
