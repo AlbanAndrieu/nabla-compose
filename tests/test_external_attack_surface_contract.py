@@ -35,6 +35,10 @@ class ExternalAttackSurfaceContract(unittest.TestCase):
         installer = ROOT / "scripts/security/install-pinned-nuclei.sh"
         self.assertIn("sha256sum --check", installer.read_text(encoding="utf-8"))
         self.assertIn("install-pinned-nuclei.sh", text)
+        self.assertIn("ref: 573b82acea30711be3ecfbbb472ec8ad7734c895", text)
+        self.assertIn("NUCLEI_TEMPLATES_UNAVAILABLE", text)
+        self.assertIn(' -t "${NUCLEI_TEMPLATE_DIR}"', text)
+        self.assertNotIn('"\${RUNNER_TEMP}/nuclei" -ut', text)
         self.assertIn("checkdmarc==6.0.3", text)
         self.assertIn("745c8d83f2daa49b5525793229a358044a8bb3e7", text)
         self.assertIn("run-public-mail-deep.py", text)

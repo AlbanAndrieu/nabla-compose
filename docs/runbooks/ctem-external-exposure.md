@@ -11,7 +11,8 @@ dans cette contribution API-only.
 Dans [External attack surface](https://github.com/AlbanAndrieu/nabla-compose/actions/workflows/external-attack-surface.yml),
 après fusion et validation du workflow :
 - `mail` : audit DNS natif et job indépendant checkdmarc 6.0.3 / Nuclei DNS (templates épinglés SPF et DMARC, DKIM uniquement sur sélecteurs renseignés) ; compléter la liste depuis les zones Cloudflare réellement possédées et confirmer les fournisseurs. Pas de découverte par dictionnaire de sélecteurs ni de données TXT publiées.
-- `nuclei` : HTTP borné, résultats minimisés; les alias épinglés et IP
+- `nuclei` : HTTP borné, corpus YAML complet épinglé par SHA Git (`573b82acea30711be3ecfbbb472ec8ad7734c895`),
+  vérification du nombre de templates avant scan et résultats minimisés ; les alias et IP
   directes nécessitent `confirm_wan=true`, une valeur `wan_ipv4` publique
   valide et une nouvelle confirmation de propriété. L'ancienne adresse
   pfSense n'est plus utilisée automatiquement. Les alias `@wan` restent
