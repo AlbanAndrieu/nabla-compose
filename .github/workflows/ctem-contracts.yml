@@ -39,6 +39,8 @@ on:
       - "scripts/security/zap-site-alban-rate-limit-hook.py"
       - "config/security/zap/site-alban-rules.tsv"
       - "tests/test_zap_private_pipeline.py"
+      - "scripts/security/reconcile-defectdojo-evidence.py"
+      - "tests/test_defectdojo_evidence_reconciliation.py"
       - "tests/test_defectdojo_private_zap.py"
       - "config/security/defectdojo-allowed-imports.json"
       - "tests/test_ctem_report_pipeline.py"
@@ -74,6 +76,7 @@ jobs:
             scripts/security/project-ctem-mail-findings.py \
             scripts/security/validate-defectdojo-report.py \
             scripts/security/run-site-alban-zap-private.py \
+            scripts/security/reconcile-defectdojo-evidence.py \
             scripts/security/zap-site-alban-rate-limit-hook.py
           bash -n scripts/security/run-ctem-amass-truenas.sh
           bash -n scripts/security/import-scan-defectdojo.sh
@@ -93,11 +96,13 @@ jobs:
             tests.test_ctem_web_summary \
             tests.test_defectdojo_private_zap \
             tests.test_zap_private_pipeline \
+            tests.test_defectdojo_evidence_reconciliation \
             tests.test_honeypot_contract \
             tests.test_honeypot_log_summary -v
       - name: Offline Cron and container preflights
         run: |
           python3 scripts/security/run-site-alban-zap-private.py --check
+          python3 scripts/security/reconcile-defectdojo-evidence.py --check
           bash scripts/security/run-ctem-amass-truenas.sh --check
           python3 scripts/security/pull-ctem-mail-artifact.py --check
           python3 scripts/security/pull-ctem-amass-artifact.py --check
