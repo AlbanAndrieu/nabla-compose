@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "endUserId": "site-support@albandrieu.com",
+  "budgetUsd": 3,
+  "duration": "30d",
+  "notes": "Dedicated LiteLLM customer budget for OpenWebUI user site-support; enforce only with DB-backed accounting and forwarded identity."
+}

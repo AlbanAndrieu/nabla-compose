@@ -224,7 +224,11 @@ locals {
         { type = "public", uri = "langfuse.albandrieu.com", cidr = null, port_range = null },
         { type = "private", uri = null, cidr = "172.17.0.24/32", port_range = "3000" },
       ]
-      policies = [local.access_policy_nabla_id, local.access_policy_temporary_access_id, local.access_policy_fastapi_sample_monitor_id]
+      # Vercel support uses its existing scoped Access service token for OTLP and feedback.
+      policies = concat(
+        [local.access_policy_nabla_id, local.access_policy_temporary_access_id, local.access_policy_fastapi_sample_monitor_id],
+        [for policy in cloudflare_zero_trust_access_policy.site_support : policy.id],
+      )
       tags     = []
     }
     "clickhouse" = {
