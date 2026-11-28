@@ -282,3 +282,10 @@ la seule base `defectdojo` vérifié et une approbation explicite ; il
 conserve le rôle, les clés de chiffrement et les secrets Vaultwarden.
 Pour un problème de connexion admin, synchroniser plutôt le mot de passe
 avec `scripts/truenas/reconcile-defectdojo-admin-password.py`.
+
+## Répartition mesurée le 23 novembre 2026
+
+Sur 62 Gio : conteneurs ≈ 37,5 Gio (Sentry `errors-only` 6,2, gateway OpenClaw 2,5,
+Wazuh 2,4, Nexus 2,1, OpenSearch 2,1), 3 VM Talos ≈ 9,5 Gio (H01), noyau ≈ 3,4 Gio.
+Pics cgroup nocturnes (01h–06h) : ClickHouse +1 Gio, gateway +0,8, mongo +0,5, docling +0,4.
+Contexte et décisions : H10 dans [la roadmap active](../roadmap.md).
