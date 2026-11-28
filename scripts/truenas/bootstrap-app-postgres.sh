@@ -74,7 +74,7 @@ defectdojo)
   ;;
 keycloak)
   # Keycloak keeps its historical secret location (apps/keycloak/compose.yml env_file).
-  SECRETS_FILE="${KEYCLOAK_SECRETS_FILE:-/mnt/cpool/keycloak/.env.secrets}"
+  SECRETS_FILE="${KEYCLOAK_SECRETS_FILE:-/mnt/cpool/secrets/runtime/keycloak/.env.secrets}"
   SECRET_KEY="KC_DB_PASSWORD"
   DB_USER="keycloak"
   DB_NAME="keycloak"

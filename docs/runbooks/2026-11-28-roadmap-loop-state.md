@@ -23,6 +23,8 @@ leurs périmètres ne sont pas repris ici.
 | Dérive OpenTofu : racine `nexus` enrôlée | DEPLOYED | compte lecture seule `nabla-opentofu-drift` (rôle `nabla-opentofu-read`), `nexus.env` root 0600 ; verdict `DRIFT` (6 destructions) sur `origin/master` 8aab83f6, attendu `IN_SYNC` après fusion de #454 |
 | Snapshots `databases` doublés par 17-19 (accord du propriétaire) | DEPLOYED | 7 datasets exclus, 37-40 `auto-` historiques purgées chacun par nom après dry-run : 42,9 → 10,8 Gio (ClickHouse −30,7 Gio) ; `wazuh` garde une `auto-` (aucun point de classe) |
 | `cpool/dococd` : Doco-CD inutilisé (propriétaire, 28/11) | DEPLOYED | `noSnapshot` dans `config/truenas/snapshot-tasks.json`, tâches 62/63 supprimées, exclu de 17-19, 41 `auto-` purgées (1,83 Gio) ; dataset et `manual-2026-07-08` conservés |
+| H03 : secrets runtime Keycloak, Joplin, Homarr, `postgres-exporter` | DEPLOYED | `--verify` OK pour les trois derniers ; Keycloak différait de Vaultwarden hors mot de passe DB (les deux valeurs ouvrent la base `keycloak`) : réinstallé depuis Vaultwarden, Compose et scripts passés au chemin runtime, entrée retirée du cliquet legacy et de `debt-baseline.json` |
+| Apps relancées entre 00:05 et 00:15 (hors de cette session) | constaté | zabbix, paperless-ngx (`unhealthy`, arrêtée le 21/11 pour tempête IO), freshrss, domain-watchdog, tracearr ; pression IO à 42 % : surveiller paperless-ngx |
 
 ## Questions parquées
 

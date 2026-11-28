@@ -156,7 +156,6 @@ These are high-leverage early migrations because secret ownership is already
 known:
 
 - **Akvorado** — still reads `/mnt/cpool/akvorado/.env.secrets`;
-- **Keycloak** — still reads `/mnt/cpool/keycloak/.env.secrets`;
 - **n8n** — API key is already managed; PostgreSQL password is now added to the
   manifest, while shared Redis authentication still needs ownership cleanup;
 - existing canonical services such as Scanopy/Joplin/security-tooling remain the

@@ -57,7 +57,7 @@ services:
     mem_limit: 1536m
     command: ["start"]
     env_file:
-      - /mnt/cpool/keycloak/.env.secrets
+      - /mnt/cpool/secrets/runtime/keycloak/.env.secrets
     # Public CA certificate, no private key. Fail closed until the PostgreSQL PKI is provisioned.
     volumes:
       - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro

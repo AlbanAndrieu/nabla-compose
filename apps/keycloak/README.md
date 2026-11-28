@@ -148,7 +148,7 @@ and https://www.postgresql.org/docs/18/ssl-tcp.html.
 The Compose file consumes:
 
 ```text
-/mnt/cpool/keycloak/.env.secrets
+/mnt/cpool/secrets/runtime/keycloak/.env.secrets
 ```
 
 with:
@@ -165,10 +165,8 @@ container-facing Keycloak variables.
 Render the file with:
 
 ```bash
-python scripts/secrets/render_from_bitwarden.py \
-  --app keycloak \
-  --output-file /mnt/cpool/keycloak/.env.secrets
-chmod 600 /mnt/cpool/keycloak/.env.secrets
+# From the workstation, Vaultwarden unlocked; installs 0600 root on TrueNAS.
+python3 scripts/secrets/materialize_runtime.py --app keycloak --install --ssh truenas
 ```
 
 The bootstrap administrator password is used to create the initial local

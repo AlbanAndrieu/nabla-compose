@@ -18,7 +18,6 @@ ALLOWED = {
     ("apps/dozzle/compose.yml", "/mnt/cpool/dozzle/.env"),
     ("apps/dozzle/compose.yml", "/mnt/cpool/dozzle/.env.secrets"),
     ("apps/garage/compose.yml", "/mnt/cpool/garage/.env.secrets"),
-    ("apps/keycloak/compose.yml", "/mnt/cpool/keycloak/.env.secrets"),
     # Pi-hole API credential still read from Traefik's file during the cutover.
     ("apps/pihole/compose.yml", "/mnt/cpool/traefik/.env.secrets"),
     ("apps/traefik/compose.yml", "/mnt/cpool/traefik/.env"),
