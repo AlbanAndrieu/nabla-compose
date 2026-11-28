@@ -13,9 +13,13 @@ services:
     image: ghcr.io/dependencytrack/apiserver:5.2.0
     container_name: dependency-track-api
     restart: unless-stopped
+    # Bound the previously uncapped API; validate a vulnerability mirror and SBOM analysis.
+    mem_limit: 4g
     env_file:
       - /mnt/cpool/secrets/runtime/dependency-track/.env.secrets
     environment:
+      # v5 adds EXTRA_JAVA_OPTIONS to the image defaults. Leave 1.5g outside heap.
+      EXTRA_JAVA_OPTIONS: "-Xmx2560m"
       # v5 uses DT_DATASOURCE_*, not the legacy v4 ALPINE_DATABASE_* names.
       # The shared PostgreSQL App is reached by LAN, with CA + SAN verification.
       DT_DATASOURCE_URL: jdbc:postgresql://${DEPENDENCY_TRACK_DATABASE_HOST:-172.17.0.24}:5432/dependencytrack?sslmode=verify-full&sslrootcert=/etc/nabla/pki/postgres-ca.crt
@@ -73,6 +77,7 @@ services:
     image: ghcr.io/dependencytrack/frontend:5.2.0
     container_name: dependency-track
     restart: unless-stopped
+    mem_limit: 256m
     depends_on:
       - dependency-track-api
     environment:

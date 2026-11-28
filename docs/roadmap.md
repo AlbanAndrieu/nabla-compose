@@ -90,6 +90,12 @@ docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir quand Wazuh publiera
   un indexeur 3.x.
 - Le levier restant (≈ 4 Gio) est la mise en pause d'OpenRAG (Langflow, Docling, OpenSearch).
+- **Redimensionnement du 28/11 — CODED / NOT_RUN runtime** : cinq plafonds réduits
+  (Nexus, Sentry Web/Taskworker, Langfuse Web, LanguageTool) et deux nouveaux
+  plafonds Dependency-Track, à valider contre `memory.peak × 1,5` avant
+  réconciliation App par App. Aucun gain RAM ni déploiement présumé.
+  [Cibles, diagnostic rapide et rollback](runbooks/2026-10-26-homelab-service-resource-inventory.md#ajustement-des-plafonds-mémoire-28-novembre-2026).
+
 
 **K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
 

@@ -60,7 +60,8 @@ services:
       - prometheus.scrape=true
       - prometheus.port=8010
     restart: unless-stopped
-    mem_limit: 1792m
+    # Keep at least 512 MiB beyond the configured 1g Java heap.
+    mem_limit: 1536m
     ports:
       - name: web
         target: 8010

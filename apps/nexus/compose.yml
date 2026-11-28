@@ -23,7 +23,7 @@ services:
       runtime:
         provider: truenas-app
         containerService: nexus
-      # Build-time only, nothing requires it: its 5g JVM starts after the critical waves.
+      # Build-time only, nothing requires it: its JVM starts after the critical waves.
       lifecycle:
         phase: applications
         priority: 90
@@ -43,8 +43,9 @@ services:
           access:
             required: true
     restart: unless-stopped
-    # JVM memory cap (2026-11-06): 2g heap plus 2g MaxDirectMemorySize (INSTALL4J_ADD_VM_PARAMS) plus metaspace; an OOM stays in this cgroup.
-    mem_limit: 5g
+    # Homelab trial (28/11): keep the 2g heap and 2g direct-memory budget;
+    # 512 MiB remains for other native memory. Validate peak and package proxies before applying.
+    mem_limit: 4608m
     user: "1002:1002" # TrueNAS nexus user
     ports:
       - name: web
