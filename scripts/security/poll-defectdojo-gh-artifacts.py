@@ -451,13 +451,13 @@ def import_reviewed_once(kind: str, run_id: int, source: str) -> str:
         fail("invalid source run ID")
     prefix = {"compose": "COMPOSE", "alban": "SITE_ALBAN",
               "bababou": "SITE_BABABOU"}[source]
-    engagement = os.environ.get(f"DEFECTDOJO_${prefix}_ENGAGEMENT_ID", "")
+    engagement = os.environ.get(f"DEFECTDOJO_{prefix}_ENGAGEMENT_ID", "")
     if not re.fullmatch(r"[1-9][0-9]*", engagement):
         fail("approved existing engagement ID required")
     suffix = "xml" if kind == "zap" else "json"
-    report = (COMPOSE_INBOX / f"compose-${run_id}-trivy.json" if source == "compose"
-              else Path("/mnt/cpool/defectdojo/imports") / f"site-${source}"
-                   / f"site-${source}-${run_id}-${kind}.${suffix}")
+    report = (COMPOSE_INBOX / f"compose-{run_id}-trivy.json" if source == "compose"
+              else Path("/mnt/cpool/defectdojo/imports") / f"site-{source}"
+                   / f"site-{source}-{run_id}-{kind}.{suffix}")
     if (report.parent.is_symlink() or not report.parent.is_dir()
             or report.parent.stat().st_uid != os.geteuid()
             or report.parent.stat().st_mode & 0o077):
