@@ -236,7 +236,12 @@ def test_ntopng_configuration_is_code_and_its_tokens_stay_out_of_state():
     assert "sensitive   = true" in variables and "api_token" not in tofu
     terragrunt = (ROOT / "infrastructure/ntopng/terragrunt.hcl").read_text(encoding="utf-8")
     assert 'find_in_parent_folders("terraform/ntopng")' in terragrunt and "ntopng_token" not in terragrunt.split("inputs", 1)[1]
+    # Parallel check writes lose updates on one Redis blob (28/11): apply and destroy stay serial.
+    assert '"-parallelism=1"' in terragrunt
     control = NTOPNG_CONTROL.read_text(encoding="utf-8")
+    # ignore_all_server_changes hides drift: check reads the values back, apply replaces them.
+    assert 'jsondecode(file("${path.module}/settings.json"))' in tofu and "terraform/ntopng/settings.json" in control
+    assert ".rsp.hooks.all.enabled == false" in control and '"${DRIFTED[@]/#/-replace=}"' in control
     assert "\nNTOPNG_URL=http://172.17.0.24:31080\n" in control
     assert "curl -sS --noproxy '*' -K <(printf '%s\\n' \"$1\")" in control and "--data-binary @-" in control
     # Tokens reach the importer and OpenTofu through the environment only.

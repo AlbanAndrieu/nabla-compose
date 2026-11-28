@@ -78,6 +78,26 @@ tofu_run() { # terragrunt arguments
     bash "${ROOT}/scripts/infra/terragrunt-safe.sh" infrastructure/ntopng "$@"
 }
 
+# OpenTofu never diffs ntopng answers (ignore_all_server_changes): read every value of
+# terraform/ntopng/settings.json back and list the objects whose live value differs.
+live_drift() { # CONTROL_TOKEN; sets DRIFTED
+  local auth key want check settings="${ROOT}/terraform/ntopng/settings.json"
+  auth="$(token_auth "$1")"
+  DRIFTED=()
+  api "${auth}" GET /lua/rest/v2/get/ntopng/get_preferences.lua
+  [[ "${API_OK}" == true ]] || die "reading ntopng preferences failed (HTTP ${API_CODE})"
+  while IFS=$'\t' read -r key want; do
+    jq -e --arg k "${key}" --arg v "${want}" '(.rsp[$k] | tostring) == $v' <<<"${API_BODY}" >/dev/null ||
+      DRIFTED+=("restapi_object.alert_preference[\"${key}\"]")
+  done < <(jq -r '.alert_preferences | to_entries[] | [.key, .value.value] | @tsv' "${settings}")
+  while read -r check; do
+    api "${auth}" GET "/lua/rest/v2/get/checks/check_config.lua?check_subdir=flow&script_key=${check}"
+    [[ "${API_OK}" == true ]] || die "reading flow check ${check} failed (HTTP ${API_CODE})"
+    jq -e '.rsp.hooks.all.enabled == false' <<<"${API_BODY}" >/dev/null ||
+      DRIFTED+=("restapi_object.disabled_flow_check[\"${check}\"]")
+  done < <(jq -r '.disabled_flow_checks[]' "${settings}")
+}
+
 read_state() {
   local row user item field token
   ADMIN_PW="$(bw_field nabla/prod/ntopng NTOPNG_ADMIN_PASSWORD 2>/dev/null)" || die "nabla/prod/ntopng has no NTOPNG_ADMIN_PASSWORD"
@@ -100,6 +120,7 @@ read_state() {
     STATES+=("${state}")
   done
   CONFIG=no-token
+  DRIFTED=()
   if bw_field nabla/prod/ntopng-control NTOPNG_CONTROL_TOKEN >/dev/null 2>&1; then
     local rc=0
     tofu_run plan -detailed-exitcode -input=false -lock=false >/dev/null 2>&1 || rc=$?
@@ -108,6 +129,11 @@ read_state() {
       2) CONFIG=drift ;;
       *) CONFIG=error ;;
     esac
+    # IDENTITIES[0] is nabla-control: only a token ntopng accepts can read the values back.
+    if [[ "${STATES[0]}" == ok ]]; then
+      live_drift "$(bw_field nabla/prod/ntopng-control NTOPNG_CONTROL_TOKEN)"
+      [[ ${#DRIFTED[@]} -eq 0 || "${CONFIG}" == error ]] || CONFIG=drift
+    fi
   fi
 }
 
@@ -118,7 +144,7 @@ report() {
     [[ "${STATES[i]}" == ok ]] || status=DRIFT
   done
   [[ "${CONFIG}" == ok ]] || status=DRIFT
-  echo "${line} opentofu=${CONFIG} status=${status}"
+  echo "${line} opentofu=${CONFIG} live_drift=${#DRIFTED[@]} status=${status}"
   [[ "${status}" == CONVERGED ]]
 }
 
@@ -154,6 +180,7 @@ for i in "${!IDENTITIES[@]}"; do
   fi
 done
 
-tofu_run apply -auto-approve -input=false
+# -replace sends again the objects whose live value drifted (destroy, then create).
+tofu_run apply -auto-approve -input=false "${DRIFTED[@]/#/-replace=}"
 read_state
 report

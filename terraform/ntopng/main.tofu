@@ -26,15 +26,18 @@ provider "restapi" {
   }
 }
 
+# settings.json is shared with scripts/ntopng/control.sh, which reads every value
+# back from ntopng: ignore_all_server_changes keeps OpenTofu blind to server drift.
+#   - alert_preferences (section "alerts" of prefs_menu_schema.lua), key -> {value,
+#     ntopng default}. max_entity_alerts: hourly housekeeping prunes each SQLite alert
+#     family to 80 % of this cap; the 1,000,000 default (~700 MiB) does not fit the
+#     384m and 64m tmpfs (27/11/2026).
+#   - disabled_flow_checks: 99.6 % of the 524,793 flow alerts written on br0 in
+#     12 minutes on 22/11/2026.
 locals {
-  # Alerts preferences (section "alerts" of prefs_menu_schema.lua): key -> [value, ntopng default].
-  alert_preferences = {
-    # Hourly housekeeping prunes each SQLite alert family to 80 % of this cap. The
-    # 1,000,000 default (~700 MiB) does not fit the 384m and 64m tmpfs (27/11/2026).
-    max_entity_alerts = ["20000", "1000000"]
-  }
-  # 99.6 % of the 524,793 flow alerts written on br0 in 12 minutes on 22/11/2026.
-  disabled_flow_checks = toset(["ndpi_probing_attempt", "ndpi_unidirectional_traffic", "tcp_no_data_exchanged"])
+  settings             = jsondecode(file("${path.module}/settings.json"))
+  alert_preferences    = local.settings.alert_preferences
+  disabled_flow_checks = toset(local.settings.disabled_flow_checks)
 }
 
 resource "restapi_object" "alert_preference" {
@@ -45,9 +48,9 @@ resource "restapi_object" "alert_preference" {
   update_path  = "/lua/rest/v2/set/ntopng/preferences.lua"
   destroy_path = "/lua/rest/v2/set/ntopng/preferences.lua"
   object_id    = each.key
-  data         = jsonencode({ pref_section = "alerts", pref_key = each.key, pref_value = each.value[0] })
+  data         = jsonencode({ pref_section = "alerts", pref_key = each.key, pref_value = each.value.value })
   # Destroying the resource restores the ntopng default.
-  destroy_data = jsonencode({ pref_section = "alerts", pref_key = each.key, pref_value = each.value[1] })
+  destroy_data = jsonencode({ pref_section = "alerts", pref_key = each.key, pref_value = each.value.default })
 
   ignore_all_server_changes = true
 }
