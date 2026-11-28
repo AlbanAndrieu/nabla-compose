@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MCP = ROOT / "scripts/mcp"
 GATEWAY = ROOT / "scripts/litellm/mcp-gateway.sh"
 GRAFANA_IDENTITY = ROOT / "scripts/grafana/mcp-identity.sh"
+NTOPNG_CONTROL = ROOT / "scripts/ntopng/control.sh"
 
 
 def _servers() -> dict:
@@ -33,7 +34,7 @@ def _compose(app: str) -> dict:
 def test_mcp_json_reaches_homarr_grafana_and_gatus_through_the_gateway():
     servers = _servers()
     assert servers["nabla-mcp"] == _stdio("scripts/mcp/http-remote.sh", "litellm-gateway", "http://172.17.0.24:4000/mcp/")
-    assert not {"homarr", "grafana", "gatus", "sentry", "defectdojo", "fastapi-sample"} & set(servers)
+    assert not {"homarr", "grafana", "gatus", "sentry", "defectdojo", "fastapi-sample", "ntopng"} & set(servers)
 
 
 def _payload(server: str, key: str) -> dict:
@@ -101,7 +102,7 @@ def test_grafana_service_account_is_code_and_its_token_stays_out_of_state():
     )
 
 
-@pytest.mark.parametrize("script", [GATEWAY, GRAFANA_IDENTITY])
+@pytest.mark.parametrize("script", [GATEWAY, GRAFANA_IDENTITY, NTOPNG_CONTROL])
 def test_vaultwarden_scripts_refuse_without_a_session(script):
     env = {k: v for k, v in os.environ.items() if k != "BW_SESSION"}
     assert subprocess.run(["bash", str(script)], env=env, capture_output=True).returncode == 2
@@ -212,3 +213,32 @@ def test_defectdojo_mcp_is_a_read_only_user_with_read_tools():
     # and read-only from the gateway tool list.
     assert "product_type.authorized_users.add(user)" in identity and '"${READ}" == "${ALL}"' in identity
     assert "--arg p " not in identity and "$ENV.PW" in identity
+
+
+def test_ntopng_mcp_goes_through_the_gateway_with_read_only_tools():
+    ntopng = _payload("ntopng", "not-a-real-token")
+    assert ntopng["url"] == "http://172.17.0.24:31080/lua/rest/v2/exec/llm/mcp.lua"
+    # ntopng only accepts "Authorization: Token <key>"; the other rows keep a bare value.
+    assert ntopng["auth_type"] == "api_key" and ntopng["credentials"] == {
+        "auth_value": "Token not-a-real-token",
+        "upstream_token_header": "Authorization",
+    }
+    assert _payload("homarr", "k")["credentials"]["auth_value"] == "k"
+    # The MCP user must be administrator: the tool list is the only write barrier.
+    assert len(ntopng["allowed_tools"]) == 11 and "add_active_monitoring_script" not in ntopng["allowed_tools"]
+    assert all(t.startswith(("get_", "list_", "discover_")) for t in ntopng["allowed_tools"])
+
+
+def test_ntopng_configuration_is_code_and_its_tokens_stay_out_of_state():
+    tofu = (ROOT / "terraform/ntopng/main.tofu").read_text(encoding="utf-8")
+    variables = (ROOT / "terraform/ntopng/variables.tofu").read_text(encoding="utf-8")
+    assert 'version = "= 3.0.0"' in tofu and 'Authorization = "Token ${var.ntopng_token}"' in tofu
+    assert "sensitive   = true" in variables and "api_token" not in tofu
+    terragrunt = (ROOT / "infrastructure/ntopng/terragrunt.hcl").read_text(encoding="utf-8")
+    assert 'find_in_parent_folders("terraform/ntopng")' in terragrunt and "ntopng_token" not in terragrunt.split("inputs", 1)[1]
+    control = NTOPNG_CONTROL.read_text(encoding="utf-8")
+    assert "\nNTOPNG_URL=http://172.17.0.24:31080\n" in control
+    assert "curl -sS --noproxy '*' -K <(printf '%s\\n' \"$1\")" in control and "--data-binary @-" in control
+    # Tokens reach the importer and OpenTofu through the environment only.
+    assert 'export "${field}=${token}"' in control and "env \"${field}" not in control
+    assert 'TF_VAR_ntopng_token="${token}"' in control

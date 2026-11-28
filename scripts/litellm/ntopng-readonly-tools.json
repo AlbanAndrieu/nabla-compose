@@ -1,0 +1,13 @@
+[
+  "discover_lan",
+  "get_country_stats",
+  "get_host_info",
+  "get_interface_addresses",
+  "get_live_flows_for_host",
+  "get_live_flows_summary",
+  "get_mac_info",
+  "get_preferences",
+  "list_available_active_monitoring_scripts",
+  "list_enabled_active_monitoring_scripts",
+  "list_expected_servers"
+]
