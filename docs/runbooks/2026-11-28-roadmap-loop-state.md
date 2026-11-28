@@ -24,7 +24,7 @@ leurs périmètres ne sont pas repris ici.
 | Snapshots `databases` doublés par 17-19 (accord du propriétaire) | DEPLOYED | 7 datasets exclus, 37-40 `auto-` historiques purgées chacun par nom après dry-run : 42,9 → 10,8 Gio (ClickHouse −30,7 Gio) ; `wazuh` garde une `auto-` (aucun point de classe) |
 | `cpool/dococd` : Doco-CD inutilisé (propriétaire, 28/11) | DEPLOYED | `noSnapshot` dans `config/truenas/snapshot-tasks.json`, tâches 62/63 supprimées, exclu de 17-19, 41 `auto-` purgées (1,83 Gio) ; dataset et `manual-2026-07-08` conservés |
 | H03 : secrets runtime Keycloak, Joplin, Homarr, `postgres-exporter` | DEPLOYED | `--verify` OK pour les trois derniers ; Keycloak différait de Vaultwarden hors mot de passe DB (les deux valeurs ouvrent la base `keycloak`) : réinstallé depuis Vaultwarden, Compose et scripts passés au chemin runtime, entrée retirée du cliquet legacy et de `debt-baseline.json` |
-| Apps relancées entre 00:05 et 00:15 (hors de cette session) | constaté | zabbix, paperless-ngx (`unhealthy`, arrêtée le 21/11 pour tempête IO), freshrss, domain-watchdog, tracearr ; pression IO à 42 % : surveiller paperless-ngx |
+| Fenêtre de nuit : 15 Apps `operational-schedule: night` démarrées en série à 01:00 (`nabla-night-window-start`, arrêt à 07:00) | constaté | conception voulue (`reconcile-night-window-cron.py`), pas un incident ; pendant les démarrages, PSI IO 86-90 % et un txg toutes les ~1-1,8 s (syncs forcés), worker de Sample 12 min en état D (session « LA roadmap ») ; à étudier : démarrages espacés ou paperless-ngx hors fenêtre |
 
 ## Questions parquées
 
