@@ -12,6 +12,8 @@
 
 ## Ordre opérateur — 22 novembre 2026
 
+> Réconciliation mise à jour le 2026-11-28 (master 6b33c7e0)
+
 La priorité est **décidée** ; les réceptions runtime restent indépendantes des merges. **Dependency-Track est extrait du lot applicatif non urgent H08** et suivi avec les outils de sécurité H13 (CTEM/SBOM) ; l'ID H08 reste réservé aux autres Apps et Nexus. Les dépendances nécessaires sont traitées de façon ciblée, et non comme une raison de bloquer tout un lot.
 
 | Rang | Chantier | Action prioritaire | Gate / dépendances | Effort |
