@@ -1,5 +1,6 @@
 # Portefeuille Homelab — arbitrage inter-dépôts
 
+> Réconciliation mise à jour le 28/11/2026 (master 6b33c7e0)
 > **Arbitrage actualisé le 22 novembre 2026** : l'opérateur décide **H17 d'abord**, puis **Dependency-Track + outils CTEM**, pendant que l'étude **H18 EnOcean/Somfy** devient active ; **H08 autres Apps / Nexus non urgent**. Le précédent ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 est conservé ci-dessous comme **séquence historique du 14/11**, sans priver les tests d'une référence. H01/H02 sont déjà réceptionnés sur leur gate principale. Les 21 IDs restent conservés.
 
 ## Autorités et règles
