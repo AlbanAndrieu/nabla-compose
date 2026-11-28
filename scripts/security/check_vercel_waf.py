@@ -20,7 +20,6 @@ SITES = {
                 {"bababou.com", "www.bababou.com", "bababou.albandrieu.com"}),
     "alban": ("prj_x6leAdsVXdHRcoG1zsSiy5pngEYa", None),
 }
-PROJECT, EXPECTED_HOSTS = SITES["bababou"]
 OWASP = {"sd", "gen", "sf", "java", "ma", "rfi", "rce", "php", "xss", "lfi", "sqli"}
 BLOCK = {"rce", "xss", "sqli"}
 
