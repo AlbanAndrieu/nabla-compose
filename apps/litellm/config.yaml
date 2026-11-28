@@ -216,8 +216,8 @@ model_list:
       output_cost_per_token: 0
 
   # Task-based routing with LiteLLM's local complexity scorer (no external call, <1 ms):
-  # short questions go to qwen, code and multi-step reasoning to qwen-think (same GPU
-  # instance, reasoning on). Local tiers only: a paid tier is an owner decision.
+  # short questions stay on the free local qwen; code and multi-step reasoning go to
+  # gpt-4.1-mini (owner decision 28/11: paid tier allowed, budgets stay per key).
   - model_name: auto
     litellm_params:
       model: auto_router/complexity_router
@@ -225,8 +225,8 @@ model_list:
         tiers:
           SIMPLE: qwen
           MEDIUM: qwen
-          COMPLEX: qwen-think
-          REASONING: qwen-think
+          COMPLEX: gpt-4.1-mini
+          REASONING: gpt-4.1-mini
       complexity_router_default_model: qwen
 
   # Optional generic external providers: do not enable until the matching
@@ -300,6 +300,9 @@ litellm_settings:
     - { "qwen-think": ["qwen-cpu"] }
     - { "rr-json": ["qwen-cpu"] }
     - { "qwen-cpu": [] }
+    # gpt-4.1-mini relays through the Workstation like qwen: when it is off, only the
+    # TrueNAS CPU model answers (site-support and the auto router's paid tiers).
+    - { "gpt-4.1-mini": ["qwen", "qwen-cpu"] }
     # Explicitly no alternate paid/local model for this budget-scoped service.
     - { "fastapi-qwen": [] }
     # Strict paid-model order for Hermes (no local/random model substitution).
@@ -313,6 +316,10 @@ litellm_settings:
     - { "hermes-opus-4-8": ["hermes-openai"] }
     - { "hermes-openai": [] }
   default_fallbacks: ["qwen"]
+  # The provider output filter blocked one site-support answer (28/11): retry it on
+  # the local model, which gets the same system prompt from Open WebUI.
+  content_policy_fallbacks:
+    - { "gpt-4.1-mini": ["qwen", "qwen-cpu"] }
   cache: true
   cache_params:
     type: redis
@@ -324,11 +331,11 @@ litellm_settings:
   # stream: true
   drop_params: true
   # set_verbose: true
+  # `callbacks` already fires on success and failure: listing langfuse_otel again in
+  # the per-event callback lists logged every generation twice in Langfuse (28/11).
   callbacks:
     - langfuse_otel
     - prometheus
-  success_callback: ["langfuse_otel"]
-  failure_callback: ["langfuse_otel"]
   turn_off_message_logging: false
   langfuse_default_tags:
     - openwebui

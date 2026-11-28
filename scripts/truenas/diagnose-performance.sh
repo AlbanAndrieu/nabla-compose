@@ -11,11 +11,12 @@ nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 # expensive, nonessential scans on memory- or I/O-constrained TrueNAS hosts.
 DIAGNOSTIC_MODE=full
 case "${1:-}" in
-  "") [[ "$#" -eq 0 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; } ;;
-  --quick) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=quick ;;
-  --full) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; } ;;
-  --help|-h) printf 'Usage: %s [--quick|--full]\n' "$0"; exit 0 ;;
-  *) printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2 ;;
+  "") [[ "$#" -eq 0 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; } ;;
+  --quick) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=quick ;;
+  --full) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; } ;;
+  --memory-peaks) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=memory-peaks ;;
+  --help|-h) printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0"; exit 0 ;;
+  *) printf 'Usage: %s [--quick|--full|--memory-peaks]\n' "$0" >&2; exit 2 ;;
 esac
 
 section() {
@@ -25,6 +26,51 @@ section() {
 have() {
   command -v "$1" >/dev/null 2>&1
 }
+
+list_running_containers() {
+  timeout 15 docker ps --no-trunc --format '{{.ID}} {{.Names}}'
+}
+
+# Cgroup charges include cache, unlike Docker working set. Never reset a
+# peak or infer a value for an unreadable cgroup.
+container_memory_peaks() {
+  local id name dir peak current limit found unverified=0
+  while read -r id name; do
+    [[ -n "${id}" ]] || continue
+    if [[ ! "${id}" =~ ^[0-9a-f]{64}$ || -z "${name}" ]]; then
+      unverified=1
+      continue
+    fi
+    found=0
+    for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
+      [[ -r "${dir}/memory.peak" ]] || continue
+      peak="$(cat "${dir}/memory.peak" 2>/dev/null)" || continue
+      current="$(cat "${dir}/memory.current" 2>/dev/null)" || continue
+      limit="$(cat "${dir}/memory.max" 2>/dev/null)" || continue
+      [[ "${peak}" =~ ^[0-9]+$ && "${current}" =~ ^[0-9]+$ ]] || continue
+      [[ "${limit}" == max || "${limit}" =~ ^[0-9]+$ ]] || continue
+      printf '%s %s %s %s\n' "$(((peak + 1048575) / 1048576))" \
+        "$(((current + 1048575) / 1048576))" "${limit}" "${name}"
+      found=1
+      break
+    done
+    if [[ "${found}" == 0 ]]; then
+      printf 'UNVERIFIED UNVERIFIED UNVERIFIED %s\n' "${name}"
+      unverified=1
+    fi
+  done
+  if [[ "${unverified}" == 1 ]]; then return 2; fi
+}
+
+if [[ "${DIAGNOSTIC_MODE}" == memory-peaks ]]; then
+  if ! have docker || ! container_names="$(list_running_containers)"; then
+    printf 'UNVERIFIED: running-container inventory unavailable\n' >&2
+    exit 2
+  fi
+  printf 'peak_MiB current_MiB limit_bytes name\n'
+  container_memory_peaks <<<"${container_names}" | sort -rn
+  exit 0
+fi
 
 section "Diagnostic mode"
 printf 'mode=%s\n' "${DIAGNOSTIC_MODE}"
@@ -109,7 +155,7 @@ if have docker; then
     # Zombies pile up under container init processes that never reap healthcheck children.
     # Resolve each parent's container from its cgroup ID against one docker ps listing,
     # so the fix (init: true) targets the right service without per-PID docker calls.
-    container_names="$(docker ps --no-trunc --format '{{.ID}} {{.Names}}' 2>/dev/null || true)"
+    container_names="$(list_running_containers 2>/dev/null || true)"
     printf 'top zombie parents (count ppid parent zombie container):\n'
     ps -eo ppid=,stat=,comm= | awk '$2 ~ /^Z/ { print $1, $3 }' | sort | uniq -c | sort -rn | head -10 |
       while read -r count ppid child; do
@@ -121,15 +167,7 @@ if have docker; then
     # cgroup v2 memory.peak is the high-water mark since container start: size
     # mem_limit from it rather than from one docker stats sample.
     printf 'container memory peak, top 20 (peak_MiB current_MiB limit name):\n'
-    while read -r id name; do
-      [[ -n "${id}" ]] || continue
-      for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
-        [[ -r "${dir}/memory.peak" ]] || continue
-        printf '%s %s %s %s\n' "$(($(<"${dir}/memory.peak") / 1048576))" \
-          "$(($(<"${dir}/memory.current") / 1048576))" "$(<"${dir}/memory.max")" "${name}"
-        break
-      done
-    done <<<"${container_names}" | sort -rn | head -20 | sed 's/^/  /'
+    container_memory_peaks <<<"${container_names}" | sort -rn | sed -n '1,20s/^/  /p' || true
     # A zombie that keeps live threads is stuck in the kernel with SIGKILL pending
     # (2026-11-04: wazuh-indexer JVM). Its containerd shim then holds the container
     # lock, so docker inspect and TrueNAS app.query hang; only a reboot frees it.

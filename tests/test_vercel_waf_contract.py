@@ -74,20 +74,29 @@ class BababouWafContract(unittest.TestCase):
 
 
 class AlbanWafContract(unittest.TestCase):
-    """nabla-site-alban is adopted at its live baseline: import, no custom rule."""
+    """nabla-site-alban keeps its baseline and enforces a scoped support rate rule."""
 
     def test_alban_baseline_is_imported_not_created(self):
         config = ALBAN.read_text(encoding="utf-8")
         self.assertRegex(
             config,
             r'import\s*\{\s*to\s*=\s*vercel_firewall_config\.alban\s*'
-            r'id\s*=\s*"team_3vukFMXCzaUZEyGAqLAGmXaf/prj_x6leAdsVXdHRcoG1zsSiy5pngEYa"',
+            r'id\s*=\s*"team_[A-Za-z0-9]+/prj_[A-Za-z0-9]+"',
         )
         self.assertRegex(config, r'bot_protection\s*\{\s*action\s*=\s*"challenge"\s*active\s*=\s*true')
         self.assertIn('gen  = { action = "log", active = true }', config)
         self.assertEqual(config.count("local.owasp_attack_action"), 3)
         self.assertRegex(config, r'prevent_destroy\s*=\s*true')
-        self.assertNotRegex(config, r'(?m)^\s*rules\s*\{')
+        self.assertEqual(len(re.findall(r'^\s*rule\s*\{', config, re.M)), 1)
+        self.assertIn('alban_support_kill_switch', config)
+        self.assertIn('var.alban_support_kill_switch ? "deny" : "rate_limit"', config)
+        self.assertIn('limit  = 6', config)
+        self.assertIn('window = 300', config)
+        self.assertIn('keys   = ["ip"]', config)
+        self.assertIn('value = "/api/support-chat"', config)
+        self.assertIn('value = "www.albanandrieu.com"', config)
+        self.assertIn('value = "albanandrieu.com"', config)
+        self.assertNotIn('vercel.app', config)
 
 
 if __name__ == "__main__":

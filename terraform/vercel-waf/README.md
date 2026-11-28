@@ -12,6 +12,61 @@
 python3 scripts/security/check_vercel_waf.py --site alban --phase baseline --live
 ```
 
+## Site Alban — chatbot support public (28 November 2026)
+
+**CODED in PR #455, NOT APPLIED / NOT VERIFIED.** This uses the single custom
+rule available for the site's Vercel Hobby WAF, scoped to only
+`POST /api/support-chat` (WAF matches all methods on the path;
+the app route itself only accepts POST).
+
+| Protection | Setting |
+| --- | --- |
+| Per-IP quota | 6 calls / 300 s, fixed window |
+| Hostnames | `www.albanandrieu.com`, `albanandrieu.com` |
+| Human contact | `/api/support-contact` stays available |
+| Normal action | `rate_limit`; excess is denied |
+| Emergency kill switch | `alban_support_kill_switch=true` changes action to `deny` |
+
+Before enabling, inspect the existing Garage state and live WAF settings:
+`python3 scripts/security/check_vercel_waf.py --site alban --phase baseline --live`.
+Then use `scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf`
+to plan and apply from the LAN with the existing imported resource and state
+lock; do not import a second time. Inspect the Terraform plan for **exactly one
+rule on the Alban project, no Bababou or managed-ruleset drift**. The first
+change is not deployed merely by merging the PR.
+
+Emergency shutdown from the same state and workstation:
+
+```bash
+# Inspect the full plan first; apply only once approved.
+scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf plan \
+  -var='alban_support_kill_switch=true'
+scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf apply \
+  -var='alban_support_kill_switch=true'
+# Restore normal rate limiting:
+scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf plan \
+  -var='alban_support_kill_switch=false'
+scripts/infra/terragrunt-safe.sh infrastructure/vercel-waf apply \
+  -var='alban_support_kill_switch=false'
+```
+
+Verify effective WAF behavior with controlled low-volume HTTP requests,
+without running a load test against a shared NAT. The application additionally
+provides a server-side `SUPPORT_CHAT_ENABLED=false` switch, but changing a
+Vercel environment variable requires an updated deployment.
+
+LiteLLM support cost policy is **3 USD / 30d** for the *customer*
+`site-support@albanandrieu.com` via
+`scripts/truenas/reconcile-site-support-budget.py`. It is independent of
+the existing shared OpenWebUI **10 USD / 30d** virtual key. Runtime enforcement
+requires the customer identity to be forwarded, a working LiteLLM DB and live
+verification; the policy file alone is not protection.
+
+Langfuse v4 ingestion uses the existing Cloudflare Access service token:
+the Langfuse Access application's policies have been extended in IaC, but
+that change also requires a separate OpenTofu plan/apply and valid Langfuse
+project API keys in the Vercel Production environment.
+
 ## Live configuration observed before this PR
 
 - Vercel project: `prj_9eUAYmWQtHFIRKIOBYsumhU3QLU0`; team: `team_3vukFMXCzaUZEyGAqLAGmXaf`.

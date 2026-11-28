@@ -3190,6 +3190,27 @@
     },
     {
       "category": "development",
+      "criticality": "high",
+      "description": "Public Next.js site www.albanandrieu.com hosted on Vercel; declared here because it is not a Compose App.",
+      "environments": [
+        {
+          "cloudflareTunnel": false,
+          "external": true,
+          "name": "production",
+          "url": "https://www.albanandrieu.com"
+        }
+      ],
+      "id": "site-alban",
+      "kind": "web-app",
+      "name": "Site Alban",
+      "presentationRole": "service",
+      "runtime": {
+        "provider": "external"
+      },
+      "sourcePath": "catalog/service-topology.static.json"
+    },
+    {
+      "category": "development",
       "icon": "🧹",
       "id": "sonarqube",
       "kind": "code-quality",
@@ -3277,6 +3298,19 @@
         "provider": "truenas-app"
       },
       "sourcePath": "apps/squid/compose.yml"
+    },
+    {
+      "category": "data",
+      "criticality": "medium",
+      "description": "Managed cloud PostgreSQL (eu-west-1) outside the homelab: FastAPI Sample production and the Site Alban Stripe webhook ledger.",
+      "id": "supabase",
+      "kind": "database",
+      "name": "Supabase",
+      "presentationRole": "support",
+      "runtime": {
+        "provider": "external"
+      },
+      "sourcePath": "config/secrets/manifest.json"
     },
     {
       "category": "security",
@@ -3593,6 +3627,8 @@
     "protonvpn",
     "reactive-resume",
     "searxng",
+    "site-alban",
+    "supabase",
     "sybase",
     "talos",
     "three-proxy",
@@ -3600,7 +3636,7 @@
     "wazuh",
     "zabbix"
   ],
-  "operatorRevision": "sha256:618c15dc5d0da028eaad470cbe7a9c9f914978cb51083fc403c898dfebcebc05",
+  "operatorRevision": "sha256:ad118829e8ee944a0fcb01dbb99324c278ccf2400f9229514aa64fad645118dc",
   "relations": [
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
@@ -4441,6 +4477,17 @@
       "strength": "optional",
       "target": "redis",
       "type": "dependsOn"
+    },
+    {
+      "description": "FastAPI Cloud production stores its data in Supabase; TrueNAS staging keeps the shared local PostgreSQL.",
+      "evidence": [
+        "config/secrets/manifest.json:FASTAPISAMPLE_SUPABASE_KEY",
+        "apps/sample/README.md:Local PostgreSQL staging policy"
+      ],
+      "source": "fastapi-sample",
+      "strength": "required",
+      "target": "supabase",
+      "type": "storesIn"
     },
     {
       "description": "Traefik exposes the local FastAPI Sample endpoint on the trusted internal hostname.",
@@ -6893,6 +6940,27 @@
       "strength": "required",
       "target": "sentry-taskbroker",
       "type": "dependsOn"
+    },
+    {
+      "description": "The support chat calls the restricted site-support model of Open WebUI; the site falls back to the human contact form when it is unavailable.",
+      "evidence": [
+        "scripts/openwebui/reconcile-site-support.py:site-support"
+      ],
+      "source": "site-alban",
+      "strength": "optional",
+      "target": "openwebui",
+      "type": "consumesApi"
+    },
+    {
+      "description": "The Stripe webhook route records event ids in the stripe_webhook_events ledger through the Supabase REST API (idempotency); checkout still works without it.",
+      "evidence": [
+        "config/secrets/manifest.json:SUPABASE_DATABASE_URL",
+        "nabla-site-alban:lib/stripeEventLedger.ts"
+      ],
+      "source": "site-alban",
+      "strength": "optional",
+      "target": "supabase",
+      "type": "storesIn"
     },
     {
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",

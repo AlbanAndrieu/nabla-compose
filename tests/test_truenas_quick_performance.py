@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 
 import pytest
@@ -11,7 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/diagnose-performance.sh"
 
 
-def _invoke(tmp_path: Path, *args: str) -> tuple[subprocess.CompletedProcess, list[str]]:
+def _invoke(
+    tmp_path: Path, *args: str, script: Path = SCRIPT
+) -> tuple[subprocess.CompletedProcess, list[str]]:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     calls = tmp_path / "calls.txt"
@@ -23,6 +26,8 @@ case "${0##*/}" in
   docker)
     if [[ "${1:-}" == ps && "${2:-}" == -a ]]; then
       printf 'NAME STATUS IMAGE\\n'
+    elif [[ "${1:-}" == ps && "${2:-}" == --no-trunc ]]; then
+      printf '%064d fixture-container\\n' 0
     fi
     ;;
   zpool) printf 'pool status=ONLINE\\n' ;;
@@ -41,7 +46,7 @@ esac
         "DIAGNOSTIC_FULL_OUTPUT": "1",
     })
     completed = subprocess.run(
-        ["bash", str(SCRIPT), *args],
+        ["bash", str(script), *args],
         cwd=ROOT, env=env, capture_output=True,
         text=True, check=False, timeout=18,
     )
@@ -100,3 +105,31 @@ def test_syntax_and_explicit_help_do_not_query_runtime() -> None:
     )
     assert help_result.returncode == 0
     assert "--quick" in help_result.stdout
+
+
+def test_memory_peaks_is_bounded_and_unavailable_cgroup_is_not_zero(tmp_path: Path) -> None:
+    result, calls = _invoke(tmp_path, "--memory-peaks")
+    assert result.returncode == 2
+    assert "peak_MiB current_MiB limit_bytes name" in result.stdout
+    assert "UNVERIFIED UNVERIFIED UNVERIFIED fixture-container" in result.stdout
+    assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]
+
+
+def test_memory_peaks_reads_and_rounds_cgroup_charges(tmp_path: Path) -> None:
+    # Substitute only the cgroup root in the fixture, never on TrueNAS.
+    root = tmp_path / "cgroup"
+    group = root / "system.slice" / ("docker-" + "0" * 64 + ".scope")
+    group.mkdir(parents=True)
+    (group / "memory.peak").write_text(str(1024 * 2**20 + 1), encoding="utf-8")
+    (group / "memory.current").write_text(str(512 * 2**20 + 1), encoding="utf-8")
+    (group / "memory.max").write_text("max", encoding="utf-8")
+    script = tmp_path / "scripts" / "truenas" / SCRIPT.name
+    script.parent.mkdir(parents=True)
+    script.write_text(SCRIPT.read_text(encoding="utf-8").replace("/sys/fs/cgroup", str(root)), encoding="utf-8")
+    lib = script.parent.parent / "lib"
+    lib.mkdir()
+    shutil.copyfile(ROOT / "scripts/lib/diagnostic.sh", lib / "diagnostic.sh")
+    result, calls = _invoke(tmp_path, "--memory-peaks", script=script)
+    assert result.returncode == 0, result.stderr
+    assert "1025 513 max fixture-container" in result.stdout
+    assert calls == ["docker ps --no-trunc --format {{.ID}} {{.Names}}"]
