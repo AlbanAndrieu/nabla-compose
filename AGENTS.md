@@ -45,6 +45,14 @@ Run the bounded canonical `scripts/agent-diagnostics.sh --runtime <service>`
 only with `AGENT_EXECUTION_MODE=workstation`. Details:
 `docs/agent-execution-modes.md`.
 
+## Fast path — minimum context, maximum evidence
+
+- Select one task and one existing PR; record head SHA, changed paths and authoritative test. Do not traverse the whole repository or replay dated runbooks.
+- Routing: **priority** → `docs/roadmap-portfolio.md`; **next acceptance** → `docs/roadmap.md`; **operation** → `docs/runbooks/README.md`; **agent execution details** → `docs/agent-execution-playbook.md` only if needed. Avoid loading all four for routine code changes.
+- Limit first pass to the affected code, its matching test and the relevant skill. Expand only on an identified failure; no duplicated context from `CLAUDE.md`, OpenCode or Copilot adapters.
+- Before changing any status distinguish static proof, local test, deployed observation and independent runtime acceptance. Never repeat a completed migration merely because a dated log still mentions it.
+- For docs-only edits prefer markdown/link checks and changed-path tests; do not launch the Compose stack or run costly live diagnostics.
+
 ## Token and tool budget
 
 1. Inspect the selected PR's state and exact HEAD, `git status --short` and changed paths. Read matching code + tests and one relevant roadmap section; do not recursively ingest 1,800 files, submodules, vendored skill references, old incidents or entire logs.
@@ -74,7 +82,7 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 - Local-first validation: Before every `git push`, `mise run agent-pre-push` (also the pre-push hook) must pass; on `QG_AUTOFIX_APPLIED`, commit only those deterministic changes and rerun before pushing. Do not use remote CI as the edit/format/lint feedback loop.
 - Remote/API-only: bounded offline checks and static review, a Draft PR with expected-SHA writes; **never claim** that L2/L3 or runtime ran. Preserve CI/SAST/SCA/secret scanning; no invented PASS or disabled gate to save credits.
 - Do not start the full Compose stack to validate. For service modifications use the dedicated catalog/Compose contract; for operational acceptance use task-specific read-only probes before any authorized mutation.
-- Record remaining work in [docs/roadmap-portfolio.md](docs/roadmap-portfolio.md) and [docs/roadmap.md](docs/roadmap.md); include what changed, checks **actually** executed and missing proofs. Preserve old wrappers while consumers/tests still use them.
+- Record Hxx work **once** in [the canonical portfolio](docs/roadmap-portfolio.md); update [the short execution index](docs/roadmap.md) only if priorities or acceptance gates change. Include checks **actually** executed and missing proofs. Preserve old wrappers while consumers/tests still use them.
 - Implementing or advancing the roadmap follows [`nabla-roadmap-loop`](.agents/skills/nabla-roadmap-loop/SKILL.md): owner-approved homelab sprint mode (21/11/2026), one PR per repository, questions after five passes, a reconciliation cycle every third pass.
 
 ## OpenCode and smaller-model execution
