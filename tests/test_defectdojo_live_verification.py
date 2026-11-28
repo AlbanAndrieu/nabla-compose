@@ -1,6 +1,5 @@
 """Read-only DefectDojo REST attestation: synthetic payloads only."""
 import importlib.util
-import json
 from pathlib import Path
 import subprocess
 import sys
