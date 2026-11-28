@@ -12,7 +12,8 @@
 #   - the client virtual key (nabla/prod/litellm-mcp-client): no LLM model, MCP
 #     access group nabla-mcp only, also in ~/.config/nabla/mcp/litellm-gateway.headers (600).
 # Upstream identities come first: scripts/grafana/mcp-identity.sh apply and
-# scripts/defectdojo/mcp-identity.sh apply (Sentry reuses SENTRY_ACCESS_TOKEN).
+# scripts/defectdojo/mcp-identity.sh apply and scripts/ntopng/control.sh apply
+# (Sentry reuses SENTRY_ACCESS_TOKEN).
 # No value is ever printed, and none reaches a command line.
 #
 # Usage (owner terminal: Vaultwarden unlocked, TrueNAS ControlMaster open):
@@ -51,13 +52,14 @@ GENERATED=(
   "mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN"
 )
 RUNTIME_APPS=(mcp-grafana gatus mcp-gatus mcp-sentry mcp-defectdojo fastapisample)
-# name|url|auth[:header]|item|field|allowed tools file|description
+# name|url|auth[:header[:scheme]]|item|field|allowed tools file|description
 DB_SERVERS=(
   "homarr|http://172.17.0.24:30100/api/mcp/mcp|api_key:ApiKey|nabla/prod/homarr|HOMARR_API_KEY|homarr-readonly-tools.json|Homarr dashboard, read-only tools"
   "grafana|http://172.17.0.24:8014/mcp|bearer_token|nabla/prod/grafana-observability|MCP_GRAFANA_SERVER_TOKEN||Grafana dashboards, Prometheus, Loki and alerts (read-only Viewer)"
   "sentry|http://172.17.0.24:8016/mcp|bearer_token|nabla/prod/sentry|MCP_SENTRY_SERVER_TOKEN||Self-hosted Sentry issues, events and traces (inspect skills only)"
   "defectdojo|http://172.17.0.24:8017/mcp|bearer_token|nabla/prod/mcp-defectdojo|MCP_DEFECTDOJO_SERVER_TOKEN|defectdojo-readonly-tools.json|DefectDojo findings, products and engagements (read-only user and tools)"
   "fastapisample|http://172.17.0.24:8091/mcp|api_key:X-MCP-Key|nabla/prod/fastapisample|MCP_OPS_KEY||FastAPI Sample homelab status, health and diagnostics on TrueNAS"
+  "ntopng|http://172.17.0.24:31080/lua/rest/v2/exec/llm/mcp.lua|api_key:Authorization:Token|nabla/prod/ntopng-mcp|NTOPNG_MCP_TOKEN|ntopng-readonly-tools.json|ntopng live flows, hosts and LAN discovery on br0 (read-only tools)"
 )
 
 die() {
@@ -84,13 +86,15 @@ api() { # KEY METHOD PATH [JSON]; sets API_CODE and API_BODY
 
 # Desired server row; the upstream secret comes from UPSTREAM_KEY in the
 # environment of jq, never from its argv.
-server_payload() { # NAME URL AUTH[:HEADER] TOOLS_FILE DESCRIPTION
-  local tools=null
+server_payload() { # NAME URL AUTH[:HEADER[:SCHEME]] TOOLS_FILE DESCRIPTION
+  local tools=null spec="${3#*:}" scheme=""
+  # A scheme prefixes the credential: ntopng wants "Authorization: Token <key>".
+  [[ "${spec}" != *:* ]] || scheme="${spec#*:} "
   [[ -z "$4" ]] || tools="$(<"${ROOT}/scripts/litellm/$4")"
-  jq -nc --arg n "$1" --arg url "$2" --arg auth "${3%%:*}" --arg header "${3#*:}" --arg d "$5" \
-    --arg group "${ACCESS_GROUP}" --argjson tools "${tools}" '{
+  jq -nc --arg n "$1" --arg url "$2" --arg auth "${3%%:*}" --arg header "${spec%%:*}" --arg scheme "${scheme}" \
+    --arg d "$5" --arg group "${ACCESS_GROUP}" --argjson tools "${tools}" '{
       server_id: $n, server_name: $n, alias: $n, transport: "http", url: $url, description: $d,
-      auth_type: $auth, credentials: ({auth_value: $ENV.UPSTREAM_KEY}
+      auth_type: $auth, credentials: ({auth_value: ($scheme + $ENV.UPSTREAM_KEY)}
         + if $auth == "api_key" then {upstream_token_header: $header} else {} end),
       mcp_access_groups: [$group]} + if $tools == null then {} else {allowed_tools: $tools} end'
 }

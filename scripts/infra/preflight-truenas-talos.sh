@@ -55,7 +55,7 @@ garage_admin_endpoint="${GARAGE_ADMIN_ENDPOINT:-https://garage-admin.int.albandr
 garage_state_bucket="${GARAGE_STATE_BUCKET:-opentofu-state}"
 export TRUENAS_POOL="${TRUENAS_POOL:-cpool}"
 export TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"
-export TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"
+export TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-false}"
 
 check_endpoint() {
   local name="$1" url="$2"
@@ -125,7 +125,7 @@ ok "TRUENAS_POOL=${TRUENAS_POOL} (default: cpool)"
 ok "TRUENAS_VM_BRIDGE=${TRUENAS_VM_BRIDGE} (default: br0)"
 case "${TALOS_VM_AUTOSTART}" in
   true | false)
-    ok "TALOS_VM_AUTOSTART=${TALOS_VM_AUTOSTART} (default: true; false is maintenance-only)"
+    ok "TALOS_VM_AUTOSTART=${TALOS_VM_AUTOSTART} (default: false = Talos parked; true runs the cluster)"
     ;;
   *)
     fail "TALOS_VM_AUTOSTART must be true or false"

@@ -65,9 +65,9 @@ variable "vm_bridge" {
 }
 
 variable "talos_vm_autostart" {
-  description = "Start the Talos control-plane and worker VMs automatically when TrueNAS boots. Keep true for the steady-state Kubernetes cluster; override false only for deliberate maintenance."
+  description = "Start the Talos VMs when TrueNAS boots. false parks the cluster (28/11/2026: idle VMs held RAM away from the ZFS ARC); set TALOS_VM_AUTOSTART=true when a workload needs Kubernetes."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "talos_vm_shutdown_timeout" {

@@ -151,7 +151,9 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn('TRUENAS_POOL="${TRUENAS_POOL:-cpool}"', preflight)
         self.assertIn('TRUENAS_VM_BRIDGE="${TRUENAS_VM_BRIDGE:-br0}"', preflight)
 
-    def test_talos_vm_autostart_is_steady_state_default(self) -> None:
+    def test_talos_vm_autostart_defaults_to_parked(self) -> None:
+        # 28/11/2026: an idle Talos cluster held RAM away from the ZFS ARC; an
+        # OpenTofu apply with a true default had undone the 16/11 stop.
         terragrunt = (ROOT / "infrastructure/truenas/terragrunt.hcl").read_text(
             encoding="utf-8"
         )
@@ -165,15 +167,15 @@ class InfrastructureStateContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn('get_env("TALOS_VM_AUTOSTART", "true")', terragrunt)
+        self.assertIn('get_env("TALOS_VM_AUTOSTART", "false")', terragrunt)
         self.assertRegex(
             variables,
-            r'variable "talos_vm_autostart" \{[^}]*default\s*=\s*true',
+            r'variable "talos_vm_autostart" \{[^}]*default\s*=\s*false',
         )
         self.assertIn("autostart             = var.talos_vm_autostart", vm_config)
         self.assertNotIn("autostart             = false", vm_config)
         self.assertIn(
-            'TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-true}"',
+            'TALOS_VM_AUTOSTART="${TALOS_VM_AUTOSTART:-false}"',
             preflight,
         )
 

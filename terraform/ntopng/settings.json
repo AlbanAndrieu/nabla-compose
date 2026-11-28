@@ -1,0 +1,10 @@
+{
+  "alert_preferences": {
+    "max_entity_alerts": { "value": "20000", "default": "1000000" }
+  },
+  "disabled_flow_checks": [
+    "ndpi_probing_attempt",
+    "ndpi_unidirectional_traffic",
+    "tcp_no_data_exchanged"
+  ]
+}

@@ -33,6 +33,28 @@ their history restarts empty with the container. The SQLite alert store
 `ntopng.prefs.emit_flow_alerts` to 0: flow alerts reached ~700/s on `br0` and
 filled it in 13 minutes (27/11). Flow scores and host alerts remain.
 
+## Control: REST API, MCP and OpenTofu
+
+ntopng has no runtime CLI: the REST API v2 (`/lua/rest/v2/...`) is the control
+surface. [`scripts/ntopng/control.sh`](../../scripts/ntopng/control.sh)
+(`check`, then `apply`, owner terminal with Vaultwarden unlocked) creates two
+administrator users, each with its own API token stored straight into
+Vaultwarden. ntopng has no finer role: the MCP endpoint and every REST write
+require administrator.
+
+- `nabla-control` (`nabla/prod/ntopng-control`): OpenTofu and API scripts.
+- `nabla-mcp` (`nabla/prod/ntopng-mcp`): the built-in MCP server
+  (`/lua/rest/v2/exec/llm/mcp.lua`, 12 Community tools), registered in the
+  LiteLLM gateway `nabla-mcp` by `scripts/litellm/mcp-gateway.sh apply` with the
+  11 read-only tools of `scripts/litellm/ntopng-readonly-tools.json`: that list
+  is the write barrier (`add_active_monitoring_script` stays out).
+
+[`terraform/ntopng`](../../terraform/ntopng) (Terragrunt `infrastructure/ntopng`,
+provider `Mastercard/restapi`, no ntopng provider exists) caps each alert family
+at 20,000 rows (default 1,000,000) and disables the three flow checks behind
+the 22/11 flood. `control.sh apply` runs it with the `nabla-control` token; no
+token reaches the state. Flow alerts stay off in the entrypoint.
+
 ## Out of scope without a licence
 
 - historical flows in ClickHouse (`--dump-flows=clickhouse`): Enterprise M+;

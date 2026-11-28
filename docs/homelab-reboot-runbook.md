@@ -161,9 +161,19 @@ path.
 OpenTofu owns:
 
 ```hcl
-talos_vm_autostart        = true
+talos_vm_autostart        = false # default since 28/11/2026: Talos parked
 talos_vm_shutdown_timeout = 180
 ```
+
+**Parked (default).** All three VMs `STOPPED` with `autostart=false`: idle Talos
+VMs held about 8 GiB of RAM away from the ZFS ARC, and on 28/11/2026 a global OOM
+killed `taloscp01`, leaving both workers spinning without a control plane. The
+orchestrators then keep the VMs stopped and skip every Talos/Kubernetes step;
+a mix of `autostart` values is refused. Park with `just talos-vms-stop`.
+
+**Running.** `TALOS_VM_AUTOSTART=true` for OpenTofu and
+`scripts/truenas/reconcile-talos-vm-policy.sh --apply`, then
+`just talos-vms-start`; the gates below apply again.
 
 The orchestrator requires at least 120 seconds of VM shutdown budget. Talos is
 still responsible for the graceful Kubernetes-aware shutdown. The validated
@@ -175,7 +185,7 @@ shutdown order is:
 172.17.0.50 control plane
 ```
 
-All three VMs must end as `STOPPED` while retaining `autostart=true`.
+When running, all three VMs must end as `STOPPED` while retaining `autostart=true`.
 
 ## Docker post-boot convergence
 
