@@ -78,10 +78,9 @@ pas de swap ([répartition du 23/11](runbooks/2026-10-26-homelab-service-resourc
 **Reste ouvert** : entre 01h et 06h,
 l'usage atteint 91–93 % même en comptant l'ARC (processus +4 Gio, ARC réduit à 2,6 Gio),
 sans conteneur dominant (pic cgroup max : ClickHouse +1 Gio). Heaps Java plafonnés depuis le 06/11. Décisions du 24/11 :
-- **Workers Talos** : 2048 MiB hors tests H01 (`terraform/truenas/variables.tofu`) ;
-  remonter à 4096 MiB pour H01. **DEPLOYED le 25/11** : apply `infrastructure/truenas`,
-  workers redémarrés un par un, RSS QEMU ≈ 2 Gio chacun ; RAM
-  84,6 → 83,4 %, pic nocturne à re-mesurer.
+- **Talos à l'arrêt par défaut (28/11, DEPLOYED)** : l'OOM global de 05:38 a tué
+  `taloscp01`, les workers tournaient seuls ; VM arrêtées, `autostart=false` dans le code,
+  +4 Gio disponibles. Relance : `TALOS_VM_AUTOSTART=true` ; workers 2048 MiB, 4096 pour H01.
 - **Regrouper OpenSearch et l'indexeur Wazuh : BLOQUÉ (incompatible)**. OpenRAG
   embarque OpenSearch 3.8.0 avec le plugin `neural-search-jvector`, alors que Wazuh
   4.14.7 ne supporte que son indexeur OpenSearch 2.19.5. À revoir avec un indexeur Wazuh 3.x.

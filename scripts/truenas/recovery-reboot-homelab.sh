@@ -58,11 +58,13 @@ reboot-homelab.sh.
 
 --reboot
   Revalidate zero-running Docker, zero ghost state, all Apps STOPPED and all
-  Talos VMs STOPPED/autostart=true, then invoke supported TrueNAS system.reboot.
+  Talos VMs STOPPED (autostart=true, or false when parked), then invoke supported
+  TrueNAS system.reboot.
 
 --post-reboot-check
   Require a changed boot ID, healthy Docker/IPAM, no automatically resurrected
-  Apps, Talos VMs autostarted, Talos APIs reachable and Kubernetes Ready.
+  Apps, Talos VMs autostarted, Talos APIs reachable and Kubernetes Ready (skipped
+  when Talos is parked: all VMs autostart=false and STOPPED).
 
 --resume-safe
   Resume only Apps that were RUNNING/DEPLOYING in the recovery snapshot.
@@ -206,8 +208,23 @@ vm_name_for_node() {
   esac
 }
 
+# Talos is parked when all three VMs have autostart=false (28/11/2026: an idle cluster
+# held RAM away from the ZFS ARC). Parked VMs stay STOPPED across the reboot and every
+# Talos/Kubernetes step is skipped; a mix of autostart values is refused below.
+talos_parked() {
+  vm_payload | jq -e '
+    [.[] | select(.name == "taloscp01" or .name == "taloswk01" or .name == "taloswk02")]
+    | length == 3 and all(.[]; .autostart == false)
+  ' >/dev/null
+}
+
 vm_policy_gate() {
   local payload name row timeout_seconds
+  if talos_parked; then
+    all_talos_vms_in_state STOPPED || fail "Talos is parked (autostart=false) but a VM is not STOPPED"
+    ok "Talos parked: all VMs STOPPED with autostart=false; Talos and Kubernetes steps skipped"
+    return 0
+  fi
   payload="$(vm_payload)"
   for name in "${VM_NAMES[@]}"; do
     row="$(
@@ -539,13 +556,15 @@ post_reboot_check() {
     fail "Docker containers/ghosts auto-resurrected after recovery reboot"
 
   vm_policy_gate
-  printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_WAIT}"
-  wait_talos_vms_running
-  wait_talos_apis
-  printf 'Waiting for Kubernetes nodes Ready (timeout=%ss)...\n' "${K8S_WAIT}"
-  run_operator "${KUBECTL}" wait     --for=condition=Ready node --all --timeout="${K8S_WAIT}s" ||
-    fail "Kubernetes nodes did not all become Ready within ${K8S_WAIT}s"
-  run_operator "${KUBECTL}" get nodes -o wide
+  if ! talos_parked; then
+    printf 'Waiting for Talos VM autostart (timeout=%ss)...\n' "${VM_WAIT}"
+    wait_talos_vms_running
+    wait_talos_apis
+    printf 'Waiting for Kubernetes nodes Ready (timeout=%ss)...\n' "${K8S_WAIT}"
+    run_operator "${KUBECTL}" wait     --for=condition=Ready node --all --timeout="${K8S_WAIT}s" ||
+      fail "Kubernetes nodes did not all become Ready within ${K8S_WAIT}s"
+    run_operator "${KUBECTL}" get nodes -o wide
+  fi
 
   printf '%s\n' "${now}" >"${STATE_DIR}/boot-id-after-reboot.txt"
   write_phase POST_REBOOT_READY

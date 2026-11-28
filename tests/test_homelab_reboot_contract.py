@@ -310,6 +310,19 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("midclt call vm.update", helper)
         self.assertNotIn("vm.poweroff", helper)
 
+    def test_parked_talos_skips_cluster_steps_and_refuses_a_mix(self) -> None:
+        normal = REBOOT.read_text(encoding="utf-8")
+        recovery = RECOVERY_REBOOT.read_text(encoding="utf-8")
+        helper = VM_POLICY.read_text(encoding="utf-8")
+        for text in (normal, recovery):
+            self.assertIn("talos_parked() {", text)
+            self.assertIn("all(.[]; .autostart == false)", text)
+            self.assertIn("Talos is parked (autostart=false) but a VM is not STOPPED", text)
+            self.assertIn("if ! talos_parked; then", text)
+        self.assertIn('talos_parked || run_operator "${KUBECTL}" wait', normal)
+        self.assertIn('TARGET_AUTOSTART="${TALOS_VM_AUTOSTART:-false}"', helper)
+        self.assertIn(".autostart == $autostart and", helper)
+
     def test_reboot_orchestrator_avoids_forced_shutdown_and_prune(self) -> None:
         text = REBOOT.read_text(encoding="utf-8")
         self.assertIn("app.stop", text)
