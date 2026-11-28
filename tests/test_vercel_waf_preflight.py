@@ -13,7 +13,7 @@ spec.loader.exec_module(waf)
 def baseline():
     names = waf.OWASP
     return {
-        "projectKey": waf.PROJECT + "#active",
+        "projectKey": waf.SITES["bababou"][0] + "#active",
         "ownerId": waf.TEAM,
         "firewallEnabled": True,
         "managedRules": {"bot_protection": {"action": "challenge", "active": True}},
@@ -31,7 +31,7 @@ def enforced():
     data["rules"].append({
         "active": True,
         "conditionGroup": [{"conditions": [{"type": "host", "op": "eq", "value": host}]}
-                           for host in sorted(waf.EXPECTED_HOSTS)],
+                           for host in sorted(waf.SITES["bababou"][1])],
         "action": {"mitigate": {
             "action": "rate_limit",
             "rateLimit": {"limit": 300, "window": 60, "keys": ["ip"],
