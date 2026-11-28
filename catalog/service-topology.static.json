@@ -263,6 +263,40 @@
         "provider": "truenas-app",
         "appId": "openclaw-devbox"
       }
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase",
+      "kind": "database",
+      "category": "data",
+      "sourcePath": "config/secrets/manifest.json",
+      "description": "Managed cloud PostgreSQL (eu-west-1) outside the homelab: FastAPI Sample production and the Site Alban Stripe webhook ledger.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "external"
+      }
+    },
+    {
+      "id": "site-alban",
+      "name": "Site Alban",
+      "kind": "web-app",
+      "category": "development",
+      "sourcePath": "catalog/service-topology.static.json",
+      "description": "Public Next.js site www.albanandrieu.com hosted on Vercel; declared here because it is not a Compose App.",
+      "presentationRole": "service",
+      "criticality": "high",
+      "environments": [
+        {
+          "name": "production",
+          "url": "https://www.albanandrieu.com",
+          "external": true,
+          "cloudflareTunnel": false
+        }
+      ],
+      "runtime": {
+        "provider": "external"
+      }
     }
   ],
   "relations": [
@@ -370,6 +404,36 @@
       "strength": "optional",
       "description": "Gateway skills trigger n8n workflows.",
       "evidence": ["truenas:openclaw-gateway:N8N_BASE_URL"]
+    },
+    {
+      "source": "fastapi-sample",
+      "target": "supabase",
+      "type": "storesIn",
+      "strength": "required",
+      "description": "FastAPI Cloud production stores its data in Supabase; TrueNAS staging keeps the shared local PostgreSQL.",
+      "evidence": [
+        "config/secrets/manifest.json:FASTAPISAMPLE_SUPABASE_KEY",
+        "apps/sample/README.md:Local PostgreSQL staging policy"
+      ]
+    },
+    {
+      "source": "site-alban",
+      "target": "supabase",
+      "type": "storesIn",
+      "strength": "optional",
+      "description": "The Stripe webhook route records event ids in the stripe_webhook_events ledger through the Supabase REST API (idempotency); checkout still works without it.",
+      "evidence": [
+        "config/secrets/manifest.json:SUPABASE_DATABASE_URL",
+        "nabla-site-alban:lib/stripeEventLedger.ts"
+      ]
+    },
+    {
+      "source": "site-alban",
+      "target": "openwebui",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The support chat calls the restricted site-support model of Open WebUI; the site falls back to the human contact form when it is unavailable.",
+      "evidence": ["scripts/openwebui/reconcile-site-support.py:site-support"]
     }
   ]
 }
