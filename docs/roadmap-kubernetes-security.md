@@ -12,8 +12,10 @@ Voir [l'ADR Kubara / Cilium / TrueNAS CSI / Traefik](architecture/kubara-talos-d
 
 - **Cilium conserve le CNI**. MetalLB Kubara n'est pas un CNI. Le LB IPAM/L2
   Cilium nécessite une revue `kubeProxyReplacement` : la configuration
-  actuelle est à `false`. MetalLB reste **désactivé** en attendant
-  l'inventaire VIP/DHCP et les tests ARP.
+  actuelle est à `false`. Le pilote MetalLB L2 est **CODED**, activable
+  uniquement dans un `config.yaml` généré après réservation d'IPv4 ;
+  le candidat Git reste désactivé jusqu'à la preuve VIP/DHCP/ARP.
+  [Plan et étapes M0-M5](runbooks/kubara-metallb-l2-pilot.md).
 - **TrueNAS CSI reste responsable de `nabla-truenas-nfs` (RWX)**. Longhorn
   peut seulement être évalué comme stockage bloc complémentaire (extensions
   Talos iSCSI/util-linux, volumes dédiés, sizing et restauration).

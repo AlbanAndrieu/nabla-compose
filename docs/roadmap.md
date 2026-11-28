@@ -94,9 +94,13 @@ docling +0,4). Les heaps Java sont déjà plafonnés depuis le 06/11. Décisions
 **Kubara / Talos (28/11)** : [ADR double Traefik et CSI/Cilium](architecture/kubara-talos-dual-traefik.md),
 [candidat v0.14.0](../config/kubara/config.candidate.yaml) et
 [préflight read-only](../scripts/talos/audit-kubara-integration.py) **CODED**
-dans une PR dédiée. Cilium CNI et TrueNAS CSI conservés ; MetalLB/Longhorn
-désactivés ; pas de VIP ni d'ingress publiés. Le pont HTTPS
-TrueNAS→Kubara reste un exemple non chargé. Réception runtime **NOT_RUN**.
+dans la PR #456. Cilium CNI et TrueNAS CSI conservés ; pilote
+[MetalLB L2](runbooks/kubara-metallb-l2-pilot.md) **CODED** avec
+configuration rendue sur VIP réservée, sans annonce active ; Longhorn
+désactivé. L'edge TrueNAS active la vérification TLS backend par défaut
+**dans Git**, avant réception réelle Proxmox et Talos.
+Le pont HTTPS TrueNAS→Kubara reste un exemple non chargé.
+Réception runtime **NOT_RUN**.
 
 **K8s Talos et sécurité (25/11)** : items perdus de l'archive repris dans la [sous-roadmap](roadmap-kubernetes-security.md) — `trivy k8s` (pas de Trivy Operator), etcd hors nœud, upgrade Talos, Kubara, PSA, alertes Falco ; OpenCRE en attente.
 

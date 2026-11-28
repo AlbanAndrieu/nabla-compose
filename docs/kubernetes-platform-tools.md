@@ -18,8 +18,14 @@ versionne un **candidat non activé** dans
 Elle permet de conserver TrueNAS Traefik côté edge et d'utiliser le Traefik
 généré par Kubara dans Talos, sans remplacer Cilium/TrueNAS CSI pendant
 le bootstrap. Le `config.yaml` réellement approuvé et l'activation
-des services restent **NOT_RUN**. Un `bootstrap` effectif requiert une
-revue du schéma/Helm, une VIP privée réellement réservée et des
+des services restent **NOT_RUN**. Le [pilote MetalLB L2](runbooks/kubara-metallb-l2-pilot.md)
+possède un générateur de config Kubara conditionné à une VIP réservée,
+mais ne modifie pas Cilium `kubeProxyReplacement=false` ni
+les ressources TrueNAS CSI. L'edge Traefik TrueNAS est préparé avec
+`--serversTransport.insecureSkipVerify=false` dans le **code versionné** ;
+le TLS backend et les éventuels certificats Proxmox privés restent à
+tester sur l'hôte. Un `bootstrap` effectif requiert la revue
+du schéma/Helm, une VIP privée réellement réservée et des
 preuves de refus WAN.
 
 ## Current acceptance state · 2026-09-11

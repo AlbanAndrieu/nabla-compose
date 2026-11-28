@@ -19,6 +19,7 @@ FILES = (
     "kubernetes/cilium/values.yaml",
     "kubernetes/truenas-csi/storageclass-nfs.yaml",
     "apps/traefik/examples/talos-kubara-bridge.example.yml",
+    "apps/traefik/compose.yml",
 )
 
 
@@ -40,6 +41,7 @@ class KubaraTalosIntegrationContract(unittest.TestCase):
         self.assertEqual(result["metal_lb"], "DISABLED_CANDIDATE")
         self.assertEqual(result["longhorn"], "DISABLED_CANDIDATE")
         self.assertEqual(result["truenas_traefik_bridge"], "EXAMPLE_NOT_LOADED")
+        self.assertEqual(result["truenas_upstream_tls"], "VERIFY_CERTIFICATES_ENABLED")
         self.assertEqual(result["kubara_bootstrap"], "NOT_RUN")
 
     def test_candidate_is_not_live_bootstrap_file(self) -> None:
@@ -94,6 +96,22 @@ class KubaraTalosIntegrationContract(unittest.TestCase):
             )
             with self.assertRaisesRegex(
                 ValueError, "TRAEFIK_UPSTREAM_TLS_VERIFICATION_MISSING"
+            ):
+                MOD["static_check"](root)
+
+    def test_global_backend_tls_must_verify_certificates(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.copy_fixture(temp)
+            compose = root / "apps/traefik/compose.yml"
+            original = compose.read_text()
+            compose.write_text(
+                original.replace(
+                    "--serversTransport.insecureSkipVerify=false",
+                    "--serversTransport.insecureSkipVerify=true",
+                )
+            )
+            with self.assertRaisesRegex(
+                ValueError, "TRAEFIK_UPSTREAM_GLOBAL_VERIFY_REQUIRED"
             ):
                 MOD["static_check"](root)
 

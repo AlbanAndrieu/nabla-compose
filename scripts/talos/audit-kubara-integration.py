@@ -128,6 +128,17 @@ def static_check(root: Path) -> dict[str, Any]:
         raise ValueError("TRAEFIK_UPSTREAM_TLS_VERIFICATION_MISSING")
     if (root / "apps/traefik/dynamic/talos-kubara-bridge.yml").exists():
         raise ValueError("TRAEFIK_BRIDGE_WAS_ACTIVATED_WITHOUT_REVIEW")
+    # Inbound Let's Encrypt is not a backend TLS client trust setting.
+    # Fail closed globally; per-origin transports may add trusted root CAs.
+    truenas_edge = document(root, "apps/traefik/compose.yml")
+    edge_command = (
+        truenas_edge.get("services", {}).get("traefik", {}).get("command", [])
+    )
+    if (
+        "--serversTransport.insecureSkipVerify=false" not in edge_command
+        or "--serversTransport.insecureSkipVerify=true" in edge_command
+    ):
+        raise ValueError("TRAEFIK_UPSTREAM_GLOBAL_VERIFY_REQUIRED")
     return {
         "schema": "nabla-kubara-talos-audit/v1",
         "status": "CANDIDATE_READY_FOR_SCHEMA_VALIDATION",
@@ -137,6 +148,7 @@ def static_check(root: Path) -> dict[str, Any]:
         "metal_lb": "DISABLED_CANDIDATE",
         "longhorn": "DISABLED_CANDIDATE",
         "truenas_traefik_bridge": "EXAMPLE_NOT_LOADED",
+        "truenas_upstream_tls": "VERIFY_CERTIFICATES_ENABLED",
         "kubara_bootstrap": "NOT_RUN",
     }
 

@@ -32,6 +32,7 @@ http:
       serverName: "test.int.albandrieu.com"
       rootCAs:
         - "/etc/traefik/certs/REPLACE_WITH_PRIVATE_CA_CERT.pem"
-      # REQUIRED: TrueNAS Traefik has a legacy global insecureSkipVerify=true.
-      # This per-service override must enforce verification, not inherit it.
+      # Defense-in-depth: the versioned TrueNAS Traefik default is now
+      # insecureSkipVerify=false; this route also verifies TLS explicitly.
+      # The backend MUST present a cert for the serverName and trusted CA.
       insecureSkipVerify: false

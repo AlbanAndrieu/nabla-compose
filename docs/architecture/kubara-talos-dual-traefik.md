@@ -59,6 +59,25 @@ Deux options pour l'entrée bare-metal :
 `kubeProxyReplacement=false`; sinon préparer B dans une PR distincte.
 Le candidat Kubara garde `metallb: disabled` **tant que l'adresse et le
 fonctionnement L2 ne sont pas prouvés**. Une VIP ne se devine pas.
+La [préparation MetalLB L2](../runbooks/kubara-metallb-l2-pilot.md) ajoute
+`scripts/talos/prepare-metallb-kubara.py` : un profil isolé est généré
+avec `metallb.status=enabled` et un `loadBalancerAddressPool` privé
+`/32` uniquement après validation d'une VIP réservée et acquittement
+de la plage DHCP. Le manifeste CRD créé n'est qu'un contrat de revue :
+l'installation reste sous la propriété Helm/Argo CD de Kubara et
+aucune IP ne doit être annoncée tant que la génération réelle n'a
+pas été réceptionnée.
+
+**Compatibilité `kubeProxyReplacement: false` :** elle conserve
+kube-proxy pour ClusterIP/NodePort/LoadBalancer, donc MetalLB en L2 est
+compatible sans remplacement eBPF de kube-proxy. Vérifier néanmoins
+le mode kube-proxy effectif (si IPVS, `strictARP=true` est impératif),
+la disponibilité des speakers MetalLB, la plage DHCP R7000 et les
+annonceurs concurrents. Le choix Cilium LB IPAM + annonces L2 serait
+un chantier séparé exigeant `kubeProxyReplacement: true`, la mise en
+place d'un hôte/port API Kubernetes explicite pour Cilium, l'enforcement
+des NetworkPolicy après bascule, un test NodePort/LB et un rollback
+etcd/Talos. Ne pas activer deux annonceurs L2 sur la même VIP.
 
 ## 2. TrueNAS CSI ne se remplace pas automatiquement par Longhorn
 
@@ -96,11 +115,19 @@ StorageClass existante en place ni déplacer un PVC RWX vers RWO.
   `serversTransport` avec vérification TLS explicite, SNI et CA privée.
   Remplacer les **deux placeholders** (VIP et chemin CA) uniquement après
   réception du service Kubara et du certificat.
-- **Dette de sécurité préexistante** : le Traefik TrueNAS possède
-  `--serversTransport.insecureSkipVerify=true` dans Compose. Le pont
-  proposé définit `insecureSkipVerify: false` au niveau de son
-  `serversTransport` ; ne surtout pas hériter du réglage global.
-  La suppression du réglage global demande un audit des autres backends.
+- **TLS par défaut sécurisé dans la PR #456** : la configuration
+  TrueNAS `apps/traefik/compose.yml` passe de
+  `--serversTransport.insecureSkipVerify=true` à
+  `--serversTransport.insecureSkipVerify=false`. Le pont conserve
+  `insecureSkipVerify: false` et un `serverName` explicite.
+  **CODED ≠ DEPLOYED** : avant le redéploiement Traefik, contrôler
+  les backends HTTPS réels. Le commentaire historique Proxmox signalait
+  une CA autosignée et un possible HTTP 500/502 ; si un backend actif
+  utilise une CA privée, ajouter une `serversTransport` locale avec
+  `rootCAs` et SNI, sans rouvrir le bypass global.
+  Le wildcard Let's Encrypt **entrant** de TrueNAS ne suffit pas à
+  valider le certificat **sortant** de Traefik Kubernetes : ce dernier
+  doit disposer de son propre certificat et de son renouvellement.
 - **Identité / IP client** : seule l'IP de socket de cloudflared est
   autorisée à fournir les en-têtes externes côté TrueNAS. L'instance
   Kubernetes ne doit faire confiance à `X-Forwarded-For` **que depuis
@@ -121,6 +148,9 @@ Fichiers préparés :
   Les versions OCI `bootstrap:2.0.0` et `general:2.0.0` proviennent
   de la documentation Kubara **v0.14.0** ; elles sont **candidates** jusqu'à
   validation contre le schéma de la CLI et les signatures/catalogues réels.
+- `scripts/talos/prepare-metallb-kubara.py` : essai MetalLB L2 opt-in,
+  génération isolée du profil Kubara et de la CRD de référence, **aucun apply**.
+  Voir [les gates M0-M5](../runbooks/kubara-metallb-l2-pilot.md).
 - `scripts/talos/audit-kubara-integration.py` : audit statique offline,
   puis constat Kubernetes optionnel **read-only, avec acquittement explicite**.
 - `tests/test_kubara_integration_contract.py` : refus des dérives Cilium,
